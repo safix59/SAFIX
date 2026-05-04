@@ -4824,8 +4824,14 @@ document.getElementById('checkoutBtn').addEventListener('click', async () => {
   const mandateCb    = document.getElementById('mandateCheckbox');
   const mandateLabel = mandateCb?.closest('.mandate-check');
 
-  // 1) Mode de livraison (1ʳᵉ section visible après les items)
-  if (!selectedDelivery) {
+  // Détection : panier 100% Services purs (pas de pièce → pas de livraison)
+  const SERVICE_IDS_VAL = new Set(
+    (data?.repairs?.find(c => c.category === 'Services')?.repairs || []).map(r => r.id)
+  );
+  const onlyServicesVal = cart.length > 0 && cart.every(i => SERVICE_IDS_VAL.has(i.repairId));
+
+  // 1) Mode de livraison — SKIP si que des services purs (pas de pièce à livrer)
+  if (!onlyServicesVal && !selectedDelivery) {
     document.querySelectorAll('.delivery-option').forEach(o => markError(o));
     missing.push(document.getElementById('deliveryBlock'));
   } else {
