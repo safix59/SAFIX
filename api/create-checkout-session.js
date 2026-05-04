@@ -45,6 +45,7 @@ export default async function handler(req, res) {
       lineItems,     // [{ name, price, qty }]
       delivery,      // { name, price } — coût livraison
       paymentFees,   // en euros (ex: 1.59)
+      orderMeta,     // { model, phone, snap, delivery, addr, apptDate, apptSlot, lang }
       success_url,
       cancel_url,
     } = req.body || {};
@@ -113,6 +114,17 @@ export default async function handler(req, res) {
       metadata: {
         platform: 'safix',
         total_announced: String(total),
+        // Métadonnées de la commande pour le mail client
+        ...(orderMeta && {
+          model:    String(orderMeta.model    || ''),
+          phone:    String(orderMeta.phone    || ''),
+          snap:     String(orderMeta.snap     || ''),
+          delivery: String(orderMeta.delivery || ''),
+          addr:     String(orderMeta.addr     || ''),
+          apptDate: String(orderMeta.apptDate || ''),
+          apptSlot: String(orderMeta.apptSlot || ''),
+          lang:     String(orderMeta.lang     || 'fr'),
+        }),
       },
     });
 

@@ -80,66 +80,166 @@ function buildShopEmailHtml({ session, lineItems }) {
 }
 
 function buildClientEmailHtml({ session, lineItems }) {
+  const meta     = session.metadata || {};
+  const customer = session.customer_details || {};
   const total    = (session.amount_total / 100).toFixed(2);
-  const dt       = new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' });
+  const dt       = new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris', dateStyle:'full', timeStyle:'short' });
+
+  const SLOT_LABELS = { morning:'Matin (9h–12h)', afternoon:'Après-midi (14h–18h)', evening:'Soir (18h–20h)' };
+  const slotLabel = SLOT_LABELS[meta.apptSlot] || meta.apptSlot || '';
+  const apptDateFr = meta.apptDate
+    ? new Date(meta.apptDate).toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' })
+    : '';
+  const apptLine = (apptDateFr && slotLabel) ? `${apptDateFr} · ${slotLabel}` : (apptDateFr || slotLabel || '—');
+  const addrLine = meta.addr === 'other'
+    ? "Adresse à convenir — nous vous recontactons rapidement par e-mail ou Snap"
+    : "48 Bd Alexandre III, 59140 Dunkerque";
+  const deliveryLabel = meta.delivery === 'express' ? 'Express (J+1, 15h)'
+                      : meta.delivery === 'standard' ? 'Standard (sous 48h)'
+                      : null;
+
+  // Détecter le type de commande pour adapter le contenu
+  const hasRepair      = lineItems.some(it => /\b(?:écran|battery|batterie|caméra|camera|haut.parleur|connecteur|vibreur|écouteur|micro|bouton|vitre)\b/i.test(it.name || ''));
+  const hasService     = lineItems.some(it => /\b(?:déblocage|deblocage|désoxydation|desoxydation|diagnostic|récupération|recuperation|restauration|micro.soudure|face.id)\b/i.test(it.name || ''));
+  const hasAccessory   = lineItems.some(it => /\b(?:câble|cable|adaptateur|verre|tremp|protect|chargeur)\b/i.test(it.name || ''));
+
   const itemsRows = lineItems.map(it => {
     const lt = (it.unit_amount * it.qty / 100).toFixed(2);
     return `<tr>
-      <td style="padding:10px 12px;border-bottom:1px solid #eee;">${it.name}</td>
-      <td style="padding:10px 12px;border-bottom:1px solid #eee;text-align:center;">×${it.qty}</td>
-      <td style="padding:10px 12px;border-bottom:1px solid #eee;text-align:right;font-variant-numeric:tabular-nums;">${lt} €</td>
+      <td style="padding:12px 14px;border-bottom:1px solid #eee;color:#1d1d1f;">${it.name}</td>
+      <td style="padding:12px 14px;border-bottom:1px solid #eee;text-align:center;color:#86868b;font-variant-numeric:tabular-nums;">×${it.qty}</td>
+      <td style="padding:12px 14px;border-bottom:1px solid #eee;text-align:right;font-variant-numeric:tabular-nums;font-weight:600;">${lt} €</td>
     </tr>`;
   }).join('');
+
+  // ETA réparation : J+0 standard / J+1 express si réparation
+  let etaBlock = '';
+  if (hasRepair && deliveryLabel) {
+    const eta = meta.delivery === 'express' ? 'sous 48h après dépôt' : 'sous 72h après dépôt';
+    etaBlock = `<div style="margin-top:16px;padding:14px 16px;background:#f0f9ff;border-left:3px solid #0066ff;border-radius:8px;font-size:13.5px;line-height:1.5;color:#1d1d1f;">
+      <strong>⚡ Réparation estimée :</strong> ${eta}
+    </div>`;
+  }
+
+  // Bloc RDV de dépôt (si pas que des accessoires sans réparation)
+  let rdvBlock = '';
+  if (hasRepair || hasService) {
+    rdvBlock = `<div style="margin-top:20px;padding:18px 20px;background:#fafafa;border-radius:14px;border:1px solid #e5e5e5;">
+      <div style="font-size:11px;color:#86868b;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;margin-bottom:10px;">📅 Votre rendez-vous</div>
+      <div style="font-size:16px;font-weight:600;color:#1d1d1f;line-height:1.4;">${apptLine}</div>
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid #e5e5e5;font-size:11px;color:#86868b;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;margin-bottom:8px;">📍 Lieu de dépôt</div>
+      <div style="font-size:14px;color:#1d1d1f;line-height:1.5;">${addrLine}</div>
+    </div>`;
+  }
+
+  // Bloc livraison accessoire (si que des accessoires)
+  let accessoryBlock = '';
+  if (hasAccessory && !hasRepair && !hasService) {
+    accessoryBlock = `<div style="margin-top:20px;padding:18px 20px;background:#fafafa;border-radius:14px;border:1px solid #e5e5e5;">
+      <div style="font-size:11px;color:#86868b;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;margin-bottom:10px;">📦 Livraison accessoire</div>
+      <div style="font-size:14px;color:#1d1d1f;line-height:1.5;">L'accessoire sera commandé chez notre fournisseur partenaire et préparé pour vous. Nous vous recontactons sous 24h pour fixer la modalité de retrait ou l'envoi.</div>
+    </div>`;
+  }
+
+  // Section "Et maintenant ?" adaptative
+  let nextSteps = '';
+  if (hasRepair) {
+    nextSteps = `<ol style="margin:0;padding-left:18px;font-size:13.5px;line-height:1.7;color:#3a3a3c;">
+      <li>Notre fournisseur partenaire va expédier la pièce</li>
+      <li>Vous apportez votre iPhone au rendez-vous indiqué ci-dessus</li>
+      <li>La réparation est effectuée pendant que vous patientez (ou dans la journée selon complexité)</li>
+      <li>Vous repartez avec votre iPhone réparé + facture</li>
+    </ol>`;
+  } else if (hasService) {
+    nextSteps = `<ol style="margin:0;padding-left:18px;font-size:13.5px;line-height:1.7;color:#3a3a3c;">
+      <li>Vous apportez votre iPhone au rendez-vous indiqué ci-dessus</li>
+      <li>Le service est réalisé en présentiel pendant votre attente</li>
+      <li>Vous repartez avec votre iPhone et la confirmation du service</li>
+    </ol>`;
+  } else {
+    nextSteps = `<ol style="margin:0;padding-left:18px;font-size:13.5px;line-height:1.7;color:#3a3a3c;">
+      <li>Nous commandons l'accessoire chez notre fournisseur partenaire</li>
+      <li>Vous êtes informé(e) dès qu'il est prêt</li>
+      <li>Vous le récupérez ou nous l'envoyons selon arrangement</li>
+    </ol>`;
+  }
+
+  const modelLine = meta.model ? `<div style="font-size:14px;color:#86868b;margin-top:6px;">Modèle : <strong style="color:#1d1d1f;">${meta.model}</strong></div>` : '';
+
   return `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>SAFIX — Confirmation de commande</title></head>
-<body style="margin:0;padding:0;background:#f5f5f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1d1d1f;">
-  <div style="max-width:600px;margin:0 auto;padding:32px 24px;">
+<html><head><meta charset="utf-8"><title>SAFIX — Commande confirmée</title></head>
+<body style="margin:0;padding:0;background:#f5f5f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1d1d1f;-webkit-font-smoothing:antialiased;">
+  <div style="max-width:620px;margin:0 auto;padding:32px 24px;">
+
+    <!-- Header brand -->
     <div style="text-align:center;margin-bottom:24px;">
-      <div style="font-size:32px;font-weight:800;color:#0066ff;letter-spacing:-1px;">SAFIX</div>
-      <div style="font-size:13px;color:#86868b;margin-top:4px;">Réparation iPhone Premium</div>
+      <a href="https://safix59.fr" style="text-decoration:none;">
+        <div style="font-size:34px;font-weight:800;color:#1d1d1f;letter-spacing:-1.5px;display:inline-block;">
+          <span style="color:#0066ff;">SA</span>FIX
+        </div>
+      </a>
+      <div style="font-size:12.5px;color:#86868b;margin-top:2px;letter-spacing:.5px;">Réparation iPhone · Dunkerque</div>
     </div>
-    <div style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.06);">
-      <div style="background:linear-gradient(135deg,#0066ff 0%,#5b21b6 100%);padding:32px 24px;text-align:center;color:#fff;">
-        <div style="font-size:48px;margin-bottom:8px;">✓</div>
-        <div style="font-size:24px;font-weight:700;letter-spacing:-.5px;">Commande confirmée</div>
-        <div style="font-size:14px;opacity:.85;margin-top:8px;">Merci pour votre confiance</div>
+
+    <!-- Hero confirmation -->
+    <div style="background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.06);">
+      <div style="background:linear-gradient(135deg,#0066ff 0%,#5b21b6 100%);padding:36px 24px;text-align:center;color:#fff;">
+        <div style="font-size:52px;line-height:1;margin-bottom:10px;">✓</div>
+        <div style="font-size:26px;font-weight:700;letter-spacing:-.5px;">Commande confirmée</div>
+        <div style="font-size:14px;opacity:.9;margin-top:6px;">Paiement reçu · ${total} €</div>
       </div>
-      <div style="padding:28px 24px;">
-        <p style="font-size:15px;line-height:1.6;color:#1d1d1f;margin:0 0 24px;">
+
+      <div style="padding:30px 24px;">
+        <p style="font-size:15px;line-height:1.65;color:#1d1d1f;margin:0 0 24px;">
           Bonjour,<br><br>
-          Votre commande SAFIX a bien été reçue et le paiement est confirmé. Nous allons commander la pièce nécessaire chez notre fournisseur partenaire pour réaliser votre réparation.
+          Merci pour votre commande sur <a href="https://safix59.fr" style="color:#0066ff;text-decoration:none;font-weight:600;">safix59.fr</a>. Le paiement de <strong>${total} €</strong> a été confirmé. Voici tous les détails utiles.
         </p>
-        <div style="font-size:13px;color:#86868b;letter-spacing:1px;text-transform:uppercase;font-weight:600;margin-bottom:8px;">Détail de votre commande</div>
-        <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:20px;">
+
+        <!-- Items -->
+        <div style="font-size:11px;color:#86868b;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;margin-bottom:10px;">🛒 Votre commande</div>
+        ${modelLine}
+        <table style="width:100%;border-collapse:collapse;font-size:14px;margin-top:12px;margin-bottom:6px;background:#fafafa;border-radius:12px;overflow:hidden;">
           <thead><tr style="background:#f5f5f7;">
-            <th style="padding:10px 12px;text-align:left;font-weight:600;color:#86868b;font-size:12px;text-transform:uppercase;letter-spacing:.5px;">Article</th>
-            <th style="padding:10px 12px;text-align:center;font-weight:600;color:#86868b;font-size:12px;text-transform:uppercase;letter-spacing:.5px;">Qté</th>
-            <th style="padding:10px 12px;text-align:right;font-weight:600;color:#86868b;font-size:12px;text-transform:uppercase;letter-spacing:.5px;">Prix</th>
+            <th style="padding:10px 14px;text-align:left;font-weight:700;color:#86868b;font-size:11px;text-transform:uppercase;letter-spacing:.5px;">Article</th>
+            <th style="padding:10px 14px;text-align:center;font-weight:700;color:#86868b;font-size:11px;text-transform:uppercase;letter-spacing:.5px;">Qté</th>
+            <th style="padding:10px 14px;text-align:right;font-weight:700;color:#86868b;font-size:11px;text-transform:uppercase;letter-spacing:.5px;">Prix</th>
           </tr></thead>
           <tbody>${itemsRows}</tbody>
-          <tfoot><tr><td colspan="2" style="padding:14px 12px;font-weight:700;font-size:16px;">TOTAL</td><td style="padding:14px 12px;text-align:right;font-weight:800;font-size:18px;color:#0066ff;font-variant-numeric:tabular-nums;">${total} €</td></tr></tfoot>
+          <tfoot><tr style="background:#fff;">
+            <td colspan="2" style="padding:14px;font-weight:700;font-size:16px;color:#1d1d1f;">Total payé</td>
+            <td style="padding:14px;text-align:right;font-weight:800;font-size:20px;color:#0066ff;font-variant-numeric:tabular-nums;">${total} €</td>
+          </tr></tfoot>
         </table>
-        <div style="margin-top:20px;padding:16px;background:#f5f5f7;border-radius:12px;font-size:13px;line-height:1.5;color:#3a3a3c;">
-          <strong>Et maintenant ?</strong><br>
-          1. Vous recevrez un mail de confirmation avec votre rendez-vous de dépôt<br>
-          2. Apportez votre iPhone à l'adresse convenue<br>
-          3. Réparation effectuée le jour-même dans la majorité des cas
+
+        ${etaBlock}
+        ${rdvBlock}
+        ${accessoryBlock}
+
+        <!-- Et maintenant ? -->
+        <div style="margin-top:24px;padding:18px 20px;background:linear-gradient(135deg,rgba(0,102,255,.04),rgba(91,33,182,.04));border-radius:14px;">
+          <div style="font-size:11px;color:#86868b;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;margin-bottom:10px;">✨ Et maintenant ?</div>
+          ${nextSteps}
         </div>
-        <div style="margin-top:20px;padding:16px;border:1.5px solid #e5e5e5;border-radius:12px;font-size:13px;line-height:1.5;">
-          <strong>Adresse de dépôt par défaut :</strong><br>
-          48 Bd Alexandre III, 59140 Dunkerque<br>
-          <span style="color:#86868b;">(ou autre adresse selon votre choix — nous vous recontactons)</span>
+
+        <!-- Support -->
+        <div style="margin-top:24px;padding:18px 20px;border-radius:14px;border:1px solid #e5e5e5;text-align:center;">
+          <div style="font-size:13px;font-weight:700;color:#1d1d1f;margin-bottom:8px;">Une question ? On répond rapidement.</div>
+          <div style="font-size:13px;color:#3a3a3c;line-height:1.6;">
+            📧 <a href="mailto:fusion-laminaire-0i@icloud.com" style="color:#0066ff;text-decoration:none;">fusion-laminaire-0i@icloud.com</a><br>
+            👻 Snapchat · <a href="https://www.snapchat.com/add/safix-support" style="color:#0066ff;text-decoration:none;">@safix-support</a><br>
+            🌐 <a href="https://safix59.fr" style="color:#0066ff;text-decoration:none;">safix59.fr</a>
+          </div>
         </div>
-        <div style="text-align:center;margin-top:28px;font-size:13px;color:#86868b;">
-          Une question ? Réponds simplement à ce mail<br>
-          <span style="color:#86868b;">ou contacte le support : <a href="mailto:fusion-laminaire-0i@icloud.com" style="color:#0066ff;text-decoration:none;">fusion-laminaire-0i@icloud.com</a></span>
-        </div>
+
       </div>
     </div>
-    <div style="text-align:center;font-size:11px;color:#86868b;margin-top:20px;line-height:1.5;">
+
+    <!-- Footer légal -->
+    <div style="text-align:center;font-size:11px;color:#86868b;margin-top:24px;line-height:1.6;">
       SAFIX · Entreprise individuelle · 48 Bd Alexandre III, 59140 Dunkerque<br>
-      SIREN 942 003 062 · TVA non applicable, art. 293 B du CGI<br>
-      Reçu le ${dt}
+      SIREN 942 003 062 · SIRET 942 003 062 00018<br>
+      TVA non applicable, art. 293 B du CGI<br>
+      <span style="opacity:.7;">Reçu le ${dt}</span>
     </div>
   </div>
 </body></html>`;

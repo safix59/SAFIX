@@ -4212,10 +4212,9 @@ function syncCart() {
   // "Pas de réparation iPhone" = soit que services, soit que accessoires/protections
   const noRepair = onlyServices || onlyAccessories;
 
-  // Cache la livraison ET le rendez-vous pour les services purs (pas de pièce → pas de livraison ni dépôt physique)
+  // Services purs = pas de pièce à acheter → pas de livraison
+  // (mais on GARDE le RDV : le service se fait en présentiel sur l'iPhone)
   if (delivBlk) delivBlk.style.display = onlyServices ? 'none' : '';
-  if (apptBlk)  apptBlk.style.display  = onlyServices ? 'none' : '';
-  // Si que des services : reset les sélections livraison/RDV qui n'ont plus de sens
   if (onlyServices) {
     selectedDelivery = null;
     document.querySelectorAll('.delivery-option.selected').forEach(o => o.classList.remove('selected'));
@@ -4544,7 +4543,7 @@ Passée le : ${new Date().toLocaleString('fr-FR')}`;
   return { sent: false, reason: 'not_configured', subject, bodyText };
 }
 
-async function payWithStripe({ email, total, lineItems, delivery, paymentFees }) {
+async function payWithStripe({ email, total, lineItems, delivery, paymentFees, orderMeta }) {
   const cfg = window.SAFIX_CONFIG.stripe;
   if (!cfg.enabled || !cfg.publicKey) {
     console.info('[SAFIX] Stripe non configuré → paiement bypass. Renseigne SAFIX_CONFIG.stripe.');
@@ -4558,6 +4557,7 @@ async function payWithStripe({ email, total, lineItems, delivery, paymentFees })
       body: JSON.stringify({
         email, total, lineItems,
         delivery, paymentFees,
+        orderMeta,
         success_url: cfg.successUrl,
         cancel_url:  cfg.cancelUrl,
       }),
@@ -4704,7 +4704,18 @@ document.getElementById('checkoutBtn').addEventListener('click', async () => {
         ts: Date.now(),
       }));
     } catch (e) { console.warn('[SAFIX] localStorage indisponible', e); }
-    const stripeResp = await payWithStripe({ email, total: totalNow, lineItems, delivery: deliveryLine, paymentFees });
+    // Métadonnées commande (passées via Stripe metadata pour le mail client server-side)
+    const orderMeta = {
+      model:      activeModel || 'iPhone',
+      phone:      phone || '',
+      snap:       snap || '',
+      delivery:   selectedDelivery || '',
+      addr:       appointmentAddress || 'default',
+      apptDate:   appointmentDate || '',
+      apptSlot:   appointmentSlot || '',
+      lang:       currentLang || 'fr',
+    };
+    const stripeResp = await payWithStripe({ email, total: totalNow, lineItems, delivery: deliveryLine, paymentFees, orderMeta });
     if (stripeResp.redirected) return;          // navigation vers Stripe → on stoppe ici
     if (!stripeResp.paid) {
       showToast('⚠️', currentLang === 'en' ? 'Payment failed' : 'Le paiement a échoué');
