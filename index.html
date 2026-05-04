@@ -1107,44 +1107,51 @@ header {
 }
 .payment-note strong { color:var(--text); }
 
-/* Express Row : Apple Pay (ECE) + PayPal (custom) — 50/50 sur 1 ligne */
+/* Express Row : Apple Pay/Google Pay (ECE) + PayPal (custom) — 50/50 sur 1 ligne.
+   Flexbox plutôt que grid : si ECE est vide (device sans wallet), PayPal s'étend
+   automatiquement à toute la largeur grâce à flex:1 + display:none sur ECE vide. */
 .express-row {
-  display:grid;
-  grid-template-columns:1fr 1fr;
+  display:flex;
   gap:8px; align-items:stretch;
   margin-bottom:8px;
 }
 .express-checkout-mount {
+  flex:1; min-width:0;          /* min-width:0 pour permettre le shrink */
   min-height:44px;
   position:relative;
   transition:opacity .25s, filter .25s;
 }
 .express-checkout-mount:empty { display:none; }
 
-/* Bouton PayPal custom — jaune officiel PayPal, style moderne minimaliste */
+/* Bouton PayPal custom — jaune officiel PayPal, wordmark minimaliste.
+   flex:1 → prend la moitié de la ligne quand ECE est aussi présent (50/50),
+   ou toute la largeur si ECE est masqué (device sans Apple Pay/Google Pay). */
 .paypal-btn {
   display:inline-flex; align-items:center; justify-content:center;
-  height:44px; width:100%;
+  flex:1; min-width:0;
+  height:44px;
   padding:0 16px;
-  background:#FFC439;          /* Jaune PayPal officiel (couleur principale moderne) */
-  color:#003087;
+  background:#FFC439;
   border:none; border-radius:6px;
   cursor:pointer;
   transition:opacity .2s, transform .15s, background .2s, filter .25s;
   -webkit-tap-highlight-color:transparent;
-  font-weight:700; letter-spacing:.2px;
-  font-size:15px;
 }
 .paypal-btn:hover { background:#F2BB36; }
 .paypal-btn:active { transform:scale(.97); }
-.paypal-btn svg { display:block; }
-.paypal-btn-text {
-  font-style:italic; font-weight:800;
+/* Wordmark "PayPal" — italic + couleurs officielles (navy + cyan) sur fond jaune */
+.paypal-wordmark {
+  font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-style:italic;
+  font-weight:800;
+  font-size:18px;
+  letter-spacing:-.6px;
+  line-height:1;
   display:inline-flex; align-items:baseline;
-  font-size:17px; letter-spacing:-.3px;
+  user-select:none;
 }
-.paypal-btn-text .pp1 { color:#003087; }     /* "Pay" en bleu navy PayPal */
-.paypal-btn-text .pp2 { color:#009CDE; }     /* "Pal" en bleu cyan PayPal */
+.paypal-wordmark .pp-pay { color:#003087; }   /* navy officiel PayPal */
+.paypal-wordmark .pp-pal { color:#009CDE; }   /* cyan officiel PayPal */
 
 /* État désactivé : grisé + pas de clic tant que les champs ne sont pas remplis */
 .express-row.is-incomplete .express-checkout-mount,
@@ -2630,15 +2637,11 @@ input:focus:not(:focus-visible) {
     <!-- ═══ MOYENS DE PAIEMENT ═══ -->
     <div class="cart-section" id="paymentBlock" style="display:none">
       <div class="cart-section-title" data-i18n="payment.title">Paiement</div>
-      <!-- Express Checkout : Apple Pay + Google Pay (Stripe ECE) + PayPal custom — sur 1 ligne -->
+      <!-- Express Checkout : Apple Pay + Google Pay (Stripe ECE) + PayPal custom — sur 1 ligne 50/50 -->
       <div class="express-row">
         <div id="expressCheckoutMount" class="express-checkout-mount"></div>
         <button type="button" id="paypalBtn" class="paypal-btn" aria-label="PayPal">
-          <svg width="68" height="20" viewBox="0 0 101 32" fill="none" aria-hidden="true">
-            <path d="M12.237 6.633h6.518c3.5 0 4.823 1.772 4.62 4.378-.336 4.3-2.93 6.677-6.378 6.677h-1.74c-.474 0-.793.314-.92 1.16l-.74 4.937c-.05.32-.218.504-.47.527H8.84c-.385 0-.522-.294-.42-.93l2.495-15.78c.099-.628.443-.97.928-.97z" fill="#003087"/>
-            <path d="M40.66 11.83c-1.026 0-1.834.85-1.96 1.79-.092.683.214 1.286.998 1.286.987 0 1.794-.84 1.927-1.787.13-.937-.262-1.29-.965-1.29zm-3.84 8.107c-.262 0-.345-.17-.31-.396l1.057-6.713c.034-.196.215-.387.42-.387h2.14c.205 0 .283.144.246.387l-.205 1.302c-.034.215.05.358.213.358.16 0 .49-.344 1.36-.97 1.16-.83 2.318-.974 3.353-.567 1.064.42 1.4 1.46 1.225 2.612l-.84 5.376c-.034.215-.205.398-.4.398h-2.158c-.245 0-.328-.17-.292-.397l.7-4.482c.097-.616-.183-.97-.788-.97-.62 0-1.108.392-1.205 1.025l-.65 4.03c-.03.215-.205.398-.4.398h-2.158zM55.4 11.876c-.97 0-1.794.873-1.92 1.787-.13.937.245 1.302.987 1.302.972 0 1.794-.84 1.92-1.79.13-.93-.262-1.302-.987-1.302zm-3.84 8.06c-.262 0-.345-.17-.31-.396l1.06-6.713c.03-.196.215-.387.42-.387h2.14c.205 0 .278.144.245.387l-.215 1.32c-.03.215.05.358.213.358.16 0 .487-.345 1.358-.972 1.16-.83 2.318-.985 3.353-.572 1.06.413 1.4 1.448 1.225 2.605l-.84 5.376c-.034.215-.205.398-.4.398h-2.158c-.244 0-.327-.17-.292-.397l.7-4.482c.097-.616-.183-.97-.788-.97-.617 0-1.108.392-1.205 1.025l-.65 4.03c-.03.215-.205.398-.4.398h-2.158z" fill="#009cde"/>
-            <path d="M28.587 6.633h6.518c3.5 0 4.823 1.772 4.62 4.378-.336 4.3-2.93 6.677-6.378 6.677h-1.74c-.474 0-.793.314-.92 1.16l-.74 4.937c-.05.32-.218.504-.47.527h-2.288c-.385 0-.522-.294-.42-.93l2.495-15.78c.099-.628.443-.97.928-.97z" fill="#009cde"/>
-          </svg>
+          <span class="paypal-wordmark" aria-hidden="true"><span class="pp-pay">Pay</span><span class="pp-pal">Pal</span></span>
         </button>
       </div>
       <div class="payment-divider"><span data-i18n="payment.or">ou</span></div>
@@ -4800,13 +4803,25 @@ async function mountExpressCheckout(amountCents, orderContext) {
     });
     _eceLastAmount = amountCents;
 
+    // Détection device : Apple (iPhone, iPad, iPod, Mac) → Apple Pay,
+    //                    sinon (Android, Samsung, Windows…) → Google Pay
+    // 1 SEUL bouton wallet affiché selon le device → cellule ECE = 50% de la ligne
+    const ua = navigator.userAgent || '';
+    const isAppleDevice = /iPhone|iPad|iPod|Macintosh/i.test(ua) ||
+                          (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     _eceComponent = _eceElements.create('expressCheckout', {
-      // Boutons compacts (juste les logos) → tiennent 3 côte à côte
       buttonType:   { applePay: 'plain', googlePay: 'plain', paypal: 'paypal' },
       buttonHeight: 44,
-      // Désactive Link et Amazon Pay pour ne garder que les 3 demandés
-      paymentMethods: { applePay: 'always', googlePay: 'always', link: 'never', paypal: 'auto', amazonPay: 'never' },
-      layout: { maxColumns: 3, maxRows: 1, overflow: 'auto' },
+      // Apple device → Apple Pay only ; Android/Chrome → Google Pay only.
+      // Link, PayPal et Amazon Pay sont gérés ailleurs (PayPal = bouton custom à droite).
+      paymentMethods: {
+        applePay:  isAppleDevice ? 'always' : 'never',
+        googlePay: isAppleDevice ? 'never'  : 'always',
+        link:      'never',
+        paypal:    'never',
+        amazonPay: 'never',
+      },
+      layout: { maxColumns: 1, maxRows: 1, overflow: 'never' },
     });
     _eceComponent.mount('#expressCheckoutMount');
 
@@ -4818,11 +4833,46 @@ async function mountExpressCheckout(amountCents, orderContext) {
       console.error('[ECE] loaderror :', event.error);
     });
 
-    // Au click sur Apple Pay/Google Pay : confirmer via PaymentIntent serveur
+    // Au CLICK sur Apple Pay/Google Pay (avant ouverture sheet) : valide le formulaire
+    // Si invalide → on n'appelle PAS event.resolve() → la sheet ne s'ouvrira pas.
+    // (Ceinture+bretelles : le CSS .is-incomplete + pointer-events:none bloque déjà
+    //  le click, mais cette validation côté JS est la dernière barrière sûre.)
+    _eceComponent.on('click', (event) => {
+      const { ok, firstMissing } = validateCheckoutForm();
+      if (!ok) {
+        firstMissing?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        showToast('⚠️', currentLang === 'en'
+          ? 'Please complete the required fields'
+          : 'Veuillez remplir les champs obligatoires');
+        return;  // pas de event.resolve() → la sheet ne s'ouvre pas
+      }
+      // Valide → ouvre la sheet avec collecte email seulement (le reste est déjà saisi)
+      event.resolve({ emailRequired: true });
+    });
+
+    // Au CONFIRM (utilisateur a validé dans la sheet Apple Pay/Google Pay)
+    // → reconstruit le contexte commande À CHAUD depuis le DOM (pas de stale data)
+    // → crée le PaymentIntent côté backend avec les MÊMES métadonnées que checkoutBtn
     _eceComponent.on('confirm', async (event) => {
       try {
-        const ctx = window._safixCurrentOrder || orderContext || {};
-        // Créer le PaymentIntent côté backend
+        // Re-vérifie la validation (au cas où l'utilisateur aurait modifié des champs entre-temps)
+        const v = validateCheckoutForm();
+        if (!v.ok) {
+          if (typeof event.paymentFailed === 'function') {
+            event.paymentFailed({ reason: 'fail' });
+          }
+          v.firstMissing?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          showToast('⚠️', currentLang === 'en'
+            ? 'Please complete the required fields'
+            : 'Veuillez remplir les champs obligatoires');
+          return;
+        }
+        // Reconstruit le contexte FRAIS (téléphone, snap, RDV…) depuis le DOM
+        const ctx = buildOrderContextFromDOM();
+        // Met à jour la variable globale pour cohérence
+        window._safixCurrentOrder = ctx;
+
+        // Crée le PaymentIntent backend avec mêmes infos que "Confier la commande"
         const r = await fetch('/api/create-payment-intent', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -4831,14 +4881,25 @@ async function mountExpressCheckout(amountCents, orderContext) {
         if (!r.ok) throw new Error('PaymentIntent backend HTTP ' + r.status);
         const { clientSecret } = await r.json();
 
-        // Persister la commande pour le post-redirect ?paid=1
+        // Persiste la commande pour le post-redirect ?paid=1 (modale + email)
         try {
           localStorage.setItem('safix_pending_order', JSON.stringify({
-            ...ctx, ts: Date.now(),
+            email:          ctx.email,
+            phone:          ctx.orderMeta.phone,
+            snap:           ctx.orderMeta.snap,
+            model:          ctx.orderMeta.model,
+            cart,
+            deliveryMode:   ctx.orderMeta.delivery,
+            deliveryCost:   ctx.delivery ? ctx.delivery.price : 0,
+            baseAmount:     ctx.total,
+            paymentFees:    0,                       // ECE : shop absorbe les frais
+            total:          ctx.total,
+            paymentMethod:  ctx.orderMeta.paymentMethod,
+            appointmentDate, appointmentSlot, appointmentAddress,
+            ts: Date.now(),
           }));
         } catch {}
 
-        // Confirmer avec les Elements
         const { error } = await _eceStripe.confirmPayment({
           elements:      _eceElements,
           clientSecret,
@@ -4849,7 +4910,6 @@ async function mountExpressCheckout(amountCents, orderContext) {
           console.warn('[ECE] Confirm error :', error);
           showToast('⚠️', currentLang === 'en' ? 'Payment cancelled or failed' : 'Paiement annulé ou échoué');
         } else {
-          // Pas d'erreur + pas de redirect → succès direct
           window.location.href = window.location.pathname + '?paid=1';
         }
       } catch (e) {
@@ -4858,9 +4918,7 @@ async function mountExpressCheckout(amountCents, orderContext) {
       }
     });
 
-    _eceComponent.on('cancel', () => {
-      console.info('[ECE] User cancelled');
-    });
+    _eceComponent.on('cancel', () => { console.info('[ECE] User cancelled'); });
   } catch (e) {
     console.warn('[SAFIX] Express Checkout mount fail :', e.message);
     mount.innerHTML = '';
@@ -4922,65 +4980,52 @@ function flashError(el) {
 function markError(el)  { if (el) el.classList.add('flash-error'); }
 function clearError(el) { if (el) el.classList.remove('flash-error'); }
 
-document.getElementById('checkoutBtn').addEventListener('click', async () => {
-  if (!cart.length) return;
-
-  // ═══ Validation : on marque TOUS les champs manquants en rouge persistant
-  // Ordre = ordre d'apparition à l'écran (haut → bas) pour que le scroll
-  // aille vers la PREMIÈRE erreur visible (la plus haute).
+// ═══ Validation partagée : checkoutBtn (carte) + Apple Pay / Google Pay (ECE)
+// Marque les champs manquants en rouge, retourne { ok, firstMissing } pour
+// que les deux flux paiement appliquent EXACTEMENT les mêmes règles.
+function validateCheckoutForm() {
   const missing = [];
-  const emailInput = document.getElementById('emailInput');
-  const emailWrap  = emailInput.closest('.cart-input-wrap');
-  const email = (emailInput.value || '').trim();
+  const emailInput   = document.getElementById('emailInput');
+  const emailWrap    = emailInput?.closest('.cart-input-wrap');
+  const email        = (emailInput?.value || '').trim();
   const mandateCb    = document.getElementById('mandateCheckbox');
   const mandateLabel = mandateCb?.closest('.mandate-check');
 
-  // Détection : panier 100% Services purs (pas de pièce → pas de livraison)
+  // Panier 100% Services purs (pas de pièce → pas de livraison requise)
   const SERVICE_IDS_VAL = new Set(
     (data?.repairs?.find(c => c.category === 'Services')?.repairs || []).map(r => r.id)
   );
   const onlyServicesVal = cart.length > 0 && cart.every(i => SERVICE_IDS_VAL.has(i.repairId));
 
-  // 1) Mode de livraison — SKIP si que des services purs (pas de pièce à livrer)
+  // 1) Livraison (sauf si que des services purs)
   if (!onlyServicesVal && !selectedDelivery) {
     document.querySelectorAll('.delivery-option').forEach(o => markError(o));
     missing.push(document.getElementById('deliveryBlock'));
   } else {
     document.querySelectorAll('.delivery-option').forEach(o => clearError(o));
   }
-
   // 2) Rendez-vous : date
   if (!appointmentDate) {
-    const trigger = document.getElementById('appointmentDateTrigger');
-    markError(trigger);
+    markError(document.getElementById('appointmentDateTrigger'));
     missing.push(document.getElementById('appointmentBlock'));
   } else {
     clearError(document.getElementById('appointmentDateTrigger'));
   }
   // 2bis) Rendez-vous : créneau
   if (!appointmentSlot) {
-    const slots = document.querySelector('.appointment-slots');
-    markError(slots);
+    markError(document.querySelector('.appointment-slots'));
     if (appointmentDate) missing.push(document.getElementById('appointmentBlock'));
   } else {
     clearError(document.querySelector('.appointment-slots'));
   }
-
-  // 3) Email valide (section "Vos coordonnées")
+  // 3) Email valide
   if (!isValidEmail(email)) {
-    emailWrap.classList.add('error');
-    markError(emailWrap);
+    if (emailWrap) { emailWrap.classList.add('error'); markError(emailWrap); }
     missing.push(emailWrap);
   } else {
-    emailWrap.classList.remove('error');
-    clearError(emailWrap);
+    if (emailWrap) { emailWrap.classList.remove('error'); clearError(emailWrap); }
   }
-
-  // 4) Méthode de paiement : 'card' par défaut (Stripe Checkout). Apple Pay / Google Pay
-  // sont gérés directement par Express Checkout Element (avant cette validation).
-  if (!selectedPayment) selectedPayment = 'card';
-
-  // 5) Case mandat (dernière section avant le bouton)
+  // 4) Mandat
   if (!mandateCb || !mandateCb.checked) {
     if (mandateLabel) markError(mandateLabel);
     missing.push(document.getElementById('mandateBlock'));
@@ -4988,14 +5033,66 @@ document.getElementById('checkoutBtn').addEventListener('click', async () => {
     if (mandateLabel) clearError(mandateLabel);
   }
 
-  if (missing.length) {
-    // Scroll vers la 1ʳᵉ erreur (la plus haute dans la page)
-    missing[0]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  return { ok: missing.length === 0, firstMissing: missing[0] || null };
+}
+
+// Reconstruit le contexte commande à chaud depuis le DOM — utilisé par
+// Apple Pay / Google Pay au moment du clic (pas seulement updateCart).
+// Garantit que les infos saisies en dernier (téléphone, snap…) sont incluses.
+function buildOrderContextFromDOM() {
+  const items = cart.reduce((s, i) => s + i.price * (i.qty || 1), 0);
+  const deliv = getDeliveryCost();
+  const baseAmount = items + deliv;
+  const stripeFees = baseAmount > 0
+    ? +(((baseAmount + 0.25) / 0.985) - baseAmount).toFixed(2)
+    : 0;
+  const sum         = +(baseAmount).toFixed(2);
+  const sumWithFees = +(baseAmount + stripeFees).toFixed(2);
+  const lineItems = cart.map(i => ({
+    name: tr(i.name), price: i.price, qty: i.qty || 1,
+    repairId: i.repairId, modelKey: i.modelKey, colorName: i.colorName || null,
+  }));
+  const cartCompact = cart.map(i => ({
+    r: i.repairId, m: i.modelKey, q: i.qty || 1, ...(i.colorName && { c: i.colorName }),
+  }));
+  return {
+    email: (document.getElementById('emailInput')?.value || '').trim(),
+    total: sum,
+    totalWithFees: sumWithFees,
+    lineItems,
+    delivery: deliv > 0
+      ? { name: selectedDelivery === 'express' ? 'Livraison Express' : 'Livraison Standard', price: deliv }
+      : null,
+    paymentFees: stripeFees,
+    orderMeta: {
+      model:    activeModel || 'iPhone',
+      phone:    (document.getElementById('phoneInput')?.value || '').trim(),
+      snap:     (document.getElementById('snapInput')?.value  || '').trim(),
+      delivery: selectedDelivery || '',
+      addr:     appointmentAddress || 'default',
+      apptDate: appointmentDate || '',
+      apptSlot: appointmentSlot || '',
+      lang:     currentLang || 'fr',
+      paymentMethod: 'applepay',
+      cart:     JSON.stringify(cartCompact),
+    },
+  };
+}
+
+document.getElementById('checkoutBtn').addEventListener('click', async () => {
+  if (!cart.length) return;
+
+  // ═══ Validation : marque TOUS les champs manquants en rouge persistant
+  const { ok, firstMissing } = validateCheckoutForm();
+  if (!selectedPayment) selectedPayment = 'card';   // 'card' par défaut (Stripe Checkout)
+  if (!ok) {
+    firstMissing?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     showToast('⚠️', currentLang === 'en' ? 'Please complete the required fields' : 'Veuillez remplir les champs obligatoires');
     return;
   }
 
-  // Champs optionnels
+  // Champs validés / optionnels lus à chaud depuis le DOM
+  const email = (document.getElementById('emailInput')?.value || '').trim();
   const phone = (document.getElementById('phoneInput')?.value || '').trim();
   const snap  = (document.getElementById('snapInput')?.value  || '').trim();
 
@@ -6469,23 +6566,31 @@ function refreshCheckoutState() {
 }
 
 // ─── Bouton PayPal custom ────────────────────────────────────────
-// Lance Stripe Checkout avec payment_method_types: ['paypal','card']
+// Visuel uniquement pour l'instant — config PayPal natif faite plus tard.
+// Pour l'instant : redirige vers Stripe Checkout avec payment_method_types: ['paypal','card']
+// Validation IDENTIQUE au bouton "Confier la commande" + reconstruction fresh DOM.
 document.getElementById('paypalBtn')?.addEventListener('click', async () => {
-  // Si formulaire incomplet → ne rien faire (le grisé empêche le click via CSS,
-  // mais ceinture+bretelles si CSS pointer-events ne marche pas)
-  if (document.querySelector('.express-row.is-incomplete')) return;
-  const ctx = window._safixCurrentOrder;
-  if (!ctx) return;
-  // Force paymentMethod=paypal pour que le backend passe ['paypal','card']
-  const orderMetaPaypal = { ...(ctx.orderMeta || {}), paymentMethod: 'paypal' };
+  if (!cart.length) return;
+  // Validation partagée (mêmes règles que checkoutBtn et Apple Pay)
+  const { ok, firstMissing } = validateCheckoutForm();
+  if (!ok) {
+    firstMissing?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    showToast('⚠️', currentLang === 'en'
+      ? 'Please complete the required fields'
+      : 'Veuillez remplir les champs obligatoires');
+    return;
+  }
+  // Reconstruit le contexte FRAIS depuis le DOM (pas de stale data)
+  const ctx = buildOrderContextFromDOM();
+  const orderMetaPaypal = { ...ctx.orderMeta, paymentMethod: 'paypal' };
   try {
     await payWithStripe({
-      email: ctx.email,
-      total: ctx.totalWithFees || ctx.total,  // PayPal via Stripe Checkout : avec frais
-      lineItems: ctx.lineItems,
-      delivery: ctx.delivery,
+      email:       ctx.email,
+      total:       ctx.totalWithFees || ctx.total,  // PayPal via Stripe Checkout = avec frais
+      lineItems:   ctx.lineItems,
+      delivery:    ctx.delivery,
       paymentFees: ctx.paymentFees,
-      orderMeta: orderMetaPaypal,
+      orderMeta:   orderMetaPaypal,
     });
   } catch (e) {
     console.warn('[SAFIX] PayPal click error :', e.message);
