@@ -259,6 +259,29 @@ async function placeOrderOnUtopya(context, order) {
 
 // ─── Main loop ───────────────────────────────────────────────────────────
 let context = null;
+let contextPromise = null;  // Lock anti-race-condition
+async function getOrCreateContext() {
+  if (context) return context;
+  if (contextPromise) return contextPromise;  // Une autre tâche est en train de login
+  contextPromise = (async () => {
+    try {
+      context = await ensureLoggedIn({
+        chromium,
+        userDataDir: './bot-userdata',
+        authFile:    './bot-auth.json',
+        email:       process.env.UTOPYA_EMAIL,
+        password:    process.env.UTOPYA_PASSWORD,
+        logger:      log,
+        headless:    true,
+      });
+      return context;
+    } finally {
+      contextPromise = null;
+    }
+  })();
+  return contextPromise;
+}
+
 async function tick() {
   let pending = [];
   try {
@@ -270,24 +293,13 @@ async function tick() {
   if (!pending.length) return;
   log.info(`${pending.length} commande(s) à traiter`);
 
-  // Lazy login Utopya (1ʳᵉ commande de la session)
-  if (!context) {
-    try {
-      context = await ensureLoggedIn({
-        chromium,
-        userDataDir: './bot-userdata',
-        authFile:    './bot-auth.json',
-        email:       process.env.UTOPYA_EMAIL,
-        password:    process.env.UTOPYA_PASSWORD,
-        logger:      log,
-        headless:    true,
-      });
-    } catch (e) {
-      log.error('Login Utopya impossible :', e.message);
-      log.error('Stack :', e.stack?.slice(0, 500));
-      // On ne refund pas tout de suite — Cloudflare peut juste bouder.
-      return;
-    }
+  // Lazy login Utopya — utilise le lock pour éviter les race conditions
+  try {
+    await getOrCreateContext();
+  } catch (e) {
+    log.error('Login Utopya impossible :', e.message);
+    log.error('Stack :', e.stack?.slice(0, 500));
+    return;
   }
 
   for (const order of pending) {
@@ -332,17 +344,7 @@ async function processSingleOrder(orderId) {
     return;
   }
 
-  if (!context) {
-    context = await ensureLoggedIn({
-      chromium,
-      userDataDir: './bot-userdata',
-      authFile:    './bot-auth.json',
-      email:       process.env.UTOPYA_EMAIL,
-      password:    process.env.UTOPYA_PASSWORD,
-      logger:      log,
-      headless:    true,
-    });
-  }
+  await getOrCreateContext();
 
   await setStatus(order.id, 'ordering');
   try {
