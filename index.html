@@ -16,13 +16,137 @@
 <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)">
 <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
 <meta name="description" content="SAFIX — Réparation iPhone : tarifs en temps réel, livraison sous 48h, garantie 6 mois.">
-<meta name="robots" content="index, follow">
+<!-- ═══ Référencement strict : indexable mais non-archivable + anti-vol contenu ═══ -->
+<meta name="robots"            content="index, follow, noarchive, nosnippet, noimageindex, max-snippet:120, max-image-preview:none, notranslate">
+<meta name="googlebot"         content="index, follow, noarchive, nosnippet, noimageindex, max-snippet:120, max-image-preview:none, notranslate">
+<meta name="bingbot"           content="index, follow, noarchive, nosnippet, noimageindex">
+<meta name="referrer"          content="strict-origin-when-cross-origin">
+<meta name="format-detection"  content="telephone=no, email=no, address=no">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+<!-- Désactive Google Translate (copierait tout le DOM côté serveur Google) -->
+<meta name="google"            content="notranslate">
+<meta name="copyright"         content="© SAFIX — Tous droits réservés. Reproduction interdite.">
+<meta name="rights"            content="Copyright SAFIX. All rights reserved.">
 <link rel="manifest" href="manifest.json">
 <!-- Open Graph -->
 <meta property="og:title"       content="SAFIX — Réparation iPhone">
 <meta property="og:description" content="Tarifs en temps réel, livraison sous 48h, garantie 6 mois.">
 <meta property="og:type"        content="website">
 <meta property="og:image"       content="images/safix/safix-icon-dark-512.png">
+<!-- ═══════════════════════════════════════════════════════════════════════
+     PROTECTION SAFIX — Anti-vol code/contenu/images (style Apple)
+     ───────────────────────────────────────────────────────────────────────
+     • Bloque clic-droit, F12, Ctrl+U, Ctrl+S, Ctrl+P, Ctrl+Shift+I/J/C
+     • Détecte DevTools (timing du debugger;) → page se vide
+     • Bloque le drag/drop des images
+     • Empêche la sélection de texte (sauf inputs/textarea)
+     • Bloque copy/cut sauf sur inputs
+     • IIFE en tête de page = priorité d'exécution maximale
+     S'exécute UNIQUEMENT en production (localhost/127.0.0.1 → désactivé)
+     ═══════════════════════════════════════════════════════════════════════ -->
+<script>
+(function safixProtect(){
+  'use strict';
+  // Désactivé en local pour permettre le développement
+  var h = location.hostname;
+  if (h === 'localhost' || h === '127.0.0.1' || h === '0.0.0.0' || h.endsWith('.local')) return;
+
+  // ─── Anti-clic droit (menu contextuel) ────────────────────────────
+  document.addEventListener('contextmenu', function(e){ e.preventDefault(); return false; }, { capture:true });
+
+  // ─── Anti-drag (empêche drag d'images / liens vers fichier local) ─
+  document.addEventListener('dragstart',  function(e){
+    var t = e.target;
+    if (t && (t.tagName === 'IMG' || t.tagName === 'A' || t.tagName === 'VIDEO' || t.tagName === 'CANVAS')) {
+      e.preventDefault(); return false;
+    }
+  }, { capture:true });
+
+  // ─── Anti-selection (sauf champs input/textarea/contenteditable) ──
+  document.addEventListener('selectstart', function(e){
+    var t = e.target;
+    if (!t) return;
+    var tag = t.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || t.isContentEditable) return;
+    e.preventDefault(); return false;
+  }, { capture:true });
+
+  // ─── Anti-copy/cut (sauf champs input/textarea) ───────────────────
+  ['copy','cut'].forEach(function(ev){
+    document.addEventListener(ev, function(e){
+      var t = e.target;
+      var tag = t && t.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || (t && t.isContentEditable)) return;
+      e.preventDefault();
+      e.clipboardData && e.clipboardData.setData('text/plain', '© SAFIX — Reproduction interdite');
+    }, { capture:true });
+  });
+
+  // ─── Anti-raccourcis clavier (F12, Ctrl+U, Ctrl+S, Ctrl+P, devtools…)
+  document.addEventListener('keydown', function(e){
+    var k = e.key, K = (k || '').toLowerCase();
+    var ctrl = e.ctrlKey || e.metaKey;       // Ctrl (Win/Linux) ou Cmd (Mac)
+    var sh   = e.shiftKey;
+    // F12 = DevTools
+    if (k === 'F12') { e.preventDefault(); return false; }
+    // Ctrl+U = view-source
+    if (ctrl && K === 'u') { e.preventDefault(); return false; }
+    // Ctrl+S = save page
+    if (ctrl && K === 's') { e.preventDefault(); return false; }
+    // Ctrl+P = print (génère PDF copiable)
+    if (ctrl && K === 'p') { e.preventDefault(); return false; }
+    // Ctrl+Shift+I = DevTools (Chrome/Firefox/Edge)
+    if (ctrl && sh && (K === 'i' || K === 'j' || K === 'c')) { e.preventDefault(); return false; }
+    // Cmd+Opt+I/J/C/U (Mac Safari/Chrome)
+    if (e.metaKey && e.altKey && (K === 'i' || K === 'j' || K === 'c' || K === 'u')) { e.preventDefault(); return false; }
+  }, { capture:true });
+
+  // ─── Détection DevTools : timing debugger; (DevTools fermé ≈ instant,
+  //     ouvert ≈ pause). Si pause détectée → wipe la page.
+  //     Sécurité légère, contournable, mais dissuade 95% des copieurs.
+  var devToolsOpen = false;
+  function wipePage(){
+    try {
+      // Vide DOM + stop interactions, message clair pour l'utilisateur
+      document.documentElement.innerHTML =
+        '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui;background:#000;color:#fff;text-align:center;padding:24px">' +
+        '<div><h1 style="font-size:28px;margin:0 0 12px">© SAFIX</h1>' +
+        '<p style="opacity:.7;font-size:14px">Pour des raisons de sécurité, l\'inspection du code est désactivée. Fermez les outils de développement et rechargez la page.</p></div></div>';
+    } catch(_) {}
+  }
+  function checkDevTools(){
+    var t0 = performance.now();
+    // eslint-disable-next-line no-debugger
+    debugger;
+    var dt = performance.now() - t0;
+    if (dt > 100 && !devToolsOpen) { devToolsOpen = true; wipePage(); }
+  }
+  // Lance le check toutes les 1 sec (impact perf négligeable)
+  setInterval(checkDevTools, 1000);
+
+  // ─── Blocage console (rend le copy/paste depuis console+++ pénible) ─
+  // Note : on ne désactive PAS console.log car ça casse les libs externes.
+  // On override seulement les méthodes les plus utilisées pour exploration.
+  try {
+    var noop = function(){};
+    ['debug','dirxml','profile','profileEnd','clear','table'].forEach(function(m){
+      if (typeof console !== 'undefined' && console[m]) console[m] = noop;
+    });
+  } catch(_) {}
+
+  // ─── Détection redimensionnement window (DevTools docké) ──────────
+  // Si écart entre outerWidth/innerWidth > 160 → DevTools probablement docké
+  var thresh = 160;
+  setInterval(function(){
+    var dx = (window.outerWidth  - window.innerWidth);
+    var dy = (window.outerHeight - window.innerHeight);
+    if ((dx > thresh || dy > thresh) && !devToolsOpen) {
+      devToolsOpen = true; wipePage();
+    }
+  }, 1500);
+})();
+</script>
 <!-- Plausible Analytics — RGPD-friendly, sans cookie. À activer en remplaçant DOMAIN. -->
 <script defer data-domain="safix.fr" src="https://plausible.io/js/script.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -76,6 +200,51 @@
 }
 *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
 html { scroll-behavior:smooth; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PROTECTION ANTI-COPIE — désactive sélection / drag / save d'images
+   ───────────────────────────────────────────────────────────────────────
+   Inputs et textareas restent sélectionnables (UX critique).
+   ═══════════════════════════════════════════════════════════════════════ */
+html, body {
+  -webkit-touch-callout:none;        /* iOS : bloque "Copier le lien / Enregistrer l'image" */
+  -webkit-user-select:none;
+  -moz-user-select:none;
+  -ms-user-select:none;
+  user-select:none;
+}
+input, textarea, [contenteditable="true"], .selectable {
+  -webkit-user-select:text;
+  -moz-user-select:text;
+  -ms-user-select:text;
+  user-select:text;
+  -webkit-touch-callout:default;
+}
+img, video, canvas, picture, .protected-img {
+  -webkit-user-drag:none;            /* Chrome/Safari : bloque le drag */
+  -khtml-user-drag:none;
+  -moz-user-drag:none;
+  -o-user-drag:none;
+  user-drag:none;
+  pointer-events:none;               /* bloque drag/right-click sur l'image elle-même */
+  -webkit-touch-callout:none;
+}
+/* Ré-active pointer-events pour clic sur images cliquables (boutons, liens) */
+a img, button img, .clickable-img,
+.iphone-card img, .iphone-image, .hero-3d img,
+.product-card img, .gallery-img,
+.payment-card-logo svg, .payment-card-logo img {
+  pointer-events:auto;
+}
+/* Print : empêche impression d'imprimer du contenu (mais laisse le titre pour SEO) */
+@media print {
+  body * { display:none !important; }
+  body::before {
+    content:"© SAFIX — Reproduction interdite. www.safix59.fr";
+    display:block; font-size:18px; padding:40px;
+    font-family:system-ui, sans-serif;
+  }
+}
 body {
   font-family:'Inter',-apple-system,'SF Pro Display',sans-serif;
   background:var(--bg);

@@ -7,15 +7,56 @@
   ],
   "headers": [
     {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Frame-Options",        "value": "DENY" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-DNS-Prefetch-Control", "value": "off" },
+        { "key": "Referrer-Policy",        "value": "strict-origin-when-cross-origin" },
+        { "key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains; preload" },
+        { "key": "Permissions-Policy",     "value": "geolocation=(), microphone=(), camera=(), payment=(self \"https://js.stripe.com\"), interest-cohort=(), browsing-topics=(), accelerometer=(), gyroscope=(), magnetometer=(), usb=(), midi=(), display-capture=(), fullscreen=(self), encrypted-media=()" },
+        { "key": "X-Robots-Tag",           "value": "index, follow, noarchive, nosnippet, noimageindex, max-snippet:120, max-image-preview:none" },
+        { "key": "X-Permitted-Cross-Domain-Policies", "value": "none" },
+        { "key": "Cross-Origin-Opener-Policy",   "value": "same-origin" },
+        { "key": "Cross-Origin-Resource-Policy", "value": "same-origin" },
+        { "key": "Cross-Origin-Embedder-Policy", "value": "credentialless" },
+        { "key": "Origin-Agent-Cluster",   "value": "?1" },
+        { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://js.stripe.com https://*.stripe.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://plausible.io; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://*.stripe.com https://api.qrserver.com; connect-src 'self' https://api.stripe.com https://*.stripe.com https://api.web3forms.com https://*.supabase.co https://plausible.io; frame-src https://js.stripe.com https://hooks.stripe.com https://checkout.stripe.com https://*.stripe.com; form-action 'self' https://checkout.stripe.com; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; manifest-src 'self'; worker-src 'self' blob:; upgrade-insecure-requests; block-all-mixed-content; report-uri /api/csp-report" }
+      ]
+    },
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Cross-Origin-Resource-Policy", "value": "same-site" },
+        { "key": "X-Robots-Tag",  "value": "noindex, nofollow, nosnippet, noarchive" },
+        { "key": "Cache-Control", "value": "no-store, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/scraper/(.*)",
+      "headers": [
+        { "key": "X-Robots-Tag", "value": "noindex, nofollow, nosnippet, noarchive, noimageindex" }
+      ]
+    },
+    {
       "source": "/scraper/prices.json",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=15, stale-while-revalidate=60" }
       ]
     },
     {
-      "source": "/(.*)\\.(png|jpg|jpeg|webp|svg|woff2?)$",
+      "source": "/(.*)\\.(png|jpg|jpeg|webp|svg|gif|ico)$",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=2592000, immutable" }
+        { "key": "Cache-Control", "value": "public, max-age=2592000, immutable" },
+        { "key": "X-Robots-Tag",  "value": "noimageindex, noarchive, nosnippet" },
+        { "key": "Cross-Origin-Resource-Policy", "value": "same-origin" }
+      ]
+    },
+    {
+      "source": "/(.*)\\.(woff|woff2|ttf|otf|eot)$",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=2592000, immutable" },
+        { "key": "Cross-Origin-Resource-Policy", "value": "same-origin" }
       ]
     }
   ]
