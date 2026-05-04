@@ -2209,7 +2209,9 @@ input:focus:not(:focus-visible) {
   header { padding:0 10px; }
   .nav-side .nav-sep { display:none; }
   .hero { padding:72px 14px 24px; }
-  .hero-title { font-size:clamp(32px, 11vw, 44px); line-height:1.05; }
+  /* Hero-title : tient sur 2 lignes "Réparer / mon iPhone" sur tous les iPhone */
+  .hero-title { font-size:clamp(26px, 7.5vw, 36px); line-height:1.08; letter-spacing:-1.2px; }
+  .hero-title em { letter-spacing:-1px; }
   .hero-eyebrow { font-size:12px; }
   .hero-sub { font-size:13.5px; line-height:1.55; }
   .hero-cta { padding:14px 22px; font-size:14px; }
@@ -2240,7 +2242,7 @@ input:focus:not(:focus-visible) {
 }
 /* — iPhone très étroit (SE, 6/7/8) — densification ultime — */
 @media (max-width: 380px) {
-  .hero-title { font-size:30px; line-height:1.08; }
+  .hero-title { font-size:24px; line-height:1.1; letter-spacing:-1px; }
   .iphone-grid { grid-template-columns:1fr 1fr; gap:10px; padding:0 8px; }
   .iphone-card { padding:0; }
   .card-img-wrap { height:100px; }
