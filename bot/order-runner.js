@@ -16,11 +16,28 @@
 //   POLL_INTERVAL_MS      = 30000  (optionnel, défaut 30s)
 //
 // DÉPLOIEMENT RENDER :
-//   1. New → Background Worker
-//   2. Connect ce repo (dossier /bot)
-//   3. Build command : npm install && npx playwright install chromium
-//   4. Start command : node order-runner.js
-//   5. Renseigne les env vars
+//   1. New → Web Service (PAS Background Worker — on a besoin d'un port HTTP)
+//   2. Connect ce repo, root directory = "bot"
+//   3. Runtime : Node
+//   4. Build command : npm install && npx playwright install chromium
+//   5. Start command : node order-runner.js
+//   6. Plan : Free OK pour tester, Starter ($7/mo) recommandé en prod
+//      (Free se met en veille après inactivité — réveil de ~30s à la 1ère commande)
+//   7. Env vars (cf. ci-dessus) + BOT_TRIGGER_SECRET = un mot de passe long aléatoire
+//   8. Récupère l'URL Render (ex: https://safix-bot.onrender.com) et mets-la
+//      dans Vercel → BOT_TRIGGER_URL = https://safix-bot.onrender.com/run
+//      ainsi que BOT_TRIGGER_SECRET = même valeur que côté bot
+//
+// ARCHITECTURE INSTANTANÉE :
+//   client paie sur SAFIX
+//     ↓ Stripe checkout.session.completed (≤ 1 s)
+//     ↓ POST /api/stripe-webhook (Vercel)
+//     ↓ insert Supabase + POST $BOT_TRIGGER_URL/run (Render)
+//     ↓ bot lance Playwright + login Utopya + ajoute panier + checkout
+//     → commande Utopya passée en ~10 s après le paiement client
+//
+//   En backup, le bot poll Supabase toutes les 30 s pour rattraper toute
+//   commande où le trigger HTTP aurait échoué (Render en veille, etc.).
 //
 // ─────────────────────────────────────────────────────────────────────────
 
@@ -271,8 +288,95 @@ async function tick() {
   }
 }
 
-// ─── Boucle infinie ──────────────────────────────────────────────────────
-console.log(`[bot] Démarrage — poll toutes les ${POLL_INTERVAL}ms`);
+// ─── Endpoint HTTP : trigger instantané depuis le webhook Stripe ─────────
+// Quand Stripe confirme un paiement, l'API Vercel POST sur /run avec
+// l'orderId. On lance immédiatement le traitement de cette commande
+// (sans attendre le prochain poll).
+import http from 'node:http';
+
+const PORT       = Number(process.env.PORT || 3000);
+const SECRET     = process.env.BOT_TRIGGER_SECRET || '';
+
+async function processSingleOrder(orderId) {
+  // Recharge l'order depuis Supabase (paranoïaque : on ne fait confiance qu'à la base)
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${orderId}&select=*`, {
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+  });
+  if (!r.ok) throw new Error(`Order fetch ${r.status}`);
+  const rows = await r.json();
+  const order = rows[0];
+  if (!order) throw new Error('Order introuvable');
+  if (order.status !== 'paid') {
+    log.warn(`Order ${orderId} déjà en statut "${order.status}" — skip`);
+    return;
+  }
+
+  if (!context) {
+    context = await ensureLoggedIn({
+      chromium,
+      userDataDir: './bot-userdata',
+      authFile:    './bot-auth.json',
+      email:       process.env.UTOPYA_EMAIL,
+      password:    process.env.UTOPYA_PASSWORD,
+      logger:      log,
+      headless:    true,
+    });
+  }
+
+  await setStatus(order.id, 'ordering');
+  try {
+    const result = await placeOrderOnUtopya(context, order);
+    await setStatus(order.id, 'ordered', {
+      utopya_order_id: result.utopyaOrderId,
+      eta_date:        result.etaDate,
+    });
+  } catch (e) {
+    log.error(`Order ${order.id} → ${e.message}`);
+    const refunded = await refundOrder(order, e.message);
+    await setStatus(order.id, refunded ? 'refunded' : 'failed', {
+      error_message: e.message.slice(0, 500),
+    });
+  }
+}
+
+const server = http.createServer((req, res) => {
+  // Health check (GET /)
+  if (req.method === 'GET' && req.url === '/') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ ok: true, service: 'safix-bot' }));
+  }
+
+  // Trigger (POST /run)
+  if (req.method === 'POST' && req.url === '/run') {
+    if (SECRET && req.headers['x-safix-secret'] !== SECRET) {
+      res.writeHead(401); return res.end('unauthorized');
+    }
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      try {
+        const { orderId } = JSON.parse(body || '{}');
+        if (!orderId) { res.writeHead(400); return res.end('orderId manquant'); }
+        // Réponse rapide à Vercel — on traite la commande en arrière-plan
+        res.writeHead(202, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ accepted: true, orderId }));
+        processSingleOrder(orderId).catch(e => log.error(`Trigger ${orderId} : ${e.message}`));
+      } catch (e) {
+        res.writeHead(400); res.end('bad json');
+      }
+    });
+    return;
+  }
+
+  res.writeHead(404); res.end('not found');
+});
+
+server.listen(PORT, () => {
+  log.info(`HTTP trigger prêt sur :${PORT}`);
+});
+
+// ─── Filet de sécurité : poll en parallèle (rattrape les commandes ratées) ─
+console.log(`[bot] Démarrage — poll toutes les ${POLL_INTERVAL}ms (filet de sécurité)`);
 (async () => {
   while (true) {
     try { await tick(); } catch (e) { console.error('tick error', e); }

@@ -134,6 +134,27 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Persist failed', reason: result.reason });
     }
     console.log('[webhook] Commande persistée :', result.row?.id || '?');
+
+    // ═══ TRIGGER INSTANTANÉ DU BOT ═══
+    // Au lieu d'attendre que le bot poll Supabase (30 s), on l'appelle
+    // directement via webhook → la commande Utopya est lancée
+    // dans la seconde qui suit le paiement.
+    const botUrl    = process.env.BOT_TRIGGER_URL;     // ex: https://safix-bot.onrender.com/run
+    const botSecret = process.env.BOT_TRIGGER_SECRET;  // shared secret pour authentifier
+    if (botUrl && result.row?.id) {
+      // On lance la requête sans bloquer la réponse à Stripe (Stripe a un timeout strict)
+      fetch(botUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type':   'application/json',
+          'X-SAFIX-Secret': botSecret || '',
+        },
+        body: JSON.stringify({ orderId: result.row.id }),
+      })
+        .then(r  => console.log('[webhook] Bot trigger HTTP', r.status))
+        .catch(e => console.warn('[webhook] Bot trigger failed (le poll prendra le relais) :', e.message));
+    }
+
     return res.status(200).json({ received: true, orderId: result.row?.id });
   }
 
