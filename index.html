@@ -4527,9 +4527,11 @@ window.SAFIX_CONFIG = window.SAFIX_CONFIG || {
   // Web3Forms : alternative ULTRA-SIMPLE (juste 1 clé, pas de template à créer)
   // → Inscription : https://web3forms.com (gratuit, illimité)
   // → Donne juste un Access Key, je le mets ici, c'est fini
+  // Web3Forms désactivé : le mail est maintenant envoyé EXCLUSIVEMENT côté serveur
+  // via Resend depuis le webhook Stripe (api/stripe-webhook.js). Évite le doublon.
   web3forms: {
-    enabled:    true,
-    accessKey:  '7b0a17ee-8678-48f1-a0a2-f71b2455d269',
+    enabled:    false,
+    accessKey:  '',
     toShop:     'fusion-laminaire-0i@icloud.com',
   },
   // EmailJS : alternative pour formats d'email plus riches (templates HTML)

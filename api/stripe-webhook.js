@@ -535,8 +535,28 @@ export default async function handler(req, res) {
   // Paiement direct via Payment Intent (Apple Pay direct, Express Checkout)
   if (event.type === 'payment_intent.succeeded') {
     const pi = event.data.object;
-    // Si déjà géré via checkout.session.completed → skip
-    if (pi.metadata?.via_checkout === 'true') return res.status(200).json({ received: true });
+    // Déduplication : si une commande existe déjà pour ce PI dans Supabase → skip
+    // (cas typique : checkout.session.completed est arrivé avant et a déjà tout traité)
+    if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE) {
+      try {
+        const r = await fetch(
+          `${process.env.SUPABASE_URL}/rest/v1/orders?stripe_payment_intent=eq.${pi.id}&select=id&limit=1`,
+          {
+            headers: {
+              apikey:        process.env.SUPABASE_SERVICE_ROLE,
+              Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE}`,
+            },
+          },
+        );
+        const rows = await r.json();
+        if (Array.isArray(rows) && rows.length > 0) {
+          console.log(`[webhook] PI ${pi.id} déjà géré (order ${rows[0].id}) — skip`);
+          return res.status(200).json({ received: true, skipped: true, existing: rows[0].id });
+        }
+      } catch (e) {
+        console.warn('[webhook] Dedup check failed :', e.message);
+      }
+    }
 
     // Reconstruire l'objet "session-like" pour réutiliser sendEmailToShop/Client
     const fakeSession = {
