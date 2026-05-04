@@ -26,12 +26,131 @@ async function readRawBody(req) {
   });
 }
 
+// ─── Templates HTML (mail propre) ────────────────────────────────────────
+function buildShopEmailHtml({ session, lineItems }) {
+  const customer = session.customer_details || {};
+  const total    = (session.amount_total / 100).toFixed(2);
+  const dt       = new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' });
+  const itemsRows = lineItems.map(it => {
+    const lt = (it.unit_amount * it.qty / 100).toFixed(2);
+    return `<tr>
+      <td style="padding:10px 12px;border-bottom:1px solid #eee;">${it.name}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid #eee;text-align:center;">×${it.qty}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid #eee;text-align:right;font-variant-numeric:tabular-nums;">${lt} €</td>
+    </tr>`;
+  }).join('');
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>SAFIX — Commande ${total} €</title></head>
+<body style="margin:0;padding:0;background:#f5f5f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1d1d1f;">
+  <div style="max-width:600px;margin:0 auto;padding:32px 24px;">
+    <div style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.06);">
+      <div style="background:linear-gradient(135deg,#0066ff 0%,#5b21b6 100%);padding:28px 24px;text-align:center;color:#fff;">
+        <div style="font-size:13px;letter-spacing:2px;opacity:.85;text-transform:uppercase;font-weight:600;">SAFIX · Nouvelle commande</div>
+        <div style="font-size:36px;font-weight:800;margin-top:8px;letter-spacing:-1px;">${total} €</div>
+        <div style="font-size:12px;opacity:.85;margin-top:4px;">${dt}</div>
+      </div>
+      <div style="padding:24px;">
+        <div style="font-size:13px;color:#86868b;letter-spacing:1px;text-transform:uppercase;font-weight:600;margin-bottom:8px;">Client</div>
+        <table style="width:100%;font-size:14px;border-collapse:collapse;margin-bottom:24px;">
+          <tr><td style="padding:6px 0;color:#86868b;width:120px;">Email</td><td style="padding:6px 0;font-weight:600;"><a href="mailto:${customer.email || ''}" style="color:#0066ff;text-decoration:none;">${customer.email || session.customer_email || '—'}</a></td></tr>
+          <tr><td style="padding:6px 0;color:#86868b;">Téléphone</td><td style="padding:6px 0;font-weight:600;">${customer.phone || '—'}</td></tr>
+          <tr><td style="padding:6px 0;color:#86868b;vertical-align:top;">Adresse</td><td style="padding:6px 0;font-weight:600;">${customer.address ? Object.values(customer.address).filter(Boolean).join(', ') : '—'}</td></tr>
+        </table>
+        <div style="font-size:13px;color:#86868b;letter-spacing:1px;text-transform:uppercase;font-weight:600;margin-bottom:8px;">Commande</div>
+        <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:20px;">
+          <thead><tr style="background:#f5f5f7;">
+            <th style="padding:10px 12px;text-align:left;font-weight:600;color:#86868b;font-size:12px;text-transform:uppercase;letter-spacing:.5px;">Article</th>
+            <th style="padding:10px 12px;text-align:center;font-weight:600;color:#86868b;font-size:12px;text-transform:uppercase;letter-spacing:.5px;">Qté</th>
+            <th style="padding:10px 12px;text-align:right;font-weight:600;color:#86868b;font-size:12px;text-transform:uppercase;letter-spacing:.5px;">Total</th>
+          </tr></thead>
+          <tbody>${itemsRows}</tbody>
+          <tfoot><tr><td colspan="2" style="padding:14px 12px;font-weight:700;font-size:16px;">TOTAL</td><td style="padding:14px 12px;text-align:right;font-weight:800;font-size:18px;color:#0066ff;font-variant-numeric:tabular-nums;">${total} €</td></tr></tfoot>
+        </table>
+        <div style="margin-top:24px;padding:16px;background:#f5f5f7;border-radius:12px;font-size:13px;line-height:1.5;color:#3a3a3c;">
+          <strong>Stripe</strong> session <code style="font-size:12px;background:#fff;padding:2px 6px;border-radius:4px;">${session.id.slice(-12)}</code><br>
+          Paiement <code style="font-size:12px;background:#fff;padding:2px 6px;border-radius:4px;">${(session.payment_intent || '').slice(-12)}</code>
+        </div>
+      </div>
+    </div>
+    <div style="text-align:center;font-size:12px;color:#86868b;margin-top:20px;">
+      SAFIX · 48 Bd Alexandre III, 59140 Dunkerque · SIREN 942 003 062
+    </div>
+  </div>
+</body></html>`;
+}
+
+function buildClientEmailHtml({ session, lineItems }) {
+  const total    = (session.amount_total / 100).toFixed(2);
+  const dt       = new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' });
+  const itemsRows = lineItems.map(it => {
+    const lt = (it.unit_amount * it.qty / 100).toFixed(2);
+    return `<tr>
+      <td style="padding:10px 12px;border-bottom:1px solid #eee;">${it.name}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid #eee;text-align:center;">×${it.qty}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid #eee;text-align:right;font-variant-numeric:tabular-nums;">${lt} €</td>
+    </tr>`;
+  }).join('');
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>SAFIX — Confirmation de commande</title></head>
+<body style="margin:0;padding:0;background:#f5f5f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1d1d1f;">
+  <div style="max-width:600px;margin:0 auto;padding:32px 24px;">
+    <div style="text-align:center;margin-bottom:24px;">
+      <div style="font-size:32px;font-weight:800;color:#0066ff;letter-spacing:-1px;">SAFIX</div>
+      <div style="font-size:13px;color:#86868b;margin-top:4px;">Réparation iPhone Premium</div>
+    </div>
+    <div style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.06);">
+      <div style="background:linear-gradient(135deg,#0066ff 0%,#5b21b6 100%);padding:32px 24px;text-align:center;color:#fff;">
+        <div style="font-size:48px;margin-bottom:8px;">✓</div>
+        <div style="font-size:24px;font-weight:700;letter-spacing:-.5px;">Commande confirmée</div>
+        <div style="font-size:14px;opacity:.85;margin-top:8px;">Merci pour votre confiance</div>
+      </div>
+      <div style="padding:28px 24px;">
+        <p style="font-size:15px;line-height:1.6;color:#1d1d1f;margin:0 0 24px;">
+          Bonjour,<br><br>
+          Votre commande SAFIX a bien été reçue et le paiement est confirmé. Nous allons commander la pièce nécessaire chez notre fournisseur partenaire pour réaliser votre réparation.
+        </p>
+        <div style="font-size:13px;color:#86868b;letter-spacing:1px;text-transform:uppercase;font-weight:600;margin-bottom:8px;">Détail de votre commande</div>
+        <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:20px;">
+          <thead><tr style="background:#f5f5f7;">
+            <th style="padding:10px 12px;text-align:left;font-weight:600;color:#86868b;font-size:12px;text-transform:uppercase;letter-spacing:.5px;">Article</th>
+            <th style="padding:10px 12px;text-align:center;font-weight:600;color:#86868b;font-size:12px;text-transform:uppercase;letter-spacing:.5px;">Qté</th>
+            <th style="padding:10px 12px;text-align:right;font-weight:600;color:#86868b;font-size:12px;text-transform:uppercase;letter-spacing:.5px;">Prix</th>
+          </tr></thead>
+          <tbody>${itemsRows}</tbody>
+          <tfoot><tr><td colspan="2" style="padding:14px 12px;font-weight:700;font-size:16px;">TOTAL</td><td style="padding:14px 12px;text-align:right;font-weight:800;font-size:18px;color:#0066ff;font-variant-numeric:tabular-nums;">${total} €</td></tr></tfoot>
+        </table>
+        <div style="margin-top:20px;padding:16px;background:#f5f5f7;border-radius:12px;font-size:13px;line-height:1.5;color:#3a3a3c;">
+          <strong>Et maintenant ?</strong><br>
+          1. Vous recevrez un mail de confirmation avec votre rendez-vous de dépôt<br>
+          2. Apportez votre iPhone à l'adresse convenue<br>
+          3. Réparation effectuée le jour-même dans la majorité des cas
+        </div>
+        <div style="margin-top:20px;padding:16px;border:1.5px solid #e5e5e5;border-radius:12px;font-size:13px;line-height:1.5;">
+          <strong>Adresse de dépôt par défaut :</strong><br>
+          48 Bd Alexandre III, 59140 Dunkerque<br>
+          <span style="color:#86868b;">(ou autre adresse selon votre choix — nous vous recontactons)</span>
+        </div>
+        <div style="text-align:center;margin-top:28px;font-size:13px;color:#86868b;">
+          Une question ? Réponds simplement à ce mail<br>
+          <span style="color:#86868b;">ou contacte le support : <a href="mailto:fusion-laminaire-0i@icloud.com" style="color:#0066ff;text-decoration:none;">fusion-laminaire-0i@icloud.com</a></span>
+        </div>
+      </div>
+    </div>
+    <div style="text-align:center;font-size:11px;color:#86868b;margin-top:20px;line-height:1.5;">
+      SAFIX · Entreprise individuelle · 48 Bd Alexandre III, 59140 Dunkerque<br>
+      SIREN 942 003 062 · TVA non applicable, art. 293 B du CGI<br>
+      Reçu le ${dt}
+    </div>
+  </div>
+</body></html>`;
+}
+
 // ─── Mail server-side : Web3Forms (try) puis Resend (fallback) ───────────
 async function sendEmailToShop({ session, lineItems }) {
   const accessKey = process.env.WEB3FORMS_KEY || '7b0a17ee-8678-48f1-a0a2-f71b2455d269';
   const customer  = session.customer_details || {};
-  const meta      = session.metadata || {};
   const total     = (session.amount_total / 100).toFixed(2);
+  const html      = buildShopEmailHtml({ session, lineItems });
   const lines = lineItems
     .map(it => `${it.name} ×${it.qty} = ${(it.unit_amount * it.qty / 100).toFixed(2)} €`)
     .join('\n');
@@ -52,7 +171,6 @@ Items
 ${lines || '—'}
 
 TOTAL : ${total} €
-Méta : ${JSON.stringify(meta)}
 Reçu le : ${new Date().toLocaleString('fr-FR')}`;
 
   // 1) Web3Forms (si Pro plan) — sinon refusé en server-side
@@ -87,20 +205,65 @@ Reçu le : ${new Date().toLocaleString('fr-FR')}`;
         body: JSON.stringify({
           from:    process.env.RESEND_FROM || 'SAFIX <onboarding@resend.dev>',
           to:      [process.env.RESEND_TO || 'chafiai.travail@gmail.com'],
-          subject: `Nouvelle commande SAFIX — ${total} €`,
+          subject: `🔔 Nouvelle commande SAFIX — ${total} €`,
           text:    body,
-          html:    body.replace(/\n/g, '<br>'),
+          html,
         }),
       });
       if (r.ok) {
         const j = await r.json().catch(() => ({}));
-        console.log('[webhook] Mail envoyé via Resend :', j.id);
+        console.log('[webhook] Mail SHOP envoyé via Resend :', j.id);
         return true;
       }
       console.warn('[webhook] Resend HTTP', r.status, await r.text());
     } catch (e) {
       console.warn('[webhook] Resend fail :', e.message);
     }
+  }
+  return false;
+}
+
+// ─── Mail au client (HTML beau) ──────────────────────────────────────────
+async function sendEmailToClient({ session, lineItems }) {
+  const customer = session.customer_details || {};
+  const customerEmail = customer.email || session.customer_email;
+  if (!customerEmail) return false;
+  if (!process.env.RESEND_API_KEY) return false;
+
+  // Resend free tier limite l'envoi : tant que le domain safix59.fr n'est pas
+  // vérifié dans Resend, on ne peut envoyer QU'à l'email du compte (chafiai.travail@gmail.com).
+  // Stripe envoie déjà un reçu auto (configuré dans create-checkout-session via receipt_email).
+  // → Quand le domain sera vérifié, on enverra ce mail HTML personnalisé en plus.
+  if (!process.env.RESEND_DOMAIN_VERIFIED) {
+    console.log('[webhook] Mail CLIENT skip (domain Resend non vérifié, Stripe receipt envoyé à la place)');
+    return false;
+  }
+
+  const total = (session.amount_total / 100).toFixed(2);
+  const html  = buildClientEmailHtml({ session, lineItems });
+
+  try {
+    const r = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from:    process.env.RESEND_FROM_CLIENT || 'SAFIX <orders@safix59.fr>',
+        to:      [customerEmail],
+        subject: `✓ SAFIX — Commande confirmée (${total} €)`,
+        html,
+      }),
+    });
+    if (r.ok) {
+      const j = await r.json().catch(() => ({}));
+      console.log('[webhook] Mail CLIENT envoyé via Resend :', j.id);
+      return true;
+    }
+    console.warn('[webhook] Resend client HTTP', r.status, await r.text());
+  } catch (e) {
+    console.warn('[webhook] Resend client fail :', e.message);
   }
   return false;
 }
@@ -166,8 +329,9 @@ export default async function handler(req, res) {
       console.warn('[webhook] listLineItems échec :', e.message);
     }
 
-    // 1) Mail à Sami (best-effort, ne bloque pas le reste)
-    sendEmailToShop({ session, lineItems }).catch(e => console.warn('mail', e.message));
+    // 1) Mails (shop + client, best-effort, ne bloque pas le reste)
+    sendEmailToShop({ session, lineItems }).catch(e => console.warn('mail shop', e.message));
+    sendEmailToClient({ session, lineItems }).catch(e => console.warn('mail client', e.message));
 
     // 2) Persistence Supabase (si configurée)
     const order = {
