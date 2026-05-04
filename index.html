@@ -1092,13 +1092,34 @@ header {
 .delivery-price { font-size:15px; font-weight:800; color:var(--accent); white-space:nowrap; }
 
 /* ═══════════════════════════════════════════════════
-   PAYMENT (note dans cart-section)
+   PAYMENT (Stripe Express Checkout + carte)
 ═══════════════════════════════════════════════════ */
 .payment-note {
   font-size:11.5px; color:var(--text2); line-height:1.5;
   margin-top:10px;
 }
 .payment-note strong { color:var(--text); }
+
+/* Conteneur où Stripe Express Checkout monte ses boutons (Apple Pay/Google Pay/Link) */
+.express-checkout-mount {
+  min-height:50px; margin-bottom:8px;
+}
+.express-checkout-mount:empty { display:none; }
+
+/* Divider "ou" entre Express Checkout et carte */
+.payment-divider {
+  display:flex; align-items:center; gap:10px;
+  margin:14px 0 12px;
+  font-size:11px; text-transform:uppercase; letter-spacing:1.5px;
+  color:var(--text3); font-weight:600;
+}
+.payment-divider::before, .payment-divider::after {
+  content:''; flex:1; height:1px; background:var(--border);
+}
+.payment-divider:has(+ #expressCheckoutMount:empty) { display:none; }
+
+/* Bouton Carte (fallback) */
+.payment-card--card { width:100%; }
 
 /* ═══════════════════════════════════════════════════
    MANDAT — bloc clair "comment ça fonctionne" + case à cocher
@@ -2536,21 +2557,24 @@ input:focus:not(:focus-visible) {
 
     <!-- ═══ MOYENS DE PAIEMENT ═══ -->
     <div class="cart-section" id="paymentBlock" style="display:none">
-      <div class="cart-section-title" data-i18n="payment.title">Moyens de paiement</div>
-      <div class="payment-grid">
-        <button type="button" class="payment-card" data-payment="applepay">
-          <span class="payment-card-logo"><img src="images/applepay.svg" alt="Apple Pay"></span>
-          <span class="payment-card-name">Apple Pay</span>
-          <span class="payment-card-check"></span>
-        </button>
-        <button type="button" class="payment-card" data-payment="paypal">
-          <span class="payment-card-logo"><img src="images/paypal.svg" alt="PayPal"></span>
-          <span class="payment-card-name">PayPal</span>
-          <span class="payment-card-check"></span>
-        </button>
-      </div>
+      <div class="cart-section-title" data-i18n="payment.title">Paiement</div>
+      <!-- Stripe Express Checkout Element : Apple Pay / Google Pay / Link directs -->
+      <div id="expressCheckoutMount" class="express-checkout-mount"></div>
+      <div class="payment-divider"><span data-i18n="payment.or">ou</span></div>
+      <!-- Carte fallback : Stripe Checkout en redirect -->
+      <button type="button" class="payment-card payment-card--card" data-payment="card">
+        <span class="payment-card-logo">
+          <svg width="34" height="22" viewBox="0 0 34 22" fill="none">
+            <rect x="0.5" y="0.5" width="33" height="21" rx="3.5" stroke="currentColor" opacity=".25"/>
+            <rect x="3" y="6" width="6" height="4" rx="1" fill="currentColor" opacity=".5"/>
+            <rect x="3" y="14" width="14" height="2" rx="1" fill="currentColor" opacity=".4"/>
+          </svg>
+        </span>
+        <span class="payment-card-name" data-i18n="payment.card">Carte bancaire</span>
+        <span class="payment-card-check"></span>
+      </button>
       <div class="payment-note" data-i18n="payment.note">
-        <strong>Paiement en ligne sécurisé.</strong> Virement bancaire ou espèces également acceptés (contactez le support).
+        <strong>Paiement sécurisé Stripe.</strong> Apple Pay et Google Pay s'affichent automatiquement si votre appareil les supporte.
       </div>
     </div>
 
@@ -4176,6 +4200,37 @@ function syncCart() {
   void totalEl.offsetWidth;
   totalEl.classList.add('bump');
 
+  // ─── Stripe Express Checkout : monter/update les boutons Apple Pay/Google Pay
+  // Le contexte courant est mis à dispo de la callback ECE (which fires on user click)
+  const lineItemsEC = cart.map(i => ({
+    name: tr(i.name), price: i.price, qty: i.qty || 1,
+    repairId: i.repairId, modelKey: i.modelKey, colorName: i.colorName || null,
+  }));
+  const cartCompactEC = cart.map(i => ({
+    r: i.repairId, m: i.modelKey, q: i.qty || 1, ...(i.colorName && { c: i.colorName }),
+  }));
+  window._safixCurrentOrder = {
+    email: (document.getElementById('emailInput')?.value || '').trim(),
+    total: sum,
+    lineItems: lineItemsEC,
+    delivery: deliv > 0 ? { name: selectedDelivery === 'express' ? 'Livraison Express' : 'Livraison Standard', price: deliv } : null,
+    paymentFees: stripeFees,
+    orderMeta: {
+      model: activeModel || 'iPhone',
+      phone: (document.getElementById('phoneInput')?.value || '').trim(),
+      snap:  (document.getElementById('snapInput')?.value || '').trim(),
+      delivery: selectedDelivery || '',
+      addr:  appointmentAddress || 'default',
+      apptDate: appointmentDate || '',
+      apptSlot: appointmentSlot || '',
+      lang: currentLang || 'fr',
+      paymentMethod: 'applepay',
+      cart: JSON.stringify(cartCompactEC),
+    },
+  };
+  // Monte (ou re-update) le ECE — uniquement si total > 0
+  mountExpressCheckout(Math.round(sum * 100), window._safixCurrentOrder).catch(() => {});
+
   // Ventilation shariatique (pièce TTC / mandat / réparation) sommée sur tous les items
   // Utilise la VRAIE formule du scraper : margin = 25/35/50 selon repairId+model
   let parts = 0, mandate = 0, repair = 0;
@@ -4543,6 +4598,119 @@ Passée le : ${new Date().toLocaleString('fr-FR')}`;
   return { sent: false, reason: 'not_configured', subject, bodyText };
 }
 
+// ─── Stripe.js loader (mémoize) ────────────────────────────────────────
+let _stripeJsPromise = null;
+async function loadStripeJs() {
+  if (window.Stripe) return window.Stripe;
+  if (_stripeJsPromise) return _stripeJsPromise;
+  _stripeJsPromise = new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'https://js.stripe.com/v3';
+    s.onload  = () => res(window.Stripe);
+    s.onerror = rej;
+    document.head.appendChild(s);
+  });
+  return _stripeJsPromise;
+}
+
+// ─── Stripe Express Checkout (Apple Pay/Google Pay/Link directs) ──────
+// Monte dynamiquement quand le panier change. Le bouton Apple Pay déclenche
+// la sheet native sans passer par un redirect Stripe Checkout.
+let _eceStripe = null, _eceElements = null, _eceComponent = null;
+let _eceLastAmount = 0;
+async function mountExpressCheckout(amountCents, orderContext) {
+  const mount = document.getElementById('expressCheckoutMount');
+  if (!mount) return;
+  const cfg = window.SAFIX_CONFIG.stripe;
+  if (!cfg.enabled || !cfg.publicKey) { mount.innerHTML = ''; return; }
+  if (!amountCents || amountCents < 100) { mount.innerHTML = ''; return; }
+
+  try {
+    await loadStripeJs();
+    if (!_eceStripe) _eceStripe = window.Stripe(cfg.publicKey);
+
+    // Update si les Elements existent déjà (juste changement de montant)
+    if (_eceElements && Math.abs(amountCents - _eceLastAmount) > 0) {
+      _eceElements.update({ amount: amountCents });
+      _eceLastAmount = amountCents;
+      return;
+    }
+    if (_eceComponent) return;  // déjà monté
+
+    // Stripe Elements en mode "payment" sans clientSecret (deferred)
+    _eceElements = _eceStripe.elements({
+      mode:       'payment',
+      amount:     amountCents,
+      currency:   'eur',
+      paymentMethodCreation: 'manual',
+      appearance: {
+        theme: 'stripe',
+        variables: {
+          colorPrimary:    '#0066ff',
+          colorBackground: '#ffffff',
+          fontFamily:      "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+          borderRadius:    '12px',
+        },
+      },
+    });
+    _eceLastAmount = amountCents;
+
+    _eceComponent = _eceElements.create('expressCheckout', {
+      buttonType:   { applePay: 'buy', googlePay: 'buy' },
+      buttonHeight: 50,
+      paymentMethods: { applePay: 'always', googlePay: 'always', link: 'auto', paypal: 'never' },
+    });
+    _eceComponent.mount('#expressCheckoutMount');
+
+    // Au click sur Apple Pay/Google Pay : confirmer via PaymentIntent serveur
+    _eceComponent.on('confirm', async (event) => {
+      try {
+        const ctx = window._safixCurrentOrder || orderContext || {};
+        // Créer le PaymentIntent côté backend
+        const r = await fetch('/api/create-payment-intent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(ctx),
+        });
+        if (!r.ok) throw new Error('PaymentIntent backend HTTP ' + r.status);
+        const { clientSecret } = await r.json();
+
+        // Persister la commande pour le post-redirect ?paid=1
+        try {
+          localStorage.setItem('safix_pending_order', JSON.stringify({
+            ...ctx, ts: Date.now(),
+          }));
+        } catch {}
+
+        // Confirmer avec les Elements
+        const { error } = await _eceStripe.confirmPayment({
+          elements:      _eceElements,
+          clientSecret,
+          confirmParams: { return_url: window.location.origin + window.location.pathname + '?paid=1' },
+          redirect:      'if_required',
+        });
+        if (error) {
+          console.warn('[ECE] Confirm error :', error);
+          showToast('⚠️', currentLang === 'en' ? 'Payment cancelled or failed' : 'Paiement annulé ou échoué');
+        } else {
+          // Pas d'erreur + pas de redirect → succès direct
+          window.location.href = window.location.pathname + '?paid=1';
+        }
+      } catch (e) {
+        console.error('[ECE] Confirm fatal :', e);
+        showToast('⚠️', currentLang === 'en' ? 'Payment failed' : 'Le paiement a échoué');
+      }
+    });
+
+    _eceComponent.on('cancel', () => {
+      console.info('[ECE] User cancelled');
+    });
+  } catch (e) {
+    console.warn('[SAFIX] Express Checkout mount fail :', e.message);
+    mount.innerHTML = '';
+  }
+}
+
 async function payWithStripe({ email, total, lineItems, delivery, paymentFees, orderMeta }) {
   const cfg = window.SAFIX_CONFIG.stripe;
   if (!cfg.enabled || !cfg.publicKey) {
@@ -4646,14 +4814,9 @@ document.getElementById('checkoutBtn').addEventListener('click', async () => {
     clearError(emailWrap);
   }
 
-  // 4) Méthode de paiement
-  if (!selectedPayment) {
-    const grid = document.querySelector('.payment-grid');
-    markError(grid);
-    missing.push(grid);
-  } else {
-    clearError(document.querySelector('.payment-grid'));
-  }
+  // 4) Méthode de paiement : 'card' par défaut (Stripe Checkout). Apple Pay / Google Pay
+  // sont gérés directement par Express Checkout Element (avant cette validation).
+  if (!selectedPayment) selectedPayment = 'card';
 
   // 5) Case mandat (dernière section avant le bouton)
   if (!mandateCb || !mandateCb.checked) {
@@ -5199,8 +5362,10 @@ const I18N = {
     'contact.hint':'Confirmation de commande envoyée par mail.',
     'contact.email_required':'Veuillez saisir un email valide pour recevoir votre confirmation.',
     'contact.payment_required':'Sélectionnez un moyen de paiement avant de valider.',
-    'payment.title':'Moyens de paiement',
-    'payment.note':'<strong>Paiement en ligne sécurisé.</strong> Virement bancaire ou espèces également acceptés (contactez le support).',
+    'payment.title':'Paiement',
+    'payment.or':'ou',
+    'payment.card':'Carte bancaire',
+    'payment.note':'<strong>Paiement sécurisé Stripe.</strong> Apple Pay et Google Pay s\'affichent automatiquement si votre appareil les supporte.',
     'recents':'Récemment consultés',
     'qr.title':'Partager SAFIX', 'qr.sub':'Faites-nous découvrir autour de vous ❤️', 'qr.copy':'Copier le lien',
     'share.btn':'Partager',
@@ -5295,8 +5460,10 @@ const I18N = {
     'contact.hint':'Order confirmation sent by email.',
     'contact.email_required':'Please enter a valid email to receive your confirmation.',
     'contact.payment_required':'Select a payment method before confirming.',
-    'payment.title':'Payment methods',
-    'payment.note':'<strong>Secure online payment.</strong> Bank transfer or cash also accepted (contact support).',
+    'payment.title':'Payment',
+    'payment.or':'or',
+    'payment.card':'Credit / debit card',
+    'payment.note':'<strong>Secure Stripe payment.</strong> Apple Pay and Google Pay show up automatically if your device supports them.',
     'recents':'Recently viewed',
     'qr.title':'Share SAFIX', 'qr.sub':'Help others discover us ❤️', 'qr.copy':'Copy link',
     'share.btn':'Share',
@@ -5676,7 +5843,7 @@ document.getElementById('langBtn')?.addEventListener('click', () => setLang(curr
    DELIVERY — toujours commandable, calcul date livraison
 ═══════════════════════════════════════════════════ */
 let selectedDelivery = null; // aucune sélection par défaut → forcer le choix
-let selectedPayment  = null;       // 'applepay' | 'paypal' | null
+let selectedPayment  = 'card';     // 'card' (Stripe Checkout) ou Apple/Google Pay direct via ECE
 let appointmentDate  = '';         // date YYYY-MM-DD du RDV (forcer choix)
 let appointmentSlot  = '';         // 'morning' | 'afternoon' | 'evening'
 let appointmentAddress = 'default'; // 'default' (Dunkerque) | 'other' (à arranger)
@@ -6123,7 +6290,11 @@ function refreshCheckoutState() {
   const cb  = document.getElementById('mandateCheckbox');
   const btn = document.getElementById('checkoutBtn');
   if (!btn) return;
-  const ok = cart.length > 0 && cb && cb.checked && selectedDelivery && selectedPayment
+  // Si que des services purs : pas de livraison requise (RDV oui)
+  const SERVICE_IDS = new Set((data?.repairs?.find(c => c.category === 'Services')?.repairs || []).map(r => r.id));
+  const onlyServ   = cart.length > 0 && cart.every(i => SERVICE_IDS.has(i.repairId));
+  const deliveryOk = onlyServ ? true : !!selectedDelivery;
+  const ok = cart.length > 0 && cb && cb.checked && deliveryOk
           && appointmentDate && appointmentSlot
           && isValidEmail((document.getElementById('emailInput')?.value || '').trim());
   btn.classList.toggle('is-incomplete', !ok);

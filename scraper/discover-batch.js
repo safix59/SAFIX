@@ -235,36 +235,39 @@ const CATEGORIES = {
       { priority: 1, name: "Bouton power", titleRe: /bouton.*(power|allumage|on.?off)|nappe.*power/i },
     ],
   },
-  // Accessoires — Apple cables et chargeurs (regex larges, accessoire universel)
+  // Accessoires — Apple uniquement (exclure Samsung/autres marques)
   cable_usb_c: {
     repairId: "cable_usb_c",
     searchUrl:
-      "https://www.utopya.fr/catalogsearch/result/index/?q=c%C3%A2ble+usb-c&product_list_limit=72",
+      "https://www.utopya.fr/catalogsearch/result/index/?q=c%C3%A2ble+usb-c+apple&product_list_limit=72",
     pageCount: 2,
     rules: [
-      { priority: 1, name: "Câble USB-C", titleRe: /c[âa]ble.*usb.?c|usb.?c.*c[âa]ble/i },
+      { priority: 1, name: "Apple USB-C → USB-C", titleRe: /apple.*c[âa]ble.*usb.?c|c[âa]ble.*apple.*usb.?c|c[âa]ble.*usb.?c.*apple/i },
     ],
     universalAccessory: true,
+    excludeBrands: /samsung|xiaomi|huawei|honor|google|pixel/i,
   },
   adaptateur_secteur_usb_c: {
     repairId: "adaptateur_secteur_usb_c",
     searchUrl:
-      "https://www.utopya.fr/catalogsearch/result/index/?q=adaptateur+secteur&product_list_limit=72",
+      "https://www.utopya.fr/catalogsearch/result/index/?q=adaptateur+secteur+apple&product_list_limit=72",
     pageCount: 2,
     rules: [
-      { priority: 1, name: "Adaptateur secteur USB-C", titleRe: /adaptateur.*secteur|chargeur.*usb.?c/i },
+      { priority: 1, name: "Apple Adaptateur USB-C", titleRe: /apple.*adaptateur|adaptateur.*apple|chargeur.*apple|apple.*chargeur/i },
     ],
     universalAccessory: true,
+    excludeBrands: /samsung|xiaomi|huawei|honor|google|pixel/i,
   },
   cable_usb_c_lightning: {
     repairId: "cable_usb_c_lightning",
     searchUrl:
-      "https://www.utopya.fr/catalogsearch/result/index/?q=c%C3%A2ble+lightning&product_list_limit=72",
+      "https://www.utopya.fr/catalogsearch/result/index/?q=c%C3%A2ble+lightning+apple&product_list_limit=72",
     pageCount: 2,
     rules: [
-      { priority: 1, name: "USB-C → Lightning", titleRe: /usb.?c.*lightning|lightning.*usb.?c/i },
+      { priority: 1, name: "Apple USB-C → Lightning", titleRe: /apple.*lightning|lightning.*apple|usb.?c.*lightning|lightning.*usb.?c/i },
     ],
     universalAccessory: true,
+    excludeBrands: /samsung|xiaomi|huawei|honor|google|pixel/i,
   },
 };
 
@@ -391,8 +394,8 @@ async function discoverCategory(page, key, def) {
   for (const it of filtered) {
     const text = `${it.title} ${it.url}`;
     if (def.universalAccessory) {
-      // Accessoire universel : on essaie chaque règle, et si elle matche
-      // on génère une entrée par modèle iPhone applicable.
+      // Accessoire universel : exclure les marques non-Apple si excludeBrands défini
+      if (def.excludeBrands && def.excludeBrands.test(it.title)) continue;
       for (const rule of def.rules) {
         if (!rule.titleRe.test(it.title)) continue;
         const targets = universalModelsFor(def.repairId);

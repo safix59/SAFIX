@@ -532,6 +532,73 @@ export default async function handler(req, res) {
     return res.status(200).json({ received: true, orderId: result.row?.id });
   }
 
+  // Paiement direct via Payment Intent (Apple Pay direct, Express Checkout)
+  if (event.type === 'payment_intent.succeeded') {
+    const pi = event.data.object;
+    // Si déjà géré via checkout.session.completed → skip
+    if (pi.metadata?.via_checkout === 'true') return res.status(200).json({ received: true });
+
+    // Reconstruire l'objet "session-like" pour réutiliser sendEmailToShop/Client
+    const fakeSession = {
+      id: pi.id,
+      payment_intent: pi.id,
+      amount_total: pi.amount,
+      currency: pi.currency,
+      customer_email: pi.receipt_email,
+      customer_details: {
+        email: pi.receipt_email,
+        phone: pi.shipping?.phone || null,
+        address: pi.shipping?.address || null,
+      },
+      metadata: pi.metadata || {},
+      livemode: pi.livemode,
+    };
+    // Reconstruire lineItems depuis metadata.cart
+    let lineItems = [];
+    try {
+      const compact = JSON.parse(pi.metadata?.cart || '[]');
+      lineItems = compact.map(c => ({
+        name: `${c.r} ${c.m}`,  // approximation, le nom pretty est dans la metadata model
+        qty: c.q || 1,
+        unit_amount: 0,  // pas critique, total déjà dans pi.amount
+      }));
+    } catch {}
+
+    sendEmailToShop({ session: fakeSession, lineItems }).catch(e => console.warn('mail shop pi', e.message));
+    sendEmailToClient({ session: fakeSession, lineItems }).catch(e => console.warn('mail client pi', e.message));
+
+    // Persistence Supabase
+    let cartFull = [];
+    try {
+      const compact = JSON.parse(pi.metadata?.cart || '[]');
+      cartFull = compact.map(c => ({ repair_id: c.r, model: c.m, qty: c.q || 1, color: c.c || null }));
+    } catch {}
+    const order = {
+      stripe_session_id:     pi.id,  // utilise pi.id comme clé unique
+      stripe_payment_intent: pi.id,
+      customer_email:        pi.receipt_email || 'unknown@safix59.fr',
+      total_cents:           pi.amount,
+      currency:              pi.currency,
+      status:                'paid',
+      line_items:            cartFull,
+      metadata:              pi.metadata || {},
+      created_at:            new Date().toISOString(),
+    };
+    const result = await insertOrder(order);
+
+    // Trigger bot Render
+    const botUrl    = process.env.BOT_TRIGGER_URL;
+    const botSecret = process.env.BOT_TRIGGER_SECRET;
+    if (botUrl && result.ok && result.row?.id) {
+      fetch(botUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-SAFIX-Secret': botSecret || '' },
+        body: JSON.stringify({ orderId: result.row.id }),
+      }).catch(e => console.warn('[webhook] Bot trigger fail :', e.message));
+    }
+    return res.status(200).json({ received: true, orderId: result.row?.id });
+  }
+
   if (event.type === 'checkout.session.expired') {
     console.log('[webhook] Session expirée :', event.data.object.id);
   } else if (event.type === 'payment_intent.payment_failed') {
