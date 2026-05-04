@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /scraper/
+
+Sitemap: https://safix.fr/sitemap.xml

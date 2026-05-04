@@ -1,0 +1,14 @@
+{
+  "name": "safix-bot",
+  "version": "1.0.0",
+  "description": "Bot SAFIX — auto-commande Utopya après paiement Stripe",
+  "type": "module",
+  "main": "order-runner.js",
+  "scripts": {
+    "start": "node order-runner.js"
+  },
+  "dependencies": {
+    "playwright": "^1.50.0",
+    "stripe": "^16.0.0"
+  }
+}

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" aria-hidden="true">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1f1f22"/>
+      <stop offset="1" stop-color="#0a0a0a"/>
+    </linearGradient>
+    <linearGradient id="metal" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0"   stop-color="#f5f5f5"/>
+      <stop offset=".45" stop-color="#dcdcdc"/>
+      <stop offset=".55" stop-color="#9c9c9c"/>
+      <stop offset="1"   stop-color="#e0e0e0"/>
+    </linearGradient>
+  </defs>
+  <!-- Pastille fond -->
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#bg)"/>
+  <!-- Contour iPhone -->
+  <rect x="18" y="9" width="28" height="46" rx="5.5" fill="none" stroke="url(#metal)" stroke-width="2.4"/>
+  <!-- Haut-parleur -->
+  <rect x="27" y="13" width="10" height="2.6" rx="1.3" fill="url(#metal)"/>
+  <!-- Lettre S métallique au centre -->
+  <text x="32" y="44" text-anchor="middle"
+        font-family="-apple-system, 'SF Pro Display', system-ui, sans-serif"
+        font-size="22" font-weight="900" letter-spacing="-1"
+        fill="url(#metal)">S</text>
+</svg>

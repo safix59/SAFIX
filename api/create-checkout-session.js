@@ -1,0 +1,117 @@
+// ─────────────────────────────────────────────────────────────────────────
+// Backend serverless pour créer une session Stripe Checkout
+// ─────────────────────────────────────────────────────────────────────────
+// COMPATIBLE :
+//   - Vercel  (Node Serverless Functions)
+//   - Netlify (en renommant `default export` → `exports.handler`)
+//   - Cloudflare Workers (avec adaptation mineure)
+//
+// VARIABLES D'ENVIRONNEMENT (à configurer dans le dashboard de l'hébergeur) :
+//   STRIPE_SECRET_KEY = sk_live_xxx  (ou sk_test_xxx)
+//   ALLOWED_ORIGIN    = https://safix.fr   (ton domaine final)
+//
+// COMMENT DÉPLOYER (Vercel — le plus simple) :
+//   1. Crée un compte sur vercel.com (gratuit pour ton volume)
+//   2. Connecte ce repo Git (ou drag-and-drop le dossier wIA/)
+//   3. Dans Settings → Environment Variables, ajoute STRIPE_SECRET_KEY et ALLOWED_ORIGIN
+//   4. C'est tout. L'URL devient https://ton-projet.vercel.app/api/create-checkout-session
+//   5. Mets cette URL dans SAFIX_CONFIG.stripe.createSessionUrl côté front (index.html)
+// ─────────────────────────────────────────────────────────────────────────
+
+import Stripe from 'stripe';
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+  apiVersion: '2024-06-20',
+});
+
+// CORS headers helper
+const allowOrigin = process.env.ALLOWED_ORIGIN || '*';
+function withCors(res) {
+  res.setHeader('Access-Control-Allow-Origin', allowOrigin);
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  return res;
+}
+
+export default async function handler(req, res) {
+  withCors(res);
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST')   return res.status(405).json({ error: 'Method not allowed' });
+
+  try {
+    const {
+      email,
+      total,         // en euros (ex: 89)
+      lineItems,     // [{ name, price, qty }]
+      delivery,      // { name, price } — coût livraison
+      paymentFees,   // en euros (ex: 1.59)
+      success_url,
+      cancel_url,
+    } = req.body || {};
+
+    if (!Array.isArray(lineItems) || !lineItems.length) {
+      return res.status(400).json({ error: 'lineItems vide' });
+    }
+
+    // Construit les line_items au format Stripe (montants en centimes)
+    const stripeItems = lineItems.map(it => ({
+      quantity: it.qty || 1,
+      price_data: {
+        currency: 'eur',
+        product_data: {
+          name: it.name,
+          description: 'Réparation SAFIX — mandat de commande de pièce + service',
+        },
+        unit_amount: Math.round(Number(it.price) * 100),
+      },
+    }));
+    // Ajoute la livraison comme line item si > 0
+    if (delivery && Number(delivery.price) > 0) {
+      stripeItems.push({
+        quantity: 1,
+        price_data: {
+          currency: 'eur',
+          product_data: { name: delivery.name || 'Livraison', description: 'Frais de livraison de la pièce' },
+          unit_amount: Math.round(Number(delivery.price) * 100),
+        },
+      });
+    }
+    // Ajoute les frais de paiement Stripe (ligne séparée, transparent pour le client)
+    if (Number(paymentFees) > 0) {
+      stripeItems.push({
+        quantity: 1,
+        price_data: {
+          currency: 'eur',
+          product_data: {
+            name: 'Frais de paiement',
+            description: 'Couvre strictement les frais du processeur de paiement (Stripe : 1,5 % + 0,25 €). Ne revient pas au réparateur.',
+          },
+          unit_amount: Math.round(Number(paymentFees) * 100),
+        },
+      });
+    }
+
+    const session = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      payment_method_types: ['card'],   // Stripe activera Apple Pay / Google Pay automatiquement si l'appareil les supporte
+      customer_email: email,
+      line_items: stripeItems,
+      success_url: success_url || `${allowOrigin}/?paid=1&session={CHECKOUT_SESSION_ID}`,
+      cancel_url:  cancel_url  || `${allowOrigin}/?cancel=1`,
+      metadata: {
+        platform: 'safix',
+        total_announced: String(total),
+      },
+      // En France, on précise la TVA via le custom (à ajuster avec ton expert-comptable)
+      // automatic_tax: { enabled: true },     // décommenter si Stripe Tax activé
+    });
+
+    return res.status(200).json({
+      sessionId: session.id,
+      url: session.url,                 // redirection directe (plus simple côté front)
+    });
+  } catch (err) {
+    console.error('[Stripe] Erreur création session :', err);
+    return res.status(500).json({ error: err.message || 'Internal error' });
+  }
+}

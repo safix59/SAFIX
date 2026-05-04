@@ -1,0 +1,53 @@
+# ─── Secrets & credentials ─────────────────────────
+.env
+.env.local
+.env.production
+**/.env
+**/.env.local
+scraper/auth.json
+scraper/.user-data/
+api/.env
+bot/.env
+
+# ─── Dependencies ──────────────────────────────────
+node_modules/
+**/node_modules/
+
+# ─── Logs ──────────────────────────────────────────
+logs/
+**/logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ─── OS / Editor ───────────────────────────────────
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*~
+
+# ─── Build / Cache ─────────────────────────────────
+dist/
+build/
+.next/
+.cache/
+.parcel-cache/
+
+# ─── Local data / scratch ──────────────────────────
+*.tmp
+*.bak
+/tmp/
+
+# ─── Bot reconnaissance / runtime ──────────────────
+bot/.recon-userdata/
+bot/recon-auth.json
+bot/recon-checkout.html
+bot/recon-result.json
+bot/bot-userdata/
+bot/bot-auth.json
+
+# ─── Scraper user-data persistent ──────────────────
+scraper/.user-data/
+scraper/logs/

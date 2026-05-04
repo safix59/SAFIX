@@ -1,0 +1,9 @@
+{
+  "name": "safix-api",
+  "version": "1.0.0",
+  "description": "Backend serverless SAFIX — Stripe Checkout",
+  "type": "module",
+  "dependencies": {
+    "stripe": "^16.0.0"
+  }
+}

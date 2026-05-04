@@ -1,0 +1,18 @@
+{
+  "name": "SAFIX — Réparation iPhone",
+  "short_name": "SAFIX",
+  "description": "Réparation iPhone : tarifs en temps réel, livraison 48h, garantie 6 mois.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "lang": "fr",
+  "icons": [
+    { "src": "images/safix/safix-icon-dark-192.png",  "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "images/safix/safix-icon-dark-512.png",  "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "images/safix/safix-icon-dark-192.png",  "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "images/safix/safix-icon-dark-512.png",  "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

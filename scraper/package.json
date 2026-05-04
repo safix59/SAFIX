@@ -1,0 +1,27 @@
+{
+  "name": "sfx-utopya-scraper",
+  "version": "1.0.0",
+  "description": "Récupère les prix PRO Utopya, applique marge +20% +25€ et expose un prices.json pour le site SAFIX.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "postinstall": "playwright install chromium",
+    "login": "node run.js --login-only",
+    "scrape": "node run.js",
+    "scrape:one": "node run.js --url",
+    "scrape:headed": "node run.js --headed",
+    "test": "node run.js --test",
+    "test:headed": "node run.js --test --headed",
+    "verify-formula": "node verify-formula.js",
+    "go": "node run.js --login-only && node run.js --test",
+    "serve": "cd .. && python3 -m http.server 8000"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "p-limit": "^5.0.0",
+    "playwright": "^1.47.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
