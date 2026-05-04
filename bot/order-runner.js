@@ -299,21 +299,45 @@ async function placeOrderOnUtopya(context, order) {
     await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {});
     await page.waitForTimeout(3000);
 
-    // 3) Sur /checkout/ : choisir le mode de paiement (avec fallback)
+    // 3) Sur /checkout/ : choisir le mode de paiement (avec fallback + auto-discover)
     if (!page.url().includes('/checkout/')) throw new Error(`Pas sur la page checkout : ${page.url()}`);
+
+    // Attendre que les méthodes de paiement soient chargées (Magento async)
+    await page.waitForTimeout(5000);
+
+    // Lister toutes les méthodes de paiement disponibles
+    const availableMethods = await page.evaluate(() => {
+      const methods = [];
+      document.querySelectorAll('input[name="payment[method]"]').forEach(el => {
+        methods.push({
+          id: el.id,
+          value: el.value,
+          checked: el.checked,
+          visible: el.offsetParent !== null,
+        });
+      });
+      return methods;
+    });
+    log.info(`    Méthodes paiement dispo : ${JSON.stringify(availableMethods).slice(0, 400)}`);
+
+    // Tenter primary, fallback, puis n'importe quelle méthode dispo
     let chosen = null;
-    for (const method of [PAYMENT_PRIMARY, PAYMENT_FALLBACK].filter(Boolean)) {
+    const tryList = [PAYMENT_PRIMARY, PAYMENT_FALLBACK, ...availableMethods.map(m => m.value)].filter(Boolean);
+    const seen = new Set();
+    for (const method of tryList) {
+      if (seen.has(method)) continue;
+      seen.add(method);
       try {
-        await page.locator(`input#${method}`).check({ timeout: 6000 });
+        await page.locator(`input#${method}, input[value="${method}"]`).first().check({ timeout: 4000 });
         chosen = method;
         log.info(`  ✓ Paiement choisi : ${method}`);
         break;
       } catch {
-        log.warn(`  Méthode "${method}" indisponible, tentative suivante…`);
+        log.warn(`  Méthode "${method}" indisponible…`);
       }
     }
     if (!chosen) {
-      throw new Error(`Aucune méthode de paiement utilisable — vérifie UTOPYA_PAYMENT (testé : ${PAYMENT_PRIMARY}, ${PAYMENT_FALLBACK})`);
+      throw new Error(`Aucune méthode de paiement utilisable — testé : ${[...seen].join(', ')}, dispo : ${availableMethods.map(m=>m.value).join(',')}`);
     }
     await page.waitForTimeout(1500);
 
