@@ -1107,25 +1107,50 @@ header {
 }
 .payment-note strong { color:var(--text); }
 
-/* Conteneur où Stripe Express Checkout monte ses boutons (Apple Pay/Google Pay/PayPal côte à côte) */
+/* Express Row : Apple Pay + Google Pay (ECE) + PayPal custom — sur 1 ligne */
+.express-row {
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:8px; align-items:stretch;
+  margin-bottom:8px;
+}
 .express-checkout-mount {
-  min-height:50px; margin-bottom:8px;
+  min-height:44px;
   position:relative;
   transition:opacity .25s, filter .25s;
 }
 .express-checkout-mount:empty { display:none; }
 
+/* Bouton PayPal custom (à côté de l'ECE) */
+.paypal-btn {
+  display:inline-flex; align-items:center; justify-content:center;
+  height:44px; min-width:88px;
+  padding:0 16px;
+  background:#ffc439;
+  border:none; border-radius:6px;
+  cursor:pointer;
+  transition:opacity .2s, transform .15s, background .2s, filter .25s;
+  -webkit-tap-highlight-color:transparent;
+}
+.paypal-btn:hover { background:#f0bb33; }
+.paypal-btn:active { transform:scale(.97); }
+.paypal-btn svg { display:block; }
+
 /* État désactivé : grisé + pas de clic tant que les champs ne sont pas remplis */
+.express-row.is-incomplete .express-checkout-mount,
+.express-row.is-incomplete .paypal-btn {
+  opacity:.3;
+  pointer-events:none;
+  filter:grayscale(.6);
+}
 .express-checkout-mount.is-incomplete {
   opacity:.3;
   pointer-events:none;
   filter:grayscale(.6);
 }
 .express-checkout-mount.is-incomplete::after {
-  content:'';
-  position:absolute; inset:0;
-  background:transparent;
-  cursor:not-allowed;
+  content:''; position:absolute; inset:0;
+  background:transparent; cursor:not-allowed;
 }
 
 /* Divider "ou" entre Express Checkout et carte */
@@ -2595,8 +2620,17 @@ input:focus:not(:focus-visible) {
     <!-- ═══ MOYENS DE PAIEMENT ═══ -->
     <div class="cart-section" id="paymentBlock" style="display:none">
       <div class="cart-section-title" data-i18n="payment.title">Paiement</div>
-      <!-- Stripe Express Checkout Element : Apple Pay / Google Pay / Link directs -->
-      <div id="expressCheckoutMount" class="express-checkout-mount"></div>
+      <!-- Express Checkout : Apple Pay + Google Pay (Stripe ECE) + PayPal custom — sur 1 ligne -->
+      <div class="express-row">
+        <div id="expressCheckoutMount" class="express-checkout-mount"></div>
+        <button type="button" id="paypalBtn" class="paypal-btn" aria-label="PayPal">
+          <svg width="68" height="20" viewBox="0 0 101 32" fill="none" aria-hidden="true">
+            <path d="M12.237 6.633h6.518c3.5 0 4.823 1.772 4.62 4.378-.336 4.3-2.93 6.677-6.378 6.677h-1.74c-.474 0-.793.314-.92 1.16l-.74 4.937c-.05.32-.218.504-.47.527H8.84c-.385 0-.522-.294-.42-.93l2.495-15.78c.099-.628.443-.97.928-.97z" fill="#003087"/>
+            <path d="M40.66 11.83c-1.026 0-1.834.85-1.96 1.79-.092.683.214 1.286.998 1.286.987 0 1.794-.84 1.927-1.787.13-.937-.262-1.29-.965-1.29zm-3.84 8.107c-.262 0-.345-.17-.31-.396l1.057-6.713c.034-.196.215-.387.42-.387h2.14c.205 0 .283.144.246.387l-.205 1.302c-.034.215.05.358.213.358.16 0 .49-.344 1.36-.97 1.16-.83 2.318-.974 3.353-.567 1.064.42 1.4 1.46 1.225 2.612l-.84 5.376c-.034.215-.205.398-.4.398h-2.158c-.245 0-.328-.17-.292-.397l.7-4.482c.097-.616-.183-.97-.788-.97-.62 0-1.108.392-1.205 1.025l-.65 4.03c-.03.215-.205.398-.4.398h-2.158zM55.4 11.876c-.97 0-1.794.873-1.92 1.787-.13.937.245 1.302.987 1.302.972 0 1.794-.84 1.92-1.79.13-.93-.262-1.302-.987-1.302zm-3.84 8.06c-.262 0-.345-.17-.31-.396l1.06-6.713c.03-.196.215-.387.42-.387h2.14c.205 0 .278.144.245.387l-.215 1.32c-.03.215.05.358.213.358.16 0 .487-.345 1.358-.972 1.16-.83 2.318-.985 3.353-.572 1.06.413 1.4 1.448 1.225 2.605l-.84 5.376c-.034.215-.205.398-.4.398h-2.158c-.244 0-.327-.17-.292-.397l.7-4.482c.097-.616-.183-.97-.788-.97-.617 0-1.108.392-1.205 1.025l-.65 4.03c-.03.215-.205.398-.4.398h-2.158z" fill="#009cde"/>
+            <path d="M28.587 6.633h6.518c3.5 0 4.823 1.772 4.62 4.378-.336 4.3-2.93 6.677-6.378 6.677h-1.74c-.474 0-.793.314-.92 1.16l-.74 4.937c-.05.32-.218.504-.47.527h-2.288c-.385 0-.522-.294-.42-.93l2.495-15.78c.099-.628.443-.97.928-.97z" fill="#009cde"/>
+          </svg>
+        </button>
+      </div>
       <div class="payment-divider"><span data-i18n="payment.or">ou</span></div>
       <!-- Carte fallback : Stripe Checkout en redirect -->
       <button type="button" class="payment-card payment-card--card" data-payment="card">
@@ -6420,7 +6454,34 @@ function refreshCheckoutState() {
   btn.classList.toggle('is-incomplete', !ok);
   // Apple Pay / Google Pay / PayPal grisés tant que les champs ne sont pas remplis
   if (ece) ece.classList.toggle('is-incomplete', !ok);
+  const expressRow = document.querySelector('.express-row');
+  if (expressRow) expressRow.classList.toggle('is-incomplete', !ok);
 }
+
+// ─── Bouton PayPal custom ────────────────────────────────────────
+// Lance Stripe Checkout avec payment_method_types: ['paypal','card']
+document.getElementById('paypalBtn')?.addEventListener('click', async () => {
+  // Si formulaire incomplet → ne rien faire (le grisé empêche le click via CSS,
+  // mais ceinture+bretelles si CSS pointer-events ne marche pas)
+  if (document.querySelector('.express-row.is-incomplete')) return;
+  const ctx = window._safixCurrentOrder;
+  if (!ctx) return;
+  // Force paymentMethod=paypal pour que le backend passe ['paypal','card']
+  const orderMetaPaypal = { ...(ctx.orderMeta || {}), paymentMethod: 'paypal' };
+  try {
+    await payWithStripe({
+      email: ctx.email,
+      total: ctx.totalWithFees || ctx.total,  // PayPal via Stripe Checkout : avec frais
+      lineItems: ctx.lineItems,
+      delivery: ctx.delivery,
+      paymentFees: ctx.paymentFees,
+      orderMeta: orderMetaPaypal,
+    });
+  } catch (e) {
+    console.warn('[SAFIX] PayPal click error :', e.message);
+    showToast('⚠️', currentLang === 'en' ? 'Payment failed' : 'Le paiement a échoué');
+  }
+});
 document.getElementById('mandateCheckbox')?.addEventListener('change', refreshCheckoutState);
 
 // Toggle du détail des coûts (wakāla — pièce / livraison / mandat / réparation)
