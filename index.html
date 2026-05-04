@@ -779,6 +779,17 @@ header {
 }
 .repair-card.unavailable:hover { transform:none; border-color:var(--border); }
 
+/* Réparation Express désactivée tant qu'aucune réparation iPhone n'est au panier */
+.repair-card.rep-disabled {
+  opacity:.5; cursor:not-allowed;
+}
+.repair-card.rep-disabled:hover { transform:none; border-color:var(--border); }
+.repair-card.rep-disabled::after {
+  content:''; position:absolute; inset:0;
+  background:repeating-linear-gradient(45deg, transparent 0 6px, rgba(var(--accent-rgb),.04) 6px 12px);
+  border-radius:inherit; pointer-events:none;
+}
+
 /* Ripple */
 .ripple {
   position:absolute; border-radius:50%;
@@ -3834,17 +3845,21 @@ function renderDetail(model) {
       const inCart  = cart.some(c => c.name === repair.name && c.modelKey === model);
       if (!blocked && cat.category === 'Réparations') available++;
 
+      // Réparation Express n'est activable que si une vraie réparation iPhone est au panier
+      const needsRepair = repair.id === 'reparation_express';
       const card = document.createElement('div');
       let cls = 'repair-card';
       if (inCart && !blocked) cls += ' selected';
       if (oos) cls += ' out-of-stock';
       else if (noLink) cls += ' no-link';
       else if (unavail) cls += ' unavailable';
+      if (needsRepair) cls += ' needs-repair';  // marqueur pour syncCart
       card.className = cls;
       card.style.animationDelay = `${(ci * 6 + ri) * 0.04}s`;
       card.dataset.name     = repair.name;
       card.dataset.price    = price;
       card.dataset.repairId = repair.id;
+      if (needsRepair) card.dataset.needsRepair = '1';
 
       const priceDisplay = oos
         ? (currentLang === 'en' ? 'Out of<br>stock' : 'Rupture<br>de stock')
@@ -3882,6 +3897,15 @@ function renderDetail(model) {
 
       if (!blocked) {
         card.addEventListener('click', e => {
+          // Réparation Express : bloque le click si le panier n'a pas de vraie réparation
+          if (needsRepair && card.classList.contains('rep-disabled')) {
+            addRipple(card, e);
+            const msg = currentLang === 'en'
+              ? 'Add a repair first to unlock Express'
+              : 'Ajoutez d\'abord une réparation pour activer l\'Express';
+            showToast('ℹ️', msg);
+            return;
+          }
           addRipple(card, e);
           vibrate([8]);
           // Cas connecteur de charge : exiger une couleur avant ajout
@@ -4312,6 +4336,29 @@ function syncCart() {
   }
   // Le lien "En savoir plus" n'a de sens que pour le mandat (pas pour un service pur)
   if (moreLink) moreLink.style.display = onlyServices ? 'none' : '';
+
+  // Réparation Express : grisée tant qu'aucune vraie réparation iPhone (= catégorie 'Réparations') n'est au panier
+  const REPAIR_IDS = new Set(
+    (data?.repairs?.find(c => c.category === 'Réparations')?.repairs || []).map(r => r.id)
+  );
+  const hasRealRepair = cart.some(i => REPAIR_IDS.has(i.repairId));
+  document.querySelectorAll('.repair-card[data-needs-repair]').forEach(card => {
+    if (hasRealRepair) {
+      card.classList.remove('rep-disabled');
+    } else {
+      card.classList.add('rep-disabled');
+      // Si Réparation Express était dans le panier mais plus de réparation, on le retire
+      const inCart = cart.some(c => c.repairId === card.dataset.repairId);
+      if (inCart) {
+        const name = card.dataset.name;
+        const idx = cart.findIndex(c => c.repairId === card.dataset.repairId);
+        if (idx >= 0) {
+          cart.splice(idx, 1);
+          card.classList.remove('selected');
+        }
+      }
+    }
+  });
 
   syncFloatBar(items);
 }
