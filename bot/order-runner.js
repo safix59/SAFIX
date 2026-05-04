@@ -119,7 +119,24 @@ const LINKS = (() => {
   } catch (e) { console.error('[bot] Impossible de charger links.json :', e.message); return []; }
 })();
 
-function findUtopyaUrl(repairId, model) {
+// Mapping modelKey (utilisé côté front) → modèle canonique (utilisé dans links.json)
+const MODEL_KEY_MAP = {
+  'iphone17promax':'iPhone 17 Pro Max', 'iphone17pro':'iPhone 17 Pro', 'iphone17plus':'iPhone 17 Plus', 'iphone17':'iPhone 17', 'iphone17e':'iPhone 17e', 'iphone17air':'iPhone 17 Air',
+  'iphone16promax':'iPhone 16 Pro Max', 'iphone16pro':'iPhone 16 Pro', 'iphone16plus':'iPhone 16 Plus', 'iphone16':'iPhone 16', 'iphone16e':'iPhone 16e',
+  'iphone15promax':'iPhone 15 Pro Max', 'iphone15pro':'iPhone 15 Pro', 'iphone15plus':'iPhone 15 Plus', 'iphone15':'iPhone 15',
+  'iphone14promax':'iPhone 14 Pro Max', 'iphone14pro':'iPhone 14 Pro', 'iphone14plus':'iPhone 14 Plus', 'iphone14':'iPhone 14',
+  'iphone13promax':'iPhone 13 Pro Max', 'iphone13pro':'iPhone 13 Pro', 'iphone13mini':'iPhone 13 mini', 'iphone13':'iPhone 13',
+  'iphone12promax':'iPhone 12 Pro Max', 'iphone12pro':'iPhone 12 Pro', 'iphone12mini':'iPhone 12 mini', 'iphone12':'iPhone 12',
+  'iphone11promax':'iPhone 11 Pro Max', 'iphone11pro':'iPhone 11 Pro', 'iphone11':'iPhone 11',
+  'iphonexsmax':'iPhone XS Max', 'iphonexs':'iPhone XS', 'iphonexr':'iPhone XR', 'iphonex':'iPhone X',
+  'iphonese2022':'iPhone SE (2022)', 'iphonese2020':'iPhone SE (2020)',
+  'iphone8plus':'iPhone 8 Plus', 'iphone8':'iPhone 8', 'iphone7plus':'iPhone 7 Plus', 'iphone7':'iPhone 7',
+  'iphone6splus':'iPhone 6s Plus', 'iphone6s':'iPhone 6s', 'iphone6plus':'iPhone 6 Plus', 'iphone6':'iPhone 6',
+};
+
+function findUtopyaUrl(repairId, modelOrKey) {
+  // Accepte soit la modelKey ('iphone13promax') soit le nom canonique ('iPhone 13 Pro Max')
+  const model = MODEL_KEY_MAP[modelOrKey] || modelOrKey;
   // Sélectionne la priorité 1 par défaut, puis 2, etc.
   const candidates = LINKS
     .filter(L => L.repair_id === repairId && L.model === model)
@@ -175,13 +192,14 @@ async function placeOrderOnUtopya(context, order) {
       } catch {}
 
       // Variante couleur (connecteur de charge)
-      if (item.color_name) {
+      const colorName = item.color || item.color_name || item.colorName;
+      if (colorName) {
         try {
           // Magento swatch : on clique sur la pastille avec le data-option-label correspondant
-          await page.locator(`.swatch-option[data-option-label*="${item.color_name}" i]`).first().click({ timeout: 4000 });
+          await page.locator(`.swatch-option[data-option-label*="${colorName}" i]`).first().click({ timeout: 4000 });
           await page.waitForTimeout(500);
         } catch (e) {
-          log.warn(`  Variante couleur "${item.color_name}" non sélectionnable, on continue`);
+          log.warn(`  Variante couleur "${colorName}" non sélectionnable, on continue`);
         }
       }
 

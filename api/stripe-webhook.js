@@ -491,6 +491,19 @@ export default async function handler(req, res) {
     sendEmailToClient({ session, lineItems }).catch(e => console.warn('mail client', e.message));
 
     // 2) Persistence Supabase (si configurée)
+    // Décode le cart compact (metadata.cart) pour le bot
+    let cartFull = [];
+    try {
+      const compact = JSON.parse(session.metadata?.cart || '[]');
+      cartFull = compact.map(c => ({
+        repair_id: c.r,
+        model:     c.m,
+        qty:       c.q || 1,
+        color:     c.c || null,
+      }));
+    } catch (e) {
+      console.warn('[webhook] Cart parse error :', e.message);
+    }
     const order = {
       stripe_session_id:     session.id,
       stripe_payment_intent: session.payment_intent,
@@ -498,7 +511,7 @@ export default async function handler(req, res) {
       total_cents:           session.amount_total,
       currency:              session.currency,
       status:                'paid',
-      line_items:            lineItems,
+      line_items:            cartFull.length ? cartFull : lineItems,  // ← cartFull a repair_id+model pour le bot
       metadata:              session.metadata || {},
       created_at:            new Date().toISOString(),
     };

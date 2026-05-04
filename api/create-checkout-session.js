@@ -119,7 +119,7 @@ export default async function handler(req, res) {
       metadata: {
         platform: 'safix',
         total_announced: String(total),
-        // Métadonnées de la commande pour le mail client
+        // Métadonnées de la commande pour le mail client + bot
         ...(orderMeta && {
           model:    String(orderMeta.model    || ''),
           phone:    String(orderMeta.phone    || ''),
@@ -129,6 +129,7 @@ export default async function handler(req, res) {
           apptDate: String(orderMeta.apptDate || ''),
           apptSlot: String(orderMeta.apptSlot || ''),
           lang:     String(orderMeta.lang     || 'fr'),
+          cart:     String(orderMeta.cart     || ''),  // JSON compact pour bot
         }),
       },
     });

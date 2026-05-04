@@ -4704,6 +4704,11 @@ document.getElementById('checkoutBtn').addEventListener('click', async () => {
         ts: Date.now(),
       }));
     } catch (e) { console.warn('[SAFIX] localStorage indisponible', e); }
+    // Format cart compact pour metadata Stripe (limite 8KB total)
+    // Garde juste l'essentiel pour le bot : repair_id, modelKey, qty, color
+    const cartCompact = cart.map(i => ({
+      r: i.repairId, m: i.modelKey, q: i.qty || 1, ...(i.colorName && { c: i.colorName }),
+    }));
     // Métadonnées commande (passées via Stripe metadata pour le mail client server-side)
     const orderMeta = {
       model:         activeModel || 'iPhone',
@@ -4715,6 +4720,7 @@ document.getElementById('checkoutBtn').addEventListener('click', async () => {
       apptSlot:      appointmentSlot || '',
       lang:          currentLang || 'fr',
       paymentMethod: selectedPayment || 'card',  // 'applepay' | 'paypal' | 'card'
+      cart:          JSON.stringify(cartCompact),
     };
     const stripeResp = await payWithStripe({ email, total: totalNow, lineItems, delivery: deliveryLine, paymentFees, orderMeta });
     if (stripeResp.redirected) return;          // navigation vers Stripe → on stoppe ici
