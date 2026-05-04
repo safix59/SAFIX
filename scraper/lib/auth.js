@@ -377,6 +377,11 @@ export async function ensureLoggedIn({
       "--no-pings",
       "--password-store=basic",
       "--use-mock-keychain",
+      // Mode single-process : tout dans un seul process Chrome (très agressif RAM)
+      // Activé uniquement si BOT_LOW_MEM=1 pour ne pas péter le scraper local
+      ...(process.env.BOT_LOW_MEM === "1"
+        ? ["--single-process", "--no-zygote", "--disable-software-rasterizer"]
+        : []),
     ],
   });
   context._authFile = authFile;
