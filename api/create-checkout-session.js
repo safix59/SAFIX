@@ -8,13 +8,13 @@
 //
 // VARIABLES D'ENVIRONNEMENT (à configurer dans le dashboard de l'hébergeur) :
 //   STRIPE_SECRET_KEY = sk_live_xxx  (ou sk_test_xxx)
-//   ALLOWED_ORIGIN    = https://safix.fr   (ton domaine final)
+//   ALLOWED_ORIGIN    = https://safix59.fr   (ton domaine final)
 //
 // COMMENT DÉPLOYER (Vercel — le plus simple) :
 //   1. Crée un compte sur vercel.com (gratuit pour ton volume)
 //   2. Connecte ce repo Git (ou drag-and-drop le dossier wIA/)
 //   3. Dans Settings → Environment Variables, ajoute STRIPE_SECRET_KEY et ALLOWED_ORIGIN
-//   4. C'est tout. L'URL devient https://ton-projet.vercel.app/api/create-checkout-session
+//   4. C'est tout. L'URL devient https://safix59.fr/api/create-checkout-session
 //   5. Mets cette URL dans SAFIX_CONFIG.stripe.createSessionUrl côté front (index.html)
 // ─────────────────────────────────────────────────────────────────────────
 
