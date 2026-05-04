@@ -378,30 +378,31 @@ async function bootstrapAuthFromSupabase() {
 }
 
 // ─── Main loop ───────────────────────────────────────────────────────────
-let context = null;
-let contextPromise = null;  // Lock anti-race-condition
-async function getOrCreateContext() {
-  if (context) return context;
-  if (contextPromise) return contextPromise;
-  contextPromise = (async () => {
-    try {
-      // Bootstrap : télécharge auth.json si pas encore fait
-      await bootstrapAuthFromSupabase();
-      context = await ensureLoggedIn({
-        chromium,
-        userDataDir: './bot-userdata',
-        authFile:    './bot-auth.json',
-        email:       process.env.UTOPYA_EMAIL,
-        password:    process.env.UTOPYA_PASSWORD,
-        logger:      log,
-        headless:    true,
-      });
-      return context;
-    } finally {
-      contextPromise = null;
-    }
-  })();
-  return contextPromise;
+// Mode éphémère : pas de context global. Chaque commande crée et ferme son
+// propre context Playwright pour éviter l'accumulation RAM sur Render Free.
+async function createFreshContext() {
+  await bootstrapAuthFromSupabase();
+  return ensureLoggedIn({
+    chromium,
+    userDataDir: `./bot-userdata-${Date.now()}`,  // dir unique = pas de partage state
+    authFile:    './bot-auth.json',
+    email:       process.env.UTOPYA_EMAIL,
+    password:    process.env.UTOPYA_PASSWORD,
+    logger:      log,
+    headless:    true,
+  });
+}
+
+// Cleanup userdata dirs anciens
+import { rmSync } from 'node:fs';
+function cleanupOldUserdata() {
+  try {
+    const dirs = require('node:fs').readdirSync('.').filter(n => n.startsWith('bot-userdata-'));
+    // Garde les 2 plus récents, supprime le reste
+    dirs.sort().slice(0, -2).forEach(d => {
+      try { rmSync(d, { recursive: true, force: true }); } catch {}
+    });
+  } catch {}
 }
 
 async function tick() {
@@ -415,19 +416,15 @@ async function tick() {
   if (!pending.length) return;
   log.info(`${pending.length} commande(s) à traiter`);
 
-  // Lazy login Utopya — utilise le lock pour éviter les race conditions
-  try {
-    await getOrCreateContext();
-  } catch (e) {
-    log.error('Login Utopya impossible :', e.message);
-    log.error('Stack :', e.stack?.slice(0, 500));
-    return;
-  }
+  // Mode éphémère : pas de pré-création, on crée le context dans processSingleOrder
 
   for (const order of pending) {
+    let ctx = null;
     try {
+      cleanupOldUserdata();
+      ctx = await createFreshContext();
       await setStatus(order.id, 'ordering');
-      const result = await placeOrderOnUtopya(context, order);
+      const result = await placeOrderOnUtopya(ctx, order);
       await setStatus(order.id, 'ordered', {
         utopya_order_id: result.utopyaOrderId,
         eta_date:        result.etaDate,
@@ -439,6 +436,9 @@ async function tick() {
       await setStatus(order.id, refunded ? 'refunded' : 'failed', {
         error_message: e.message.slice(0, 500),
       });
+    } finally {
+      // Mode éphémère : ferme le context après chaque commande pour libérer la RAM
+      if (ctx) try { await ctx.close(); } catch {}
     }
   }
 }
@@ -466,11 +466,12 @@ async function processSingleOrder(orderId) {
     return;
   }
 
-  await getOrCreateContext();
-
-  await setStatus(order.id, 'ordering');
+  let ctx = null;
   try {
-    const result = await placeOrderOnUtopya(context, order);
+    cleanupOldUserdata();
+    ctx = await createFreshContext();
+    await setStatus(order.id, 'ordering');
+    const result = await placeOrderOnUtopya(ctx, order);
     await setStatus(order.id, 'ordered', {
       utopya_order_id: result.utopyaOrderId,
       eta_date:        result.etaDate,
@@ -481,6 +482,8 @@ async function processSingleOrder(orderId) {
     await setStatus(order.id, refunded ? 'refunded' : 'failed', {
       error_message: e.message.slice(0, 500),
     });
+  } finally {
+    if (ctx) try { await ctx.close(); } catch {}
   }
 }
 
