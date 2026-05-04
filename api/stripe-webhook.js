@@ -75,7 +75,7 @@ Reçu le : ${new Date().toLocaleString('fr-FR')}`;
     console.warn('[webhook] Web3Forms fail :', e.message);
   }
 
-  // 2) Resend en fallback (free tier 100/day, server-friendly)
+  // 2) Resend (server-friendly, free tier 100/day) — PRIMAIRE en prod
   if (process.env.RESEND_API_KEY) {
     try {
       const r = await fetch('https://api.resend.com/emails', {
@@ -86,12 +86,17 @@ Reçu le : ${new Date().toLocaleString('fr-FR')}`;
         },
         body: JSON.stringify({
           from:    process.env.RESEND_FROM || 'SAFIX <onboarding@resend.dev>',
-          to:      ['fusion-laminaire-0i@icloud.com'],
+          to:      [process.env.RESEND_TO || 'chafiai.travail@gmail.com'],
           subject: `Nouvelle commande SAFIX — ${total} €`,
           text:    body,
+          html:    body.replace(/\n/g, '<br>'),
         }),
       });
-      if (r.ok) { console.log('[webhook] Mail envoyé via Resend'); return true; }
+      if (r.ok) {
+        const j = await r.json().catch(() => ({}));
+        console.log('[webhook] Mail envoyé via Resend :', j.id);
+        return true;
+      }
       console.warn('[webhook] Resend HTTP', r.status, await r.text());
     } catch (e) {
       console.warn('[webhook] Resend fail :', e.message);
