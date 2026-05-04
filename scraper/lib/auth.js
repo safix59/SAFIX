@@ -363,12 +363,33 @@ export async function ensureLoggedIn({
   context._authFile = authFile;
   await context.addInitScript(STEALTH_INIT);
 
-  // Si on a déjà une session valide (cookies dans user-data-dir), on s'arrête là.
-  const ok = await isSessionValid(context);
+  // 1) Si on a déjà une session valide (cookies dans user-data-dir), on s'arrête là.
+  let ok = await isSessionValid(context);
   if (ok) {
     logger.info("✓ Session existante valide (user-data-dir).");
     return context;
   }
+
+  // 2) Sinon, tenter d'injecter un storage state pré-validé (auth.json) si présent
+  if (authFile && fs.existsSync(authFile)) {
+    try {
+      const state = JSON.parse(fs.readFileSync(authFile, "utf8"));
+      const cookies = (state.cookies || []).filter(c => /utopya\.fr$/i.test(c.domain || '') || /utopya\.fr/i.test(c.domain || ''));
+      if (cookies.length) {
+        await context.addCookies(cookies);
+        logger.info(`✓ ${cookies.length} cookies utopya.fr injectés depuis ${authFile}`);
+        ok = await isSessionValid(context);
+        if (ok) {
+          logger.info("✓ Session restaurée via storage state — bypass Cloudflare/login");
+          return context;
+        }
+        logger.warn("Storage state injecté mais session invalide (cookies expirés ?)");
+      }
+    } catch (e) {
+      logger.warn(`Storage state load fail : ${e.message}`);
+    }
+  }
+
   logger.warn("Pas de session valide, login en cours…");
   await login(context, { email, password, logger });
   // storageState sauvegardé pour info, mais la vraie persistence est dans user-data-dir

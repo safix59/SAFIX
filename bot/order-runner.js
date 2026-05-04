@@ -275,14 +275,47 @@ async function placeOrderOnUtopya(context, order) {
   }
 }
 
+// ─── Bootstrap : télécharge auth.json depuis Supabase Storage au démarrage
+// pour avoir une session pré-validée (bypass Cloudflare/login si encore valide)
+import { writeFileSync as _writeSync, existsSync } from 'node:fs';
+async function bootstrapAuthFromSupabase() {
+  if (!SUPABASE_URL || !SUPABASE_KEY) return false;
+  if (existsSync('./bot-auth.json')) {
+    log.info('bot-auth.json déjà présent localement');
+    return true;
+  }
+  try {
+    log.info('Téléchargement auth.json depuis Supabase Storage…');
+    const r = await fetch(`${SUPABASE_URL}/storage/v1/object/auth/utopya-storage-state.json`, {
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+      },
+    });
+    if (!r.ok) {
+      log.warn(`Auth bootstrap : Supabase Storage HTTP ${r.status} (skipping)`);
+      return false;
+    }
+    const json = await r.text();
+    _writeSync('./bot-auth.json', json);
+    log.info(`✓ auth.json téléchargé (${json.length} bytes) — session pré-validée prête`);
+    return true;
+  } catch (e) {
+    log.warn('Auth bootstrap échec :', e.message);
+    return false;
+  }
+}
+
 // ─── Main loop ───────────────────────────────────────────────────────────
 let context = null;
 let contextPromise = null;  // Lock anti-race-condition
 async function getOrCreateContext() {
   if (context) return context;
-  if (contextPromise) return contextPromise;  // Une autre tâche est en train de login
+  if (contextPromise) return contextPromise;
   contextPromise = (async () => {
     try {
+      // Bootstrap : télécharge auth.json si pas encore fait
+      await bootstrapAuthFromSupabase();
       context = await ensureLoggedIn({
         chromium,
         userDataDir: './bot-userdata',
