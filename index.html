@@ -779,16 +779,12 @@ header {
 }
 .repair-card.unavailable:hover { transform:none; border-color:var(--border); }
 
-/* Réparation Express désactivée tant qu'aucune réparation iPhone n'est au panier */
+/* Réparation Express désactivée tant qu'aucune réparation iPhone n'est au panier
+   Style identique au bouton "Confier la commande" en is-incomplete : opacity .3 + not-allowed */
 .repair-card.rep-disabled {
-  opacity:.5; cursor:not-allowed;
+  opacity:.3; cursor:not-allowed; transform:none; box-shadow:none;
 }
-.repair-card.rep-disabled:hover { transform:none; border-color:var(--border); }
-.repair-card.rep-disabled::after {
-  content:''; position:absolute; inset:0;
-  background:repeating-linear-gradient(45deg, transparent 0 6px, rgba(var(--accent-rgb),.04) 6px 12px);
-  border-radius:inherit; pointer-events:none;
-}
+.repair-card.rep-disabled:hover { transform:none; box-shadow:none; border-color:var(--border); }
 
 /* Ripple */
 .ripple {
