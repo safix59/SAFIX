@@ -29,51 +29,108 @@ async function readRawBody(req) {
 // ─── Templates HTML (mail propre) ────────────────────────────────────────
 function buildShopEmailHtml({ session, lineItems }) {
   const customer = session.customer_details || {};
+  const meta     = session.metadata || {};
   const total    = (session.amount_total / 100).toFixed(2);
-  const dt       = new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' });
+  const dt       = new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris', dateStyle:'full', timeStyle:'short' });
+
+  const SLOT_LABELS = { morning:'Matin (9h–12h)', afternoon:'Après-midi (14h–18h)', evening:'Soir (18h–20h)' };
+  const slotLabel = SLOT_LABELS[meta.apptSlot] || meta.apptSlot || '—';
+  const apptDateFr = meta.apptDate
+    ? new Date(meta.apptDate).toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' })
+    : '—';
+  const addrLine = meta.addr === 'other'
+    ? "⚠️ Autre adresse — à fixer avec le client"
+    : "48 Bd Alexandre III, 59140 Dunkerque (par défaut)";
+  const deliveryLabel = meta.delivery === 'express' ? 'Express (J+1, 15h)'
+                      : meta.delivery === 'standard' ? 'Standard (sous 48h)'
+                      : '—';
+
   const itemsRows = lineItems.map(it => {
     const lt = (it.unit_amount * it.qty / 100).toFixed(2);
     return `<tr>
-      <td style="padding:10px 12px;border-bottom:1px solid #eee;">${it.name}</td>
-      <td style="padding:10px 12px;border-bottom:1px solid #eee;text-align:center;">×${it.qty}</td>
-      <td style="padding:10px 12px;border-bottom:1px solid #eee;text-align:right;font-variant-numeric:tabular-nums;">${lt} €</td>
+      <td style="padding:11px 14px;border-bottom:1px solid #eee;">${it.name}</td>
+      <td style="padding:11px 14px;border-bottom:1px solid #eee;text-align:center;color:#86868b;">×${it.qty}</td>
+      <td style="padding:11px 14px;border-bottom:1px solid #eee;text-align:right;font-variant-numeric:tabular-nums;font-weight:600;">${lt} €</td>
     </tr>`;
   }).join('');
+
+  const stripeUrl = `https://dashboard.stripe.com/${session.livemode ? '' : 'test/'}checkout/sessions/${session.id}`;
+  const piUrl     = `https://dashboard.stripe.com/${session.livemode ? '' : 'test/'}payments/${session.payment_intent}`;
+
   return `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>SAFIX — Commande ${total} €</title></head>
-<body style="margin:0;padding:0;background:#f5f5f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1d1d1f;">
-  <div style="max-width:600px;margin:0 auto;padding:32px 24px;">
-    <div style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.06);">
-      <div style="background:linear-gradient(135deg,#0066ff 0%,#5b21b6 100%);padding:28px 24px;text-align:center;color:#fff;">
-        <div style="font-size:13px;letter-spacing:2px;opacity:.85;text-transform:uppercase;font-weight:600;">SAFIX · Nouvelle commande</div>
-        <div style="font-size:36px;font-weight:800;margin-top:8px;letter-spacing:-1px;">${total} €</div>
-        <div style="font-size:12px;opacity:.85;margin-top:4px;">${dt}</div>
-      </div>
-      <div style="padding:24px;">
-        <div style="font-size:13px;color:#86868b;letter-spacing:1px;text-transform:uppercase;font-weight:600;margin-bottom:8px;">Client</div>
-        <table style="width:100%;font-size:14px;border-collapse:collapse;margin-bottom:24px;">
-          <tr><td style="padding:6px 0;color:#86868b;width:120px;">Email</td><td style="padding:6px 0;font-weight:600;"><a href="mailto:${customer.email || ''}" style="color:#0066ff;text-decoration:none;">${customer.email || session.customer_email || '—'}</a></td></tr>
-          <tr><td style="padding:6px 0;color:#86868b;">Téléphone</td><td style="padding:6px 0;font-weight:600;">${customer.phone || '—'}</td></tr>
-          <tr><td style="padding:6px 0;color:#86868b;vertical-align:top;">Adresse</td><td style="padding:6px 0;font-weight:600;">${customer.address ? Object.values(customer.address).filter(Boolean).join(', ') : '—'}</td></tr>
-        </table>
-        <div style="font-size:13px;color:#86868b;letter-spacing:1px;text-transform:uppercase;font-weight:600;margin-bottom:8px;">Commande</div>
-        <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:20px;">
-          <thead><tr style="background:#f5f5f7;">
-            <th style="padding:10px 12px;text-align:left;font-weight:600;color:#86868b;font-size:12px;text-transform:uppercase;letter-spacing:.5px;">Article</th>
-            <th style="padding:10px 12px;text-align:center;font-weight:600;color:#86868b;font-size:12px;text-transform:uppercase;letter-spacing:.5px;">Qté</th>
-            <th style="padding:10px 12px;text-align:right;font-weight:600;color:#86868b;font-size:12px;text-transform:uppercase;letter-spacing:.5px;">Total</th>
-          </tr></thead>
-          <tbody>${itemsRows}</tbody>
-          <tfoot><tr><td colspan="2" style="padding:14px 12px;font-weight:700;font-size:16px;">TOTAL</td><td style="padding:14px 12px;text-align:right;font-weight:800;font-size:18px;color:#0066ff;font-variant-numeric:tabular-nums;">${total} €</td></tr></tfoot>
-        </table>
-        <div style="margin-top:24px;padding:16px;background:#f5f5f7;border-radius:12px;font-size:13px;line-height:1.5;color:#3a3a3c;">
-          <strong>Stripe</strong> session <code style="font-size:12px;background:#fff;padding:2px 6px;border-radius:4px;">${session.id.slice(-12)}</code><br>
-          Paiement <code style="font-size:12px;background:#fff;padding:2px 6px;border-radius:4px;">${(session.payment_intent || '').slice(-12)}</code>
-        </div>
+<html><head><meta charset="utf-8"><title>SAFIX 🔔 ${total} € · ${meta.model || 'Commande'}</title></head>
+<body style="margin:0;padding:0;background:#f5f5f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1d1d1f;-webkit-font-smoothing:antialiased;">
+  <div style="max-width:640px;margin:0 auto;padding:24px;">
+
+    <!-- Header alerte -->
+    <div style="background:linear-gradient(135deg,#0066ff,#5b21b6);border-radius:18px;padding:28px 24px;text-align:center;color:#fff;margin-bottom:18px;box-shadow:0 8px 24px rgba(0,102,255,.25);">
+      <div style="font-size:12px;letter-spacing:2.5px;opacity:.9;text-transform:uppercase;font-weight:700;">🔔 NOUVELLE COMMANDE SAFIX</div>
+      <div style="font-size:42px;font-weight:800;margin-top:10px;letter-spacing:-1.5px;line-height:1;">${total} €</div>
+      <div style="font-size:13px;opacity:.85;margin-top:8px;">${meta.model || 'iPhone'} · ${dt}</div>
+    </div>
+
+    <!-- ACTIONS RAPIDES -->
+    <div style="background:#fff;border-radius:14px;padding:14px 16px;margin-bottom:14px;font-size:13px;border-left:3px solid #ff9500;">
+      <strong style="color:#1d1d1f;">⚡ ACTION REQUISE :</strong>
+      <span style="color:#3a3a3c;">Commander la pièce/préparer le service chez Utopya · prévoir le RDV ci-dessous.</span>
+    </div>
+
+    <!-- 📅 RDV CLIENT (priorité visuelle) -->
+    <div style="background:#fff;border-radius:14px;padding:18px 20px;margin-bottom:14px;border:2px solid #0066ff;">
+      <div style="font-size:11px;color:#0066ff;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;margin-bottom:10px;">📅 RENDEZ-VOUS CLIENT</div>
+      <div style="font-size:18px;font-weight:700;color:#1d1d1f;margin-bottom:4px;">${apptDateFr}</div>
+      <div style="font-size:15px;color:#3a3a3c;margin-bottom:12px;">${slotLabel}</div>
+      <div style="font-size:11px;color:#86868b;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;margin-bottom:6px;">📍 LIEU</div>
+      <div style="font-size:14px;color:#1d1d1f;font-weight:600;">${addrLine}</div>
+    </div>
+
+    <!-- 👤 INFOS CLIENT -->
+    <div style="background:#fff;border-radius:14px;padding:18px 20px;margin-bottom:14px;">
+      <div style="font-size:11px;color:#86868b;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;margin-bottom:12px;">👤 CLIENT</div>
+      <table style="width:100%;font-size:14px;border-collapse:collapse;">
+        <tr><td style="padding:6px 0;color:#86868b;width:130px;">Email</td><td style="padding:6px 0;font-weight:600;"><a href="mailto:${customer.email || ''}" style="color:#0066ff;text-decoration:none;">${customer.email || session.customer_email || '—'}</a></td></tr>
+        <tr><td style="padding:6px 0;color:#86868b;">Téléphone</td><td style="padding:6px 0;font-weight:600;"><a href="tel:${customer.phone || ''}" style="color:#0066ff;text-decoration:none;">${customer.phone || meta.phone || '—'}</a></td></tr>
+        <tr><td style="padding:6px 0;color:#86868b;">Snapchat</td><td style="padding:6px 0;font-weight:600;">${meta.snap || '—'}</td></tr>
+        <tr><td style="padding:6px 0;color:#86868b;vertical-align:top;">Adresse facturation</td><td style="padding:6px 0;font-weight:600;font-size:13px;">${customer.address ? Object.values(customer.address).filter(Boolean).join(', ') : '—'}</td></tr>
+        <tr><td style="padding:6px 0;color:#86868b;">Modèle iPhone</td><td style="padding:6px 0;font-weight:700;color:#0066ff;">${meta.model || '—'}</td></tr>
+      </table>
+    </div>
+
+    <!-- 🛒 COMMANDE -->
+    <div style="background:#fff;border-radius:14px;padding:18px 20px;margin-bottom:14px;">
+      <div style="font-size:11px;color:#86868b;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;margin-bottom:12px;">🛒 ARTICLES COMMANDÉS</div>
+      <table style="width:100%;border-collapse:collapse;font-size:14px;background:#fafafa;border-radius:10px;overflow:hidden;">
+        <thead><tr style="background:#f5f5f7;">
+          <th style="padding:10px 14px;text-align:left;font-weight:700;color:#86868b;font-size:11px;text-transform:uppercase;letter-spacing:.5px;">Article</th>
+          <th style="padding:10px 14px;text-align:center;font-weight:700;color:#86868b;font-size:11px;text-transform:uppercase;letter-spacing:.5px;">Qté</th>
+          <th style="padding:10px 14px;text-align:right;font-weight:700;color:#86868b;font-size:11px;text-transform:uppercase;letter-spacing:.5px;">Prix</th>
+        </tr></thead>
+        <tbody>${itemsRows}</tbody>
+        <tfoot><tr style="background:#fff;">
+          <td colspan="2" style="padding:13px 14px;font-weight:700;font-size:15px;">TOTAL ENCAISSÉ</td>
+          <td style="padding:13px 14px;text-align:right;font-weight:800;font-size:18px;color:#0066ff;font-variant-numeric:tabular-nums;">${total} €</td>
+        </tr></tfoot>
+      </table>
+      <div style="margin-top:10px;padding:10px 14px;background:#f5f5f7;border-radius:8px;font-size:12.5px;color:#3a3a3c;">
+        <strong>Livraison pièce :</strong> ${deliveryLabel}
       </div>
     </div>
-    <div style="text-align:center;font-size:12px;color:#86868b;margin-top:20px;">
-      SAFIX · 48 Bd Alexandre III, 59140 Dunkerque · SIREN 942 003 062
+
+    <!-- 🔧 INFOS TECHNIQUES -->
+    <div style="background:#fff;border-radius:14px;padding:18px 20px;margin-bottom:14px;font-size:12.5px;color:#3a3a3c;">
+      <div style="font-size:11px;color:#86868b;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;margin-bottom:12px;">🔧 RÉFÉRENCES STRIPE</div>
+      <div style="line-height:1.8;">
+        Session ID : <a href="${stripeUrl}" style="color:#0066ff;text-decoration:none;font-family:Menlo,Consolas,monospace;font-size:11.5px;">${session.id}</a><br>
+        Payment Intent : <a href="${piUrl}" style="color:#0066ff;text-decoration:none;font-family:Menlo,Consolas,monospace;font-size:11.5px;">${session.payment_intent || '—'}</a><br>
+        Mode : ${session.livemode ? '<strong style="color:#34c759;">LIVE 💰</strong>' : '<span style="color:#ff9500;">TEST</span>'}<br>
+        Locale client : ${meta.lang || 'fr'}
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="text-align:center;font-size:11px;color:#86868b;margin-top:18px;line-height:1.6;">
+      <a href="https://safix59.fr" style="color:#86868b;text-decoration:none;">safix59.fr</a> · <a href="https://dashboard.stripe.com/${session.livemode?'':'test/'}payments" style="color:#86868b;text-decoration:none;">Dashboard Stripe</a> · <a href="https://supabase.com/dashboard/project/fdirktxyipjrxcxjtnss/editor" style="color:#86868b;text-decoration:none;">Dashboard Supabase</a><br>
+      <span style="opacity:.7;">Mail technique destiné au gérant SAFIX uniquement.</span>
     </div>
   </div>
 </body></html>`;
