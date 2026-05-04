@@ -4733,11 +4733,19 @@ async function mountExpressCheckout(amountCents, orderContext) {
     _eceLastAmount = amountCents;
 
     _eceComponent = _eceElements.create('expressCheckout', {
-      buttonType:   { applePay: 'buy', googlePay: 'buy' },
-      buttonHeight: 50,
-      paymentMethods: { applePay: 'always', googlePay: 'always', link: 'auto', paypal: 'never' },
+      buttonType:   { applePay: 'buy', googlePay: 'buy', paypal: 'buynow' },
+      buttonHeight: 48,
+      paymentMethods: { applePay: 'always', googlePay: 'always', link: 'auto', paypal: 'auto', amazonPay: 'auto' },
     });
     _eceComponent.mount('#expressCheckoutMount');
+
+    // Debug : log ce qui est dispo / pourquoi rien ne s'affiche
+    _eceComponent.on('ready', (event) => {
+      console.log('[ECE] ready :', event.availablePaymentMethods);
+    });
+    _eceComponent.on('loaderror', (event) => {
+      console.error('[ECE] loaderror :', event.error);
+    });
 
     // Au click sur Apple Pay/Google Pay : confirmer via PaymentIntent serveur
     _eceComponent.on('confirm', async (event) => {
