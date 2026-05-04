@@ -51,3 +51,4 @@ bot/bot-auth.json
 # ─── Scraper user-data persistent ──────────────────
 scraper/.user-data/
 scraper/logs/
+.vercel

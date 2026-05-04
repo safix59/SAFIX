@@ -1,0 +1,48 @@
+# Vercel n'a besoin que du site (index.html + api/ + assets) et de package.json.
+# Le scraper et le bot tournent ailleurs (local + Render).
+
+# Scraper (tourne en local sur la machine de Sami)
+scraper/
+
+# Bot (tourne sur Render)
+bot/
+
+# Node modules
+node_modules/
+**/node_modules/
+
+# Logs et caches
+**/logs/
+**/.user-data/
+**/.recon-userdata/
+**/bot-userdata/
+**/auth.json
+**/recon-auth.json
+**/recon-checkout.html
+**/recon-result.json
+**/recon-*.html
+
+# Documents/secrets locaux
+*.env
+*.env.local
+.env
+.env.local
+**/.env
+**/.env.local
+
+# OS / éditeurs
+.DS_Store
+.vscode/
+.idea/
+
+# Git interne
+.git/
+.gitignore
+.gitattributes
+
+# Fichiers source 4K (pas utilisés sur le site)
+SAFIX_icone_grande_mode_clair_4K.png
+
+# Documentation interne
+*.md
+!api/README.md
