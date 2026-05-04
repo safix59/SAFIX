@@ -358,6 +358,25 @@ export async function ensureLoggedIn({
       "--disable-features=IsolateOrigins,site-per-process,AutomationControlled",
       "--no-default-browser-check",
       "--no-first-run",
+      // ─── Optimisations RAM (utiles sur hébergeurs avec peu de mémoire) ───
+      "--disable-dev-shm-usage",       // évite /dev/shm overflow sur containers
+      "--disable-gpu",                 // pas de GPU acceleration utile en headless
+      "--disable-extensions",
+      "--disable-plugins",
+      "--disable-background-timer-throttling",
+      "--disable-backgrounding-occluded-windows",
+      "--disable-breakpad",
+      "--disable-component-extensions-with-background-pages",
+      "--disable-domain-reliability",
+      "--disable-features=TranslateUI,BlinkGenPropertyTrees",
+      "--disable-ipc-flooding-protection",
+      "--disable-renderer-backgrounding",
+      "--disable-sync",
+      "--metrics-recording-only",
+      "--mute-audio",
+      "--no-pings",
+      "--password-store=basic",
+      "--use-mock-keychain",
     ],
   });
   context._authFile = authFile;
