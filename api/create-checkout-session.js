@@ -93,17 +93,27 @@ export default async function handler(req, res) {
 
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
-      payment_method_types: ['card'],   // Stripe activera Apple Pay / Google Pay automatiquement si l'appareil les supporte
+      payment_method_types: ['card'],
       customer_email: email,
       line_items: stripeItems,
       success_url: success_url || `${allowOrigin}/?paid=1&session={CHECKOUT_SESSION_ID}`,
       cancel_url:  cancel_url  || `${allowOrigin}/?cancel=1`,
+      // Reçu automatique au client (Stripe envoie un email avec le détail de la commande)
+      payment_intent_data: {
+        receipt_email: email,
+        description: 'Réparation SAFIX (mandat de commande de pièce + service)',
+        statement_descriptor_suffix: 'SAFIX',
+      },
+      // Phone number collection (utile pour le suivi commande)
+      phone_number_collection: { enabled: true },
+      // Adresse facturation auto
+      billing_address_collection: 'auto',
+      // Locale FR par défaut
+      locale: 'fr',
       metadata: {
         platform: 'safix',
         total_announced: String(total),
       },
-      // En France, on précise la TVA via le custom (à ajuster avec ton expert-comptable)
-      // automatic_tax: { enabled: true },     // décommenter si Stripe Tax activé
     });
 
     return res.status(200).json({
