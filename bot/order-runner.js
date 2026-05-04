@@ -128,10 +128,22 @@ function findUtopyaUrl(repairId, model) {
 }
 
 // Méthode de paiement à utiliser sur Utopya (configurable via env)
-//   Valeurs détectées : ups_cod (paiement livraison), paypal_express,
-//   scellius_standard (carte Banque Postale), banktransfer, fintecture
-const PAYMENT_METHOD = process.env.UTOPYA_PAYMENT || 'scellius_standard';
-const SHOULD_CONFIRM = process.env.CONFIRM_ORDER === 'true'; // safety switch
+//   Valeurs détectées sur le compte PRO :
+//     scellius_standard  → Carte Bancaire (Banque Postale Scellius)
+//     paypal_express     → PayPal
+//     banktransfer       → Virement (= "Paiement bancaire" classique)
+//     fintecture         → Paiement bancaire instantané (Open Banking)
+//     ups_cod            → Paiement à la livraison
+//
+// CHOIX : carte bancaire enregistrée (scellius_standard) — le compte PRO
+// SAFIX a une CB enregistrée chez Utopya. 3DS souvent "frictionless"
+// pour comptes PRO = bot 100% autonome dans 80-90 % des cas.
+//
+// Si la CB échoue (3DS challenge ou plafond), le bot bascule sur Fintecture
+// → Sami valide sur son app banque (~5 s) → commande passée.
+const PAYMENT_PRIMARY  = process.env.UTOPYA_PAYMENT          || 'scellius_standard';
+const PAYMENT_FALLBACK = process.env.UTOPYA_PAYMENT_FALLBACK || 'fintecture';
+const SHOULD_CONFIRM   = process.env.CONFIRM_ORDER === 'true'; // safety switch
 
 // ─── Cœur : passe UNE commande sur utopya.fr ─────────────────────────────
 async function placeOrderOnUtopya(context, order) {
@@ -198,13 +210,21 @@ async function placeOrderOnUtopya(context, order) {
     await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {});
     await page.waitForTimeout(3000);
 
-    // 3) Sur /checkout/ : choisir le mode de paiement
+    // 3) Sur /checkout/ : choisir le mode de paiement (avec fallback)
     if (!page.url().includes('/checkout/')) throw new Error(`Pas sur la page checkout : ${page.url()}`);
-    try {
-      await page.locator(`input#${PAYMENT_METHOD}`).check({ timeout: 8000 });
-      log.info(`  ✓ Paiement choisi : ${PAYMENT_METHOD}`);
-    } catch {
-      throw new Error(`Méthode de paiement "${PAYMENT_METHOD}" indisponible — autres options : ups_cod, paypal_express, banktransfer, fintecture`);
+    let chosen = null;
+    for (const method of [PAYMENT_PRIMARY, PAYMENT_FALLBACK].filter(Boolean)) {
+      try {
+        await page.locator(`input#${method}`).check({ timeout: 6000 });
+        chosen = method;
+        log.info(`  ✓ Paiement choisi : ${method}`);
+        break;
+      } catch {
+        log.warn(`  Méthode "${method}" indisponible, tentative suivante…`);
+      }
+    }
+    if (!chosen) {
+      throw new Error(`Aucune méthode de paiement utilisable — vérifie UTOPYA_PAYMENT (testé : ${PAYMENT_PRIMARY}, ${PAYMENT_FALLBACK})`);
     }
     await page.waitForTimeout(1500);
 
