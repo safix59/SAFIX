@@ -2209,11 +2209,18 @@ input:focus:not(:focus-visible) {
   header { padding:0 10px; }
   .nav-side .nav-sep { display:none; }
   .hero { padding:72px 14px 24px; }
+  .hero-title { font-size:clamp(32px, 11vw, 44px); line-height:1.05; }
   .hero-eyebrow { font-size:12px; }
   .hero-sub { font-size:13.5px; line-height:1.55; }
   .hero-cta { padding:14px 22px; font-size:14px; }
+  /* Grid 2 colonnes mobile, cards 100% width (pas de width fixe 160px) */
   .iphone-grid { grid-template-columns:repeat(2, 1fr); gap:12px; padding:0 10px; }
-  .iphone-card { padding:14px 10px 12px; }
+  .iphone-card { width:auto; min-width:0; max-width:none; }
+  .card-img-wrap { height:120px; }
+  .card-img-wrap img { max-width:78%; max-height:78%; }
+  .card-body { padding:9px 11px 11px; }
+  .card-model { font-size:12px; }
+  .card-cta { font-size:10px; white-space:nowrap; }
   .iphone-name { font-size:13px; }
   .repair-grid { grid-template-columns:1fr; gap:10px; }
   .repair-card { padding:14px 14px 14px 14px; min-height:auto; }
@@ -2233,8 +2240,14 @@ input:focus:not(:focus-visible) {
 }
 /* — iPhone très étroit (SE, 6/7/8) — densification ultime — */
 @media (max-width: 380px) {
-  .hero-title { font-size:34px; }
-  .iphone-grid { grid-template-columns:1fr 1fr; gap:10px; }
+  .hero-title { font-size:30px; line-height:1.08; }
+  .iphone-grid { grid-template-columns:1fr 1fr; gap:10px; padding:0 8px; }
+  .iphone-card { padding:0; }
+  .card-img-wrap { height:100px; }
+  .card-img-wrap img { max-width:75%; max-height:75%; }
+  .card-body { padding:8px 9px 10px; }
+  .card-model { font-size:11.5px; }
+  .card-cta { font-size:9.5px; }
   .repair-card { padding:12px; }
 }
 </style>
