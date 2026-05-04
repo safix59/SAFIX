@@ -300,29 +300,49 @@ async function placeOrderOnUtopya(context, order) {
     await page.waitForTimeout(3000);
 
     // 3) Sur /checkout/ : choisir le mode de paiement (avec fallback + auto-discover)
+    log.info(`    URL checkout : ${page.url()}`);
     if (!page.url().includes('/checkout/')) throw new Error(`Pas sur la page checkout : ${page.url()}`);
 
-    // Attendre que les méthodes de paiement soient chargées (Magento async)
-    await page.waitForTimeout(5000);
+    // Attendre les méthodes : essayer plusieurs sélecteurs avec timeouts
+    log.info('    Attente chargement méthodes paiement (jusqu\'à 30s)…');
+    try {
+      await page.waitForSelector('input[name="payment[method]"], .payment-method, [data-bind*="payment"]', { timeout: 30000 });
+    } catch {
+      log.warn('    Timeout waitForSelector payment methods');
+    }
+    await page.waitForTimeout(3000);
 
-    // Lister toutes les méthodes de paiement disponibles
+    // Auto-discover des méthodes : multi-sélecteurs + scan du DOM complet
     const availableMethods = await page.evaluate(() => {
       const methods = [];
+      // Radio inputs classiques
       document.querySelectorAll('input[name="payment[method]"]').forEach(el => {
-        methods.push({
-          id: el.id,
-          value: el.value,
-          checked: el.checked,
-          visible: el.offsetParent !== null,
-        });
+        methods.push({ source: 'radio', id: el.id, value: el.value, visible: el.offsetParent !== null });
       });
-      return methods;
+      // Labels avec data-bind
+      document.querySelectorAll('.payment-method').forEach(el => {
+        const id = el.getAttribute('data-method') || el.querySelector('input')?.value || el.querySelector('input')?.id;
+        if (id) methods.push({ source: 'div', id, value: id, visible: el.offsetParent !== null });
+      });
+      // Boutons / blocs Knockout
+      document.querySelectorAll('[data-bind*="payment"], [data-method-code]').forEach(el => {
+        const id = el.getAttribute('data-method-code') || el.getAttribute('data-bind')?.match(/method.*?['"](.+?)['"]/)?.[1];
+        if (id) methods.push({ source: 'ko', id, value: id });
+      });
+      // Last resort : full body text snippet
+      const body = document.body.innerText.slice(0, 500);
+      return { methods, urlNow: location.href, bodySnippet: body };
     });
-    log.info(`    Méthodes paiement dispo : ${JSON.stringify(availableMethods).slice(0, 400)}`);
+    log.info(`    URL after wait : ${availableMethods.urlNow}`);
+    log.info(`    Méthodes : ${JSON.stringify(availableMethods.methods).slice(0, 400)}`);
+    if (availableMethods.methods.length === 0) {
+      log.warn(`    Body snippet : ${availableMethods.bodySnippet.slice(0, 200)}`);
+    }
+    const methodsArr = availableMethods.methods;
 
     // Tenter primary, fallback, puis n'importe quelle méthode dispo
     let chosen = null;
-    const tryList = [PAYMENT_PRIMARY, PAYMENT_FALLBACK, ...availableMethods.map(m => m.value)].filter(Boolean);
+    const tryList = [PAYMENT_PRIMARY, PAYMENT_FALLBACK, ...methodsArr.map(m => m.value)].filter(Boolean);
     const seen = new Set();
     for (const method of tryList) {
       if (seen.has(method)) continue;
@@ -337,7 +357,7 @@ async function placeOrderOnUtopya(context, order) {
       }
     }
     if (!chosen) {
-      throw new Error(`Aucune méthode de paiement utilisable — testé : ${[...seen].join(', ')}, dispo : ${availableMethods.map(m=>m.value).join(',')}`);
+      throw new Error(`Aucune méthode de paiement utilisable — testé : ${[...seen].join(', ')}, dispo : ${methodsArr.map(m=>m.value).join(',')}`);
     }
     await page.waitForTimeout(1500);
 
