@@ -92,9 +92,14 @@ export default async function handler(req, res) {
       });
     }
 
+    // Méthodes de paiement selon le choix client (Apple Pay/Carte → card, PayPal → paypal+card)
+    // 'card' active automatiquement Apple Pay / Google Pay sur les appareils compatibles
+    const paymentChoice = (orderMeta && orderMeta.paymentMethod) || 'card';
+    const stripeMethods = paymentChoice === 'paypal' ? ['paypal', 'card'] : ['card'];
+
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
-      payment_method_types: ['card'],
+      payment_method_types: stripeMethods,
       customer_email: email,
       line_items: stripeItems,
       success_url: success_url || `${allowOrigin}/?paid=1&session={CHECKOUT_SESSION_ID}`,

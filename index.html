@@ -4706,14 +4706,15 @@ document.getElementById('checkoutBtn').addEventListener('click', async () => {
     } catch (e) { console.warn('[SAFIX] localStorage indisponible', e); }
     // Métadonnées commande (passées via Stripe metadata pour le mail client server-side)
     const orderMeta = {
-      model:      activeModel || 'iPhone',
-      phone:      phone || '',
-      snap:       snap || '',
-      delivery:   selectedDelivery || '',
-      addr:       appointmentAddress || 'default',
-      apptDate:   appointmentDate || '',
-      apptSlot:   appointmentSlot || '',
-      lang:       currentLang || 'fr',
+      model:         activeModel || 'iPhone',
+      phone:         phone || '',
+      snap:          snap || '',
+      delivery:      selectedDelivery || '',
+      addr:          appointmentAddress || 'default',
+      apptDate:      appointmentDate || '',
+      apptSlot:      appointmentSlot || '',
+      lang:          currentLang || 'fr',
+      paymentMethod: selectedPayment || 'card',  // 'applepay' | 'paypal' | 'card'
     };
     const stripeResp = await payWithStripe({ email, total: totalNow, lineItems, delivery: deliveryLine, paymentFees, orderMeta });
     if (stripeResp.redirected) return;          // navigation vers Stripe → on stoppe ici
