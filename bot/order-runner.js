@@ -203,16 +203,35 @@ async function placeOrderOnUtopya(context, order) {
         }
       }
 
-      // Ajouter au panier
+      // Ajouter au panier (scroll + force click si pas visible)
       const addBtn = page.locator('#product-addtocart-button').first();
       if (!(await addBtn.count())) throw new Error(`Bouton "Ajouter au panier" introuvable sur ${url}`);
-      await addBtn.click();
+      try {
+        // Scroll vers le bouton pour le faire passer dans le viewport
+        await addBtn.scrollIntoViewIfNeeded({ timeout: 5000 });
+        await page.waitForTimeout(500);
+        // Tente d'abord un click normal, sinon force
+        try {
+          await addBtn.click({ timeout: 8000 });
+        } catch (e1) {
+          log.warn('  Click normal échec, tentative click({force:true})');
+          await addBtn.click({ force: true, timeout: 5000 });
+        }
+      } catch (e) {
+        // Dernier recours : trigger le submit via JS direct
+        log.warn(`  Click via JS form.submit() (${e.message?.slice(0, 80)})`);
+        await page.evaluate(() => {
+          const f = document.querySelector('#product_addtocart_form');
+          if (f) f.requestSubmit ? f.requestSubmit() : f.submit();
+        });
+      }
       // Attendre la confirmation
       try {
         await page.waitForSelector('.message-success, [data-ui-id="message-success"]', { timeout: 15000 });
       } catch {
-        // Pas bloquant si la notif n'arrive pas, vérifier le panier au final
+        // Pas bloquant : on vérifiera le panier au final
       }
+      await page.waitForTimeout(1500);
     }
 
     // 2) Aller à la page panier → cliquer "Commander"
