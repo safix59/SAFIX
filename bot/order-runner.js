@@ -296,27 +296,12 @@ async function placeOrderOnUtopya(context, order) {
       log.warn(`    Panier non détecté formellement, on tente quand même le checkout`);
     }
 
-    // Click "Commander" + attente navigation propre (évite "page closed")
-    const checkoutBtn = page.locator('#top-cart-btn-checkout, button:has-text("Commander")').first();
-    if (!(await checkoutBtn.count())) throw new Error('Bouton "Commander" introuvable');
-    try {
-      await Promise.all([
-        page.waitForURL(/\/checkout\//, { timeout: 30000 }),
-        checkoutBtn.click(),
-      ]);
-    } catch (e) {
-      log.warn(`    Navigation checkout : ${e.message?.slice(0, 100)}`);
-    }
-    // Si le browser/page a survécu, on attend networkidle
-    if (!page.isClosed()) {
-      await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
-    } else {
-      // Page fermée → re-créer
-      log.warn('    Page fermée par Magento, re-création');
-      page = await context.newPage();
-      await page.goto('https://www.utopya.fr/checkout/', { waitUntil: 'domcontentloaded', timeout: 30000 });
-      await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
-    }
+    // Aller direct sur /checkout/ (plus simple que cliquer "Commander")
+    log.info('    Navigation directe /checkout/');
+    if (page.isClosed()) page = await context.newPage();
+    await page.goto('https://www.utopya.fr/checkout/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
+    await sleep(2000);
 
     // 3) Sur /checkout/ : choisir le mode de paiement (avec fallback + auto-discover)
     log.info(`    URL checkout : ${page.url()}`);
