@@ -46,9 +46,9 @@ import { chromium } from 'playwright';
 import { ensureLoggedIn } from '../scraper/lib/auth.js';
 
 const log = {
-  info:  (m) => console.log (`[${new Date().toISOString()}] [INFO]  ${m}`),
-  warn:  (m) => console.warn(`[${new Date().toISOString()}] [WARN]  ${m}`),
-  error: (m) => console.error(`[${new Date().toISOString()}] [ERROR] ${m}`),
+  info:  (...args) => console.log (`[${new Date().toISOString()}] [INFO] `, ...args),
+  warn:  (...args) => console.warn(`[${new Date().toISOString()}] [WARN] `, ...args),
+  error: (...args) => console.error(`[${new Date().toISOString()}] [ERROR]`, ...args),
 };
 
 const SUPABASE_URL  = process.env.SUPABASE_URL;
@@ -284,6 +284,7 @@ async function tick() {
       });
     } catch (e) {
       log.error('Login Utopya impossible :', e.message);
+      log.error('Stack :', e.stack?.slice(0, 500));
       // On ne refund pas tout de suite — Cloudflare peut juste bouder.
       return;
     }
