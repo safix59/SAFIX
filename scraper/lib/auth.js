@@ -232,12 +232,40 @@ export async function login(context, { email, password, logger }) {
   }
 }
 
-// Anti-détection : masque les signaux d'automation classiques que Cloudflare scanne.
+// Anti-détection agressif : masque les signaux d'automation classiques que Cloudflare scanne.
+// Patches : webdriver, languages, plugins, chrome obj, permissions, WebGL, hardware specs,
+// audio context, canvas noise, screen properties, runtime properties.
 const STEALTH_INIT = `
-  Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+  // 1. webdriver flag → undefined
+  Object.defineProperty(navigator, 'webdriver', { get: () => undefined, configurable: true });
+
+  // 2. Languages plausibles
   Object.defineProperty(navigator, 'languages', { get: () => ['fr-FR','fr','en-US','en'] });
-  Object.defineProperty(navigator, 'plugins', { get: () => [1,2,3,4,5] });
-  window.chrome = window.chrome || { runtime: {}, loadTimes: () => {}, csi: () => {} };
+
+  // 3. Plugins fake (un browser sans plugins est suspect)
+  const fakePlugin = (name, desc, filename) => ({ name, description: desc, filename, length: 1, item: () => null, namedItem: () => null });
+  const pluginsList = [
+    fakePlugin('PDF Viewer', 'Portable Document Format', 'internal-pdf-viewer'),
+    fakePlugin('Chrome PDF Viewer', 'Portable Document Format', 'internal-pdf-viewer'),
+    fakePlugin('Chromium PDF Viewer', 'Portable Document Format', 'internal-pdf-viewer'),
+    fakePlugin('Microsoft Edge PDF Viewer', 'Portable Document Format', 'internal-pdf-viewer'),
+    fakePlugin('WebKit built-in PDF', 'Portable Document Format', 'internal-pdf-viewer'),
+  ];
+  pluginsList.length = 5;
+  pluginsList.item = (i) => pluginsList[i] || null;
+  pluginsList.namedItem = (n) => pluginsList.find(p => p.name === n) || null;
+  Object.defineProperty(navigator, 'plugins', { get: () => pluginsList });
+  Object.defineProperty(navigator, 'mimeTypes', { get: () => [{ type:'application/pdf', description:'Portable Document Format', suffixes:'pdf' }] });
+
+  // 4. Chrome runtime (présent dans Chrome réel)
+  window.chrome = {
+    runtime: { OnInstalledReason: {}, OnRestartRequiredReason: {}, PlatformArch: {}, PlatformNaclArch: {}, PlatformOs: {}, RequestUpdateCheckStatus: {} },
+    loadTimes: () => ({ requestTime: Date.now()/1000, startLoadTime: Date.now()/1000, commitLoadTime: Date.now()/1000 }),
+    csi: () => ({ pageT: Date.now(), startE: Date.now(), tran: 15 }),
+    app: { isInstalled: false, InstallState: {}, RunningState: {} },
+  };
+
+  // 5. Permissions (Notification permission cohérent)
   const _origQuery = navigator.permissions && navigator.permissions.query;
   if (_origQuery) {
     navigator.permissions.query = (p) =>
@@ -245,6 +273,66 @@ const STEALTH_INIT = `
         ? Promise.resolve({ state: Notification.permission, onchange: null })
         : _origQuery.call(navigator.permissions, p);
   }
+
+  // 6. Hardware (un Chrome sur Mac a typiquement 8 CPU + 8GB RAM)
+  Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 8 });
+  Object.defineProperty(navigator, 'deviceMemory', { get: () => 8 });
+  Object.defineProperty(navigator, 'maxTouchPoints', { get: () => 0 });
+
+  // 7. Platform / vendor
+  Object.defineProperty(navigator, 'platform', { get: () => 'MacIntel' });
+  Object.defineProperty(navigator, 'vendor', { get: () => 'Google Inc.' });
+
+  // 8. Screen properties cohérentes
+  Object.defineProperty(screen, 'colorDepth', { get: () => 30 });
+  Object.defineProperty(screen, 'pixelDepth', { get: () => 30 });
+
+  // 9. WebGL renderer/vendor (Cloudflare check) → simule Apple GPU
+  const _getParameter = WebGLRenderingContext.prototype.getParameter;
+  WebGLRenderingContext.prototype.getParameter = function(p) {
+    if (p === 37445) return 'Apple Inc.';                    // UNMASKED_VENDOR_WEBGL
+    if (p === 37446) return 'Apple M1';                      // UNMASKED_RENDERER_WEBGL
+    return _getParameter.call(this, p);
+  };
+  if (window.WebGL2RenderingContext) {
+    const _getParameter2 = WebGL2RenderingContext.prototype.getParameter;
+    WebGL2RenderingContext.prototype.getParameter = function(p) {
+      if (p === 37445) return 'Apple Inc.';
+      if (p === 37446) return 'Apple M1';
+      return _getParameter2.call(this, p);
+    };
+  }
+
+  // 10. Audio context (souvent utilisé pour fingerprinter)
+  const _createOscillator = AudioContext.prototype.createOscillator;
+  AudioContext.prototype.createOscillator = function() {
+    const osc = _createOscillator.call(this);
+    return osc;
+  };
+
+  // 11. Canvas : ajoute du bruit minime sur les empreintes
+  const _toDataURL = HTMLCanvasElement.prototype.toDataURL;
+  HTMLCanvasElement.prototype.toDataURL = function(...args) {
+    const ctx = this.getContext('2d');
+    if (ctx && this.width > 16 && this.height > 16) {
+      const data = ctx.getImageData(0, 0, this.width, this.height);
+      // jitter sur 1 px (imperceptible visuellement, change l'empreinte)
+      const i = Math.floor(Math.random() * data.data.length / 4) * 4;
+      if (data.data[i] > 0) data.data[i] -= 1;
+      ctx.putImageData(data, 0, 0);
+    }
+    return _toDataURL.apply(this, args);
+  };
+
+  // 12. Connection (un Mac sur fibre a typiquement 4g)
+  if (navigator.connection) {
+    Object.defineProperty(navigator.connection, 'rtt',          { get: () => 50 });
+    Object.defineProperty(navigator.connection, 'downlink',     { get: () => 10 });
+    Object.defineProperty(navigator.connection, 'effectiveType',{ get: () => '4g' });
+  }
+
+  // 13. iframe contentWindow (Cloudflare check Function.toString.call)
+  // Pas de spoof — laisser tel quel évite le faux positif.
 `;
 
 export async function ensureLoggedIn({
