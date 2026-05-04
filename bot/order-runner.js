@@ -239,11 +239,23 @@ async function placeOrderOnUtopya(context, order) {
     }
 
     // 2) Aller à la page panier → cliquer "Commander"
+    if (page.isClosed()) page = await context.newPage();
     await page.goto('https://www.utopya.fr/checkout/cart/', { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await page.waitForTimeout(2000);
-    // Vérification : panier non vide
-    const itemsCount = await page.locator('.cart.item, tr.item-info, .cart-item').count();
-    if (itemsCount === 0) throw new Error('Panier vide après ajout — abort');
+    await page.waitForTimeout(2500);
+    log.info(`    URL panier : ${page.url()}`);
+    // Vérification : panier non vide (tentative avec multiples sélecteurs)
+    const itemsCount = await page.evaluate(() => {
+      const sels = ['.cart.item', 'tr.item-info', '.cart-item', '.cart-row', '#cart-items', 'tbody#cart-items tr', '.cart-products-list .product', '.cart .item'];
+      for (const s of sels) {
+        const n = document.querySelectorAll(s).length;
+        if (n > 0) return { count: n, selector: s };
+      }
+      return { count: 0, selector: null, bodyText: document.body.innerText.slice(0, 300) };
+    });
+    log.info(`    Items detection : ${JSON.stringify(itemsCount).slice(0, 250)}`);
+    if (!itemsCount.count) {
+      throw new Error(`Panier vide après ajout — page=${page.url()}, body=${(itemsCount.bodyText || '').slice(0, 100)}`);
+    }
 
     const checkoutBtn = page.locator('#top-cart-btn-checkout, button:has-text("Commander")').first();
     if (!(await checkoutBtn.count())) throw new Error('Bouton "Commander" introuvable');
