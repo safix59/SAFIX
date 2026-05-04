@@ -1,8 +1,24 @@
 # Vercel n'a besoin que du site (index.html + api/ + assets) et de package.json.
 # Le scraper et le bot tournent ailleurs (local + Render).
 
-# Scraper (tourne en local sur la machine de Sami)
-scraper/
+# Scraper code (tourne en local) — on garde uniquement les JSON utilisés par le site
+scraper/node_modules/
+scraper/.user-data/
+scraper/logs/
+scraper/auth.json
+scraper/recon-*.html
+scraper/recon-*.json
+scraper/discover.js
+scraper/discover-batch.js
+scraper/run.js
+scraper/verify-formula.js
+scraper/lib/
+scraper/.env
+scraper/.env.example
+scraper/package.json
+scraper/package-lock.json
+scraper/.DS_Store
+scraper/.gitignore
 
 # Bot (tourne sur Render)
 bot/
