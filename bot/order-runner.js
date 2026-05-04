@@ -296,12 +296,28 @@ async function placeOrderOnUtopya(context, order) {
       log.warn(`    Panier non détecté formellement, on tente quand même le checkout`);
     }
 
-    // Aller direct sur /checkout/ (plus simple que cliquer "Commander")
-    log.info('    Navigation directe /checkout/');
+    // Aller direct sur /checkout/ (Magento Onepage en 2 étapes : Shipping + Payment)
+    log.info('    Navigation directe /checkout/ (étape 1 : shipping)');
     if (page.isClosed()) page = await context.newPage();
     await page.goto('https://www.utopya.fr/checkout/', { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
-    await sleep(2000);
+    await page.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => {});
+    await sleep(3000);
+
+    // Passer à l'étape 2 (Payment) — chercher le bouton "Suivant" / "Continuer"
+    const nextStepBtn = await page.evaluate(() => {
+      const buttons = Array.from(document.querySelectorAll('button, .button, .action-button'));
+      const found = buttons.find(b => /suivant|continuer|next|étape/i.test(b.textContent || '') && b.offsetParent !== null);
+      if (found) {
+        found.click();
+        return { clicked: true, text: (found.textContent || '').trim().slice(0, 40) };
+      }
+      return { clicked: false, available: buttons.map(b => (b.textContent || '').trim().slice(0, 30)).filter(Boolean).slice(0, 10) };
+    });
+    log.info(`    Next step btn : ${JSON.stringify(nextStepBtn).slice(0, 200)}`);
+    if (nextStepBtn.clicked) {
+      await sleep(4000);  // wait étape 2 chargement
+      await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
+    }
 
     // 3) Sur /checkout/ : choisir le mode de paiement (avec fallback + auto-discover)
     log.info(`    URL checkout : ${page.url()}`);
