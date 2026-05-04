@@ -1107,10 +1107,10 @@ header {
 }
 .payment-note strong { color:var(--text); }
 
-/* Express Row : Apple Pay + Google Pay (ECE) + PayPal custom — sur 1 ligne */
+/* Express Row : Apple Pay (ECE) + PayPal (custom) — 50/50 sur 1 ligne */
 .express-row {
   display:grid;
-  grid-template-columns:1fr auto;
+  grid-template-columns:1fr 1fr;
   gap:8px; align-items:stretch;
   margin-bottom:8px;
 }
@@ -1121,20 +1121,30 @@ header {
 }
 .express-checkout-mount:empty { display:none; }
 
-/* Bouton PayPal custom (à côté de l'ECE) */
+/* Bouton PayPal custom — jaune officiel PayPal, style moderne minimaliste */
 .paypal-btn {
   display:inline-flex; align-items:center; justify-content:center;
-  height:44px; min-width:88px;
+  height:44px; width:100%;
   padding:0 16px;
-  background:#ffc439;
+  background:#FFC439;          /* Jaune PayPal officiel (couleur principale moderne) */
+  color:#003087;
   border:none; border-radius:6px;
   cursor:pointer;
   transition:opacity .2s, transform .15s, background .2s, filter .25s;
   -webkit-tap-highlight-color:transparent;
+  font-weight:700; letter-spacing:.2px;
+  font-size:15px;
 }
-.paypal-btn:hover { background:#f0bb33; }
+.paypal-btn:hover { background:#F2BB36; }
 .paypal-btn:active { transform:scale(.97); }
 .paypal-btn svg { display:block; }
+.paypal-btn-text {
+  font-style:italic; font-weight:800;
+  display:inline-flex; align-items:baseline;
+  font-size:17px; letter-spacing:-.3px;
+}
+.paypal-btn-text .pp1 { color:#003087; }     /* "Pay" en bleu navy PayPal */
+.paypal-btn-text .pp2 { color:#009CDE; }     /* "Pal" en bleu cyan PayPal */
 
 /* État désactivé : grisé + pas de clic tant que les champs ne sont pas remplis */
 .express-row.is-incomplete .express-checkout-mount,
