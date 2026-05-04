@@ -183,28 +183,9 @@ async function placeOrderOnUtopya(context, order) {
 
       log.info(`  [+] ${item.qty || 1}× ${item.repair_id} / ${item.model}`);
       await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
-      await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
-      await page.waitForTimeout(1500);
-
-      // Accepter le cookie banner Axeptio (sinon il couvre le bouton add-to-cart)
-      try {
-        const accept = await page.$('#axeptio_btn_acceptAll');
-        if (accept && await accept.isVisible().catch(() => false)) {
-          await accept.click();
-          log.info('    ✓ Cookie banner accepté');
-          await page.waitForTimeout(800);
-        }
-      } catch {}
-
-      // Cacher tout sticky/overlay qui pourrait masquer le bouton
-      await page.evaluate(() => {
-        const selectors = ['.sticky-header', '#header-sticky', '.cookie-banner', '.modal-overlay', '[id*="popup"]', '[class*="sticky"]', '.overlay'];
-        for (const s of selectors) {
-          document.querySelectorAll(s).forEach(el => {
-            try { el.style.display = 'none'; } catch {}
-          });
-        }
-      }).catch(() => {});
+      // Pas besoin de networkidle ni d'accepter le banner : on utilise fetch() direct,
+      // les cookies d'authentification sont déjà chargés.
+      await page.waitForTimeout(1000);
 
       // Quantité
       const qty = item.qty || 1;
