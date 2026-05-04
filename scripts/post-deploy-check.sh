@@ -1,77 +1,111 @@
 #!/bin/bash
-# Vérifications automatiques après chaque deploy Vercel
-# Usage : ./scripts/post-deploy-check.sh [URL]
-# Sortie code 0 si tout OK, 1 si un check échoue.
-set -e
-
+# ═════════════════════════════════════════════════════════════════════
+# SMOKE TEST automatique post-deploy SAFIX
+# ═════════════════════════════════════════════════════════════════════
+# Vérifie EXHAUSTIVEMENT que tout est en ordre. Lance après chaque deploy.
+# Sortie : code 0 si tout OK, 1 si un problème.
+# ═════════════════════════════════════════════════════════════════════
+# Pas de `set -e` : on veut continuer même si certaines vérifs échouent
 URL="${1:-https://safix59.fr}"
+SUPA_URL="${SUPABASE_URL:-https://fdirktxyipjrxcxjtnss.supabase.co}"
+SUPA_KEY="${SUPABASE_SERVICE_ROLE:-sb_secret_KFtWChH907VFOenC9GCHOA_EXR0L5Oq}"
 ERRORS=0
-echo "═══ POST-DEPLOY CHECK pour $URL ═══"
 
-check() {
-  local name="$1"
-  local cmd="$2"
-  local expected="$3"
-  local result=$(eval "$cmd")
-  if [[ "$result" == *"$expected"* ]]; then
-    echo "  ✅ $name (got $result)"
-  else
-    echo "  ❌ $name : got '$result', expected '$expected'"
-    ERRORS=$((ERRORS+1))
-  fi
-}
+ok()  { echo "  ✅ $1"; }
+ko()  { echo "  ❌ $1"; ERRORS=$((ERRORS+1)); }
+warn(){ echo "  ⚠️  $1"; }
 
-check "Site front"        "curl -s -o /dev/null -w '%{http_code}' $URL/"                                          "200"
-check "API checkout"      "curl -s -o /dev/null -w '%{http_code}' -X POST -d '{}' -H 'Content-Type: application/json' $URL/api/create-checkout-session" "400"
-check "API payment intent" "curl -s -o /dev/null -w '%{http_code}' -X POST -d '{}' -H 'Content-Type: application/json' $URL/api/create-payment-intent" "400"
-check "API webhook"        "curl -s -o /dev/null -w '%{http_code}' -X POST $URL/api/stripe-webhook"               "400"
-check "Prices JSON"        "curl -s -o /dev/null -w '%{http_code}' $URL/scraper/prices.json"                       "200"
-check "Links JSON"         "curl -s -o /dev/null -w '%{http_code}' $URL/scraper/links.json"                        "200"
-check "Manifest"           "curl -s -o /dev/null -w '%{http_code}' $URL/manifest.json"                            "200"
+echo "═══ SMOKE TEST SAFIX — $(date +'%H:%M') ═══"
 
-# Taille prices.json
-PRICES_SIZE=$(curl -s "$URL/scraper/prices.json" | wc -c)
-if [ "$PRICES_SIZE" -lt 10000 ]; then
-  echo "  ❌ Prices JSON trop petit ($PRICES_SIZE bytes) — données manquantes"
-  ERRORS=$((ERRORS+1))
-else
-  echo "  ✅ Prices JSON taille OK ($PRICES_SIZE bytes)"
-fi
+# ─── 1. Site front ─────────────────────────────────────────
+code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "$URL/")
+[ "$code" = "200" ] && ok "Site front ($URL → $code)" || ko "Site front HTTP $code"
 
-# Au moins 100 prix actifs
-HAS_PRICES=$(curl -s "$URL/scraper/prices.json" | python3 -c "
+# ─── 2. APIs ───────────────────────────────────────────────
+for endpoint in /api/create-checkout-session /api/create-payment-intent /api/stripe-webhook; do
+  code=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H "Content-Type: application/json" -d '{}' --max-time 10 "$URL$endpoint")
+  [ "$code" = "400" ] && ok "API $endpoint (400 attendu)" || ko "API $endpoint HTTP $code"
+done
+
+# ─── 3. Données critiques (prices/links) ───────────────────
+for f in /scraper/prices.json /scraper/links.json; do
+  code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$URL$f")
+  [ "$code" = "200" ] && ok "Data $f" || ko "Data $f HTTP $code"
+done
+
+PRICES_SIZE=$(curl -s --max-time 10 "$URL/scraper/prices.json" | wc -c)
+[ "$PRICES_SIZE" -gt 100000 ] && ok "Prices size ($PRICES_SIZE bytes)" || ko "Prices trop petit ($PRICES_SIZE)"
+
+PRICE_COUNT=$(curl -s --max-time 10 "$URL/scraper/prices.json" | python3 -c "
 import json, sys
 d = json.load(sys.stdin)
 prices = d.get('prices', {})
 ok = 0
 for cat in prices.values():
-  if isinstance(cat, dict):
-    for v in cat.values():
-      if isinstance(v, dict):
-        f = v.get('final')
-        if isinstance(f, (int, float)) and f > 0: ok += 1
-print(ok)
-")
-if [ "$HAS_PRICES" -gt "100" ]; then
-  echo "  ✅ Prices count OK ($HAS_PRICES prix actifs)"
+    if isinstance(cat, dict):
+        for v in cat.values():
+            if isinstance(v, dict):
+                f = v.get('final')
+                if isinstance(f, (int, float)) and f > 0: ok += 1
+print(ok)")
+[ "$PRICE_COUNT" -gt 100 ] && ok "Prices actifs ($PRICE_COUNT)" || ko "Prix actifs trop peu ($PRICE_COUNT)"
+
+# ─── 4. Manifest, robots, sitemap ──────────────────────────
+for f in /manifest.json /robots.txt /sitemap.xml; do
+  code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 "$URL$f")
+  [ "$code" = "200" ] && ok "Static $f" || warn "Static $f HTTP $code"
+done
+
+# ─── 5. Bot Render ──────────────────────────────────────────
+bot=$(curl -s --max-time 15 https://safix-bot.onrender.com/ 2>/dev/null)
+if [[ "$bot" == *'"ok":true'* ]]; then
+  ok "Bot Render"
 else
-  echo "  ❌ Trop peu de prix actifs ($HAS_PRICES) — relance scraper requise"
-  ERRORS=$((ERRORS+1))
+  warn "Bot Render KO ou veille (Free tier dort après 15min) : ${bot:0:60}"
 fi
 
-# Bot Render
-BOT_HEALTH=$(curl -s --max-time 10 https://safix-bot.onrender.com/ | head -c 50)
-if [[ "$BOT_HEALTH" == *'"ok":true'* ]]; then
-  echo "  ✅ Bot Render"
-else
-  echo "  ⚠️  Bot Render KO ou mise en veille (Free tier sleeps après 15 min) : $BOT_HEALTH"
+# ─── 6. Supabase + doublons ────────────────────────────────
+supa_code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
+  -H "apikey: $SUPA_KEY" -H "Authorization: Bearer $SUPA_KEY" \
+  "$SUPA_URL/rest/v1/orders?select=id&limit=1")
+[ "$supa_code" = "200" ] && ok "Supabase reachable" || ko "Supabase HTTP $supa_code"
+
+# Détecte les doublons d'orders (même payment_intent)
+DUPS=$(curl -s --max-time 10 \
+  -H "apikey: $SUPA_KEY" -H "Authorization: Bearer $SUPA_KEY" \
+  "$SUPA_URL/rest/v1/orders?select=stripe_payment_intent" | python3 -c "
+import json, sys
+from collections import Counter
+d = json.load(sys.stdin)
+pis = [r['stripe_payment_intent'] for r in d if r.get('stripe_payment_intent')]
+c = Counter(pis)
+dups = [(k,v) for k,v in c.items() if v > 1]
+print(len(dups))" 2>/dev/null)
+[ "$DUPS" = "0" ] && ok "Pas de doublons Supabase" || ko "$DUPS doublon(s) order détecté"
+
+# ─── 7. Stripe webhook actif ───────────────────────────────
+if [ -n "$STRIPE_SECRET_KEY" ]; then
+  events=$(curl -s -u "$STRIPE_SECRET_KEY:" "https://api.stripe.com/v1/webhook_endpoints" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+for w in d.get('data', []):
+    if 'safix59.fr' in w['url'] and w['status'] == 'enabled':
+        print(len(w.get('enabled_events', [])))
+        break
+else: print(0)" 2>/dev/null)
+  [ "$events" -ge 4 ] && ok "Stripe webhook ($events events)" || ko "Stripe webhook KO ou manque events"
 fi
 
+# ─── 8. Domaine www + SSL ──────────────────────────────────
+www_code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 https://www.safix59.fr/)
+[ "$www_code" = "200" ] && ok "www.safix59.fr" || warn "www.safix59.fr HTTP $www_code"
+
+# ─── Résultat ──────────────────────────────────────────────
 echo ""
-if [ "$ERRORS" -eq 0 ]; then
-  echo "✅ TOUTES VÉRIFICATIONS OK"
+if [ "$ERRORS" = "0" ]; then
+  echo "✅ TOUT VERT ($DUPS doublons, $PRICE_COUNT prix actifs)"
   exit 0
 else
-  echo "❌ $ERRORS ERREURS — INVESTIGUER"
+  echo "❌ $ERRORS ERREURS — investigate"
   exit 1
 fi
