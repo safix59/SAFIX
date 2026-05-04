@@ -3501,11 +3501,28 @@ function fitTitleToEyebrow() {
   if (widthAtRef < 50) return; // garde-fou : mesure invalide
 
   // Calcul : pour que "Réparer" fasse `eyebrowWidth` à la nouvelle font-size
-  const newSize = REF_SIZE * (eyebrowWidth / widthAtRef);
-  // Garde-fou : éviter les tailles aberrantes (entre 24 et 120px)
-  if (newSize < 24 || newSize > 120) return;
+  let newSize = REF_SIZE * (eyebrowWidth / widthAtRef);
+
+  // CAP par les media queries mobile pour ne pas écraser le responsive :
+  // ≤380px → max 24px, ≤560px → max 36px, ≤820px → max 60px, sinon 120px
+  const vw = window.innerWidth || document.documentElement.clientWidth;
+  let maxAllowed = 120;
+  if (vw <= 380) maxAllowed = 24;
+  else if (vw <= 560) maxAllowed = 36;
+  else if (vw <= 820) maxAllowed = 60;
+  if (newSize > maxAllowed) newSize = maxAllowed;
+
+  // Garde-fou : éviter les tailles aberrantes
+  if (newSize < 18 || newSize > 120) return;
   title.style.fontSize = newSize.toFixed(2) + 'px';
 }
+
+// Recalcule au resize (rotation iPhone, redimensionnement window)
+let _fitTitleTimer = null;
+window.addEventListener('resize', () => {
+  if (_fitTitleTimer) clearTimeout(_fitTitleTimer);
+  _fitTitleTimer = setTimeout(fitTitleToEyebrow, 150);
+});
 
 // Appel APRÈS chargement des polices (sinon mesure incorrecte avec fallback Inter)
 if (document.fonts && document.fonts.ready) {
