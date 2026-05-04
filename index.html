@@ -4197,13 +4197,34 @@ function syncCart() {
   if (cr) cr.textContent = repair  + ' €';
   if (cf) cf.textContent = stripeFees.toFixed(2).replace(/\.?0+$/, '') + ' €';
 
-  // Détection : le panier contient-il QUE des items de la catégorie "Services" ?
-  // → si oui, on bascule en mode "service pur" (pas de wakāla, pas de pièce,
-  //   donc pas de breakdown des coûts ni de mention de mandat sur la pièce)
+  // Détection des compositions de panier
   const SERVICE_IDS = new Set(
     (data?.repairs?.find(c => c.category === 'Services')?.repairs || []).map(r => r.id)
   );
-  const onlyServices = cart.length > 0 && cart.every(i => SERVICE_IDS.has(i.repairId));
+  const ACCESSORY_IDS = new Set(
+    (data?.repairs?.find(c => c.category === 'Accessoires')?.repairs || []).map(r => r.id)
+  );
+  const PROTECTION_IDS = new Set(
+    (data?.repairs?.find(c => c.category === 'Protections')?.repairs || []).map(r => r.id)
+  );
+  const onlyServices    = cart.length > 0 && cart.every(i => SERVICE_IDS.has(i.repairId));
+  const onlyAccessories = cart.length > 0 && cart.every(i => ACCESSORY_IDS.has(i.repairId) || PROTECTION_IDS.has(i.repairId));
+  // "Pas de réparation iPhone" = soit que services, soit que accessoires/protections
+  const noRepair = onlyServices || onlyAccessories;
+
+  // Cache la livraison ET le rendez-vous pour les services purs (pas de pièce → pas de livraison ni dépôt physique)
+  if (delivBlk) delivBlk.style.display = onlyServices ? 'none' : '';
+  if (apptBlk)  apptBlk.style.display  = onlyServices ? 'none' : '';
+  // Si que des services : reset les sélections livraison/RDV qui n'ont plus de sens
+  if (onlyServices) {
+    selectedDelivery = null;
+    document.querySelectorAll('.delivery-option.selected').forEach(o => o.classList.remove('selected'));
+  }
+
+  // Cache l'estimation de réparation (repair-eta) si pas de réparation iPhone dans le panier
+  document.querySelectorAll('.repair-eta').forEach(el => {
+    el.style.display = noRepair ? 'none' : '';
+  });
 
   // 1. Détail des coûts : visible uniquement si au moins une réparation/protection/accessoire
   const toggleEl = document.getElementById('costsToggle');
