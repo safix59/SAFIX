@@ -51,6 +51,9 @@ const log = {
   error: (...args) => console.error(`[${new Date().toISOString()}] [ERROR]`, ...args),
 };
 
+// Sleep insensible aux page closed (utilisé à la place de page.waitForTimeout)
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
 const SUPABASE_URL  = process.env.SUPABASE_URL;
 const SUPABASE_KEY  = process.env.SUPABASE_SERVICE_ROLE;
 const POLL_INTERVAL = Number(process.env.POLL_INTERVAL_MS || 30000);
@@ -186,10 +189,10 @@ async function placeOrderOnUtopya(context, order) {
 
     // Vider le panier au préalable (sécurité : commande précédente résiduelle)
     await page.goto('https://www.utopya.fr/checkout/cart/', { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await page.waitForTimeout(1500);
+    await sleep(1500);
     try {
       const empty = await page.locator('button.action.primary:has-text("Vider")').first();
-      if (await empty.count()) { await empty.click(); await page.waitForTimeout(1500); }
+      if (await empty.count()) { await empty.click(); await sleep(1500); }
     } catch {}
 
     // 1) Pour chaque line item → fiche produit → ajouter au panier
@@ -201,7 +204,7 @@ async function placeOrderOnUtopya(context, order) {
       await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
       // Pas besoin de networkidle ni d'accepter le banner : on utilise fetch() direct,
       // les cookies d'authentification sont déjà chargés.
-      await page.waitForTimeout(1000);
+      await sleep(1000);
 
       // Quantité
       const qty = item.qty || 1;
@@ -215,7 +218,7 @@ async function placeOrderOnUtopya(context, order) {
         try {
           // Magento swatch : on clique sur la pastille avec le data-option-label correspondant
           await page.locator(`.swatch-option[data-option-label*="${colorName}" i]`).first().click({ timeout: 4000 });
-          await page.waitForTimeout(500);
+          await sleep(500);
         } catch (e) {
           log.warn(`  Variante couleur "${colorName}" non sélectionnable, on continue`);
         }
@@ -257,7 +260,7 @@ async function placeOrderOnUtopya(context, order) {
     // 2) Aller à la page panier → cliquer "Commander"
     if (page.isClosed()) page = await context.newPage();
     await page.goto('https://www.utopya.fr/checkout/cart/', { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await page.waitForTimeout(2500);
+    await sleep(2500);
     log.info(`    URL panier : ${page.url()}`);
     // Vérification panier non vide :
     // 1. essayer plusieurs sélecteurs DOM
@@ -326,7 +329,7 @@ async function placeOrderOnUtopya(context, order) {
     } catch {
       log.warn('    Timeout waitForSelector payment methods');
     }
-    await page.waitForTimeout(3000);
+    await sleep(3000);
 
     // Auto-discover des méthodes : multi-sélecteurs + scan du DOM complet
     const availableMethods = await page.evaluate(() => {
@@ -375,7 +378,7 @@ async function placeOrderOnUtopya(context, order) {
     if (!chosen) {
       throw new Error(`Aucune méthode de paiement utilisable — testé : ${[...seen].join(', ')}, dispo : ${methodsArr.map(m=>m.value).join(',')}`);
     }
-    await page.waitForTimeout(1500);
+    await sleep(1500);
 
     // 4) Confirmer la commande
     if (!SHOULD_CONFIRM) {
@@ -394,7 +397,7 @@ async function placeOrderOnUtopya(context, order) {
 
     // Attendre la page de confirmation
     await page.waitForURL(/\/onepage\/success|\/checkout\/success/, { timeout: 60000 });
-    await page.waitForTimeout(2000);
+    await sleep(2000);
 
     // Récupérer le n° de commande
     const utopyaOrderId = await page.locator('.checkout-success [data-bind*="order"], .order-number').first().textContent().catch(() => '?');
