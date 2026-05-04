@@ -164,7 +164,7 @@ const SHOULD_CONFIRM   = process.env.CONFIRM_ORDER === 'true'; // safety switch
 
 // ─── Cœur : passe UNE commande sur utopya.fr ─────────────────────────────
 async function placeOrderOnUtopya(context, order) {
-  const page = await context.newPage();
+  let page = await context.newPage();
   try {
     log.info(`→ Commande Utopya pour order ${order.id}`);
 
@@ -230,7 +230,12 @@ async function placeOrderOnUtopya(context, order) {
       if (!addedOk.ok) {
         throw new Error(`Add-to-cart fetch échec : ${JSON.stringify(addedOk).slice(0, 100)}`);
       }
-      await page.waitForTimeout(2000);
+      // Pas de waitForTimeout : Magento peut avoir fermé la page après l'ajout.
+      // Si la page est crashed, on en re-crée une au prochain item.
+      if (page.isClosed()) {
+        log.warn('    Page fermée par Magento après add-to-cart, on en ouvre une nouvelle');
+        page = await context.newPage();
+      }
     }
 
     // 2) Aller à la page panier → cliquer "Commander"
