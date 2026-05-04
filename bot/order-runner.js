@@ -147,6 +147,22 @@ function findUtopyaUrl(repairId, modelOrKey) {
   return candidates[0]?.url || null;
 }
 
+// IDs de SERVICES purs (déblocage, restauration, etc.) qui ne nécessitent PAS
+// de commander une pièce chez Utopya. Le bot doit les SKIP, pas les refunder.
+const SERVICE_IDS = new Set([
+  'restauration_usine',
+  'deblocage_bootloop',
+  'desoxydation',
+  'diagnostic_expert',
+  'recuperation_de_donnees',
+  'micro_soudure_face_id',
+  'reparation_express',  // option d'expédition rapide, pas une pièce
+]);
+
+function isServiceOnly(item) {
+  return SERVICE_IDS.has(item.repair_id || item.repairId);
+}
+
 // Méthode de paiement à utiliser sur Utopya (configurable via env)
 //   Valeurs détectées sur le compte PRO :
 //     scellius_standard  → Carte Bancaire (Banque Postale Scellius)
@@ -196,7 +212,19 @@ async function placeOrderOnUtopya(context, order) {
     } catch {}
 
     // 1) Pour chaque line item → fiche produit → ajouter au panier
-    for (const item of (order.line_items || [])) {
+    // Filtrer les services purs : ils ne nécessitent pas d'achat Utopya
+    const itemsToOrder = (order.line_items || []).filter(it => !isServiceOnly(it));
+    const servicesOnly = (order.line_items || []).filter(it => isServiceOnly(it));
+    if (servicesOnly.length) {
+      log.info(`  ${servicesOnly.length} service(s) pur(s) skippé(s) (pas de commande Utopya nécessaire)`);
+    }
+    if (!itemsToOrder.length) {
+      // 100% services purs → rien à commander chez Utopya, mais commande valide
+      log.info(`  → Commande 100% services : aucun achat Utopya nécessaire, marqué 'ordered'`);
+      return { utopyaOrderId: 'SERVICE-ONLY', etaDate: null, servicesOnly: true };
+    }
+
+    for (const item of itemsToOrder) {
       const url = findUtopyaUrl(item.repair_id, item.model);
       if (!url) throw new Error(`URL introuvable : ${item.repair_id} / ${item.model}`);
 
