@@ -469,6 +469,19 @@ export default async function handler(req, res) {
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
+    // Déduplication : si une order existe déjà pour ce PI (cas où PI.succeeded
+    // est arrivé avant la session) → on UPDATE au lieu de re-insert
+    let existingOrderId = null;
+    if (session.payment_intent && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE) {
+      try {
+        const r = await fetch(
+          `${process.env.SUPABASE_URL}/rest/v1/orders?stripe_payment_intent=eq.${session.payment_intent}&select=id&limit=1`,
+          { headers: { apikey: process.env.SUPABASE_SERVICE_ROLE, Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE}` } },
+        );
+        const rows = await r.json();
+        if (Array.isArray(rows) && rows.length > 0) existingOrderId = rows[0].id;
+      } catch {}
+    }
 
     // Récupère les line_items
     let lineItems = [];
@@ -508,11 +521,38 @@ export default async function handler(req, res) {
       total_cents:           session.amount_total,
       currency:              session.currency,
       status:                'paid',
-      line_items:            cartFull.length ? cartFull : lineItems,  // ← cartFull a repair_id+model pour le bot
+      line_items:            cartFull.length ? cartFull : lineItems,
       metadata:              session.metadata || {},
       created_at:            new Date().toISOString(),
     };
-    const result = await insertOrder(order);
+
+    // Si une order partielle existe (PI.succeeded est arrivé avant) → UPDATE
+    let result;
+    if (existingOrderId) {
+      const upd = await fetch(
+        `${process.env.SUPABASE_URL}/rest/v1/orders?id=eq.${existingOrderId}`,
+        {
+          method: 'PATCH',
+          headers: {
+            apikey:        process.env.SUPABASE_SERVICE_ROLE,
+            Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE}`,
+            'Content-Type': 'application/json',
+            Prefer: 'return=representation',
+          },
+          body: JSON.stringify({
+            stripe_session_id: session.id,
+            line_items:        order.line_items,
+            metadata:          order.metadata,
+            updated_at:        new Date().toISOString(),
+          }),
+        },
+      );
+      const data = await upd.json().catch(() => null);
+      console.log(`[webhook] PI ${session.payment_intent} → order ${existingOrderId} UPDATED (was inserted by PI.succeeded)`);
+      result = { ok: upd.ok, row: data?.[0] || { id: existingOrderId } };
+    } else {
+      result = await insertOrder(order);
+    }
 
     // 3) Trigger bot Render (commande Utopya immédiate, si configuré)
     const botUrl    = process.env.BOT_TRIGGER_URL;
