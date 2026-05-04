@@ -496,9 +496,14 @@ export default async function handler(req, res) {
       console.warn('[webhook] listLineItems échec :', e.message);
     }
 
-    // 1) Mails (shop + client, best-effort, ne bloque pas le reste)
-    sendEmailToShop({ session, lineItems }).catch(e => console.warn('mail shop', e.message));
-    sendEmailToClient({ session, lineItems }).catch(e => console.warn('mail client', e.message));
+    // 1) Mails (shop + client) — UNIQUEMENT si order pas déjà existante (idempotence)
+    // Si existingOrderId est set → l'event est un replay/retry → pas de re-mail
+    if (!existingOrderId) {
+      sendEmailToShop({ session, lineItems }).catch(e => console.warn('mail shop', e.message));
+      sendEmailToClient({ session, lineItems }).catch(e => console.warn('mail client', e.message));
+    } else {
+      console.log(`[webhook] Order ${existingOrderId} déjà traitée — skip mails (event replay)`);
+    }
 
     // 2) Persistence Supabase (si configurée)
     // Décode le cart compact (metadata.cart) pour le bot
