@@ -164,13 +164,18 @@ const SHOULD_CONFIRM   = process.env.CONFIRM_ORDER === 'true'; // safety switch
 
 // ─── Cœur : passe UNE commande sur utopya.fr ─────────────────────────────
 async function placeOrderOnUtopya(context, order) {
-  // Bloquer Axeptio + autres analytics (gain RAM + plus de banner)
+  // Bloquer Axeptio + analytics + assets lourds (économie RAM)
   if (!context._safixRoutesAdded) {
     await context.route('**/*', (route) => {
-      const url = route.request().url();
-      if (/axept\.io|axeptio|googletagmanager|google-analytics|facebook\.net|hotjar|cookiebot/i.test(url)) {
+      const req = route.request();
+      const url = req.url();
+      const type = req.resourceType();
+      // Bloquer trackers/cookies banners
+      if (/axept\.io|axeptio|googletagmanager|google-analytics|facebook\.net|hotjar|cookiebot|googlesyndication|doubleclick/i.test(url)) {
         return route.abort();
       }
+      // Bloquer images/fonts/media (économie RAM)
+      if (['image', 'font', 'media'].includes(type)) return route.abort();
       return route.continue();
     }).catch(() => {});
     context._safixRoutesAdded = true;
