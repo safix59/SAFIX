@@ -224,35 +224,32 @@ async function placeOrderOnUtopya(context, order) {
         }
       }
 
-      // Ajouter au panier (scroll + force click si pas visible)
-      const addBtn = page.locator('#product-addtocart-button').first();
-      if (!(await addBtn.count())) throw new Error(`Bouton "Ajouter au panier" introuvable sur ${url}`);
-      try {
-        // Scroll vers le bouton pour le faire passer dans le viewport
-        await addBtn.scrollIntoViewIfNeeded({ timeout: 5000 });
-        await page.waitForTimeout(500);
-        // Tente d'abord un click normal, sinon force
+      // Ajouter au panier — soumission directe du form (le bouton est souvent caché)
+      // On utilise fetch() côté navigateur ce qui réutilise les cookies de session
+      const addedOk = await page.evaluate(async () => {
+        const form = document.querySelector('#product_addtocart_form');
+        if (!form) return { ok: false, reason: 'form_not_found' };
+        const formData = new FormData(form);
+        // Magento attend isAjax=1 pour ne pas rediriger
+        formData.append('isAjax', '1');
         try {
-          await addBtn.click({ timeout: 8000 });
-        } catch (e1) {
-          log.warn('  Click normal échec, tentative click({force:true})');
-          await addBtn.click({ force: true, timeout: 5000 });
+          const resp = await fetch(form.action, {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            credentials: 'include',
+          });
+          const txt = await resp.text();
+          return { ok: resp.ok, status: resp.status, sample: txt.slice(0, 200) };
+        } catch (e) {
+          return { ok: false, error: e.message };
         }
-      } catch (e) {
-        // Dernier recours : trigger le submit via JS direct
-        log.warn(`  Click via JS form.submit() (${e.message?.slice(0, 80)})`);
-        await page.evaluate(() => {
-          const f = document.querySelector('#product_addtocart_form');
-          if (f) f.requestSubmit ? f.requestSubmit() : f.submit();
-        });
+      });
+      log.info(`    Add-to-cart fetch result : ${JSON.stringify(addedOk).slice(0, 200)}`);
+      if (!addedOk.ok) {
+        throw new Error(`Add-to-cart fetch échec : ${JSON.stringify(addedOk).slice(0, 100)}`);
       }
-      // Attendre la confirmation
-      try {
-        await page.waitForSelector('.message-success, [data-ui-id="message-success"]', { timeout: 15000 });
-      } catch {
-        // Pas bloquant : on vérifiera le panier au final
-      }
-      await page.waitForTimeout(1500);
+      await page.waitForTimeout(2000);
     }
 
     // 2) Aller à la page panier → cliquer "Commander"
