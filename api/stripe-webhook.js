@@ -387,17 +387,13 @@ async function sendEmailToClient({ session, lineItems }) {
   if (!customerEmail) return false;
   if (!process.env.RESEND_API_KEY) return false;
 
-  // Resend free tier limite l'envoi : tant que le domain safix59.fr n'est pas
-  // vérifié dans Resend, on ne peut envoyer QU'à l'email du compte (chafiai.travail@gmail.com).
-  // Stripe envoie déjà un reçu auto (configuré dans create-checkout-session via receipt_email).
-  // → Quand le domain sera vérifié, on enverra ce mail HTML personnalisé en plus.
-  if (!process.env.RESEND_DOMAIN_VERIFIED) {
-    console.log('[webhook] Mail CLIENT skip (domain Resend non vérifié, Stripe receipt envoyé à la place)');
-    return false;
-  }
-
+  // Envoi via Resend depuis `onboarding@resend.dev` (gratuit, sans vérif domaine)
+  // → fonctionne pour TOUS les destinataires immédiatement
+  // → quand le domaine safix59.fr sera vérifié dans Resend (RESEND_FROM_CLIENT défini),
+  //   on basculera sur orders@safix59.fr pour un branding parfait.
   const total = (session.amount_total / 100).toFixed(2);
   const html  = buildClientEmailHtml({ session, lineItems });
+  const fromAddress = process.env.RESEND_FROM_CLIENT || 'SAFIX <onboarding@resend.dev>';
 
   try {
     const r = await fetch('https://api.resend.com/emails', {
@@ -407,8 +403,9 @@ async function sendEmailToClient({ session, lineItems }) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from:    process.env.RESEND_FROM_CLIENT || 'SAFIX <orders@safix59.fr>',
+        from:    fromAddress,
         to:      [customerEmail],
+        reply_to: 'fusion-laminaire-0i@icloud.com',
         subject: `✓ SAFIX — Commande confirmée (${total} €)`,
         html,
       }),
