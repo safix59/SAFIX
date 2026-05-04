@@ -1107,11 +1107,26 @@ header {
 }
 .payment-note strong { color:var(--text); }
 
-/* Conteneur où Stripe Express Checkout monte ses boutons (Apple Pay/Google Pay/Link) */
+/* Conteneur où Stripe Express Checkout monte ses boutons (Apple Pay/Google Pay/PayPal côte à côte) */
 .express-checkout-mount {
   min-height:50px; margin-bottom:8px;
+  position:relative;
+  transition:opacity .25s, filter .25s;
 }
 .express-checkout-mount:empty { display:none; }
+
+/* État désactivé : grisé + pas de clic tant que les champs ne sont pas remplis */
+.express-checkout-mount.is-incomplete {
+  opacity:.3;
+  pointer-events:none;
+  filter:grayscale(.6);
+}
+.express-checkout-mount.is-incomplete::after {
+  content:'';
+  position:absolute; inset:0;
+  background:transparent;
+  cursor:not-allowed;
+}
 
 /* Divider "ou" entre Express Checkout et carte */
 .payment-divider {
@@ -4245,7 +4260,12 @@ function syncCart() {
   const stripeFees = baseAmount > 0
     ? +(((baseAmount + 0.25) / 0.985) - baseAmount).toFixed(2)
     : 0;
-  const sum = +(baseAmount + stripeFees).toFixed(2);
+  // Total panier affiché = base SANS frais Stripe.
+  // Les frais sont ajoutés UNIQUEMENT à la page de paiement (Stripe Checkout
+  // ou Apple Pay sheet) → le client voit le total complet à ce moment-là.
+  const sum = +(baseAmount).toFixed(2);
+  // Total réellement débité (avec frais) — utilisé pour Stripe et ECE
+  const sumWithFees = +(baseAmount + stripeFees).toFixed(2);
   animateCounter(totalEl, currentTotal, sum);
   currentTotal = sum;
   totalEl.classList.remove('bump');
@@ -4261,9 +4281,12 @@ function syncCart() {
   const cartCompactEC = cart.map(i => ({
     r: i.repairId, m: i.modelKey, q: i.qty || 1, ...(i.colorName && { c: i.colorName }),
   }));
+  // Apple Pay / Google Pay / PayPal direct via ECE : on N'AJOUTE PAS les frais
+  // Stripe (le shop les absorbe). Carte via Stripe Checkout : frais ajoutés.
   window._safixCurrentOrder = {
     email: (document.getElementById('emailInput')?.value || '').trim(),
-    total: sum,
+    total: sum,                    // ← ECE : base SANS frais (le shop absorbe pour Apple Pay/PayPal)
+    totalWithFees: sumWithFees,    // ← Stripe Checkout (carte) : utilisera celui-ci
     lineItems: lineItemsEC,
     delivery: deliv > 0 ? { name: selectedDelivery === 'express' ? 'Livraison Express' : 'Livraison Standard', price: deliv } : null,
     paymentFees: stripeFees,
@@ -4280,7 +4303,8 @@ function syncCart() {
       cart: JSON.stringify(cartCompactEC),
     },
   };
-  // Monte (ou re-update) le ECE — uniquement si total > 0
+  // Monte (ou re-update) le ECE — montant SANS frais Stripe (le shop absorbe les frais
+  // pour Apple Pay/Google Pay/PayPal). Le sheet Apple Pay affichera donc le total panier exact.
   mountExpressCheckout(Math.round(sum * 100), window._safixCurrentOrder).catch(() => {});
 
   // Ventilation shariatique (pièce TTC / mandat / réparation) sommée sur tous les items
@@ -4733,9 +4757,12 @@ async function mountExpressCheckout(amountCents, orderContext) {
     _eceLastAmount = amountCents;
 
     _eceComponent = _eceElements.create('expressCheckout', {
-      buttonType:   { applePay: 'buy', googlePay: 'buy', paypal: 'buynow' },
-      buttonHeight: 48,
-      paymentMethods: { applePay: 'always', googlePay: 'always', link: 'auto', paypal: 'auto', amazonPay: 'auto' },
+      // Boutons compacts (juste les logos) → tiennent 3 côte à côte
+      buttonType:   { applePay: 'plain', googlePay: 'plain', paypal: 'paypal' },
+      buttonHeight: 44,
+      // Désactive Link et Amazon Pay pour ne garder que les 3 demandés
+      paymentMethods: { applePay: 'always', googlePay: 'always', link: 'never', paypal: 'auto', amazonPay: 'never' },
+      layout: { maxColumns: 3, maxRows: 1, overflow: 'auto' },
     });
     _eceComponent.mount('#expressCheckoutMount');
 
@@ -5438,8 +5465,8 @@ const I18N = {
     'costs.shipping':'Frais de livraison',
     'costs.mandate':'Frais de mandat (commission)',
     'costs.repair':"Service de réparation (main-d'œuvre)",
-    'costs.fees':"Frais de paiement (1,5 % + 0,25 €)",
-    'costs.note':"Vous me mandatez pour acheter la pièce pour votre compte. Le prix pièce inclut la TVA 20 % facturée par le fournisseur. Aucune marge cachée. Les frais de paiement (1,5 % + 0,25 €) couvrent strictement le coût du processeur de paiement (Stripe) — ils ne reviennent pas au réparateur.",
+    'costs.fees':"Frais Stripe carte (1,5 % + 0,25 €)",
+    'costs.note':"Vous me mandatez pour acheter la pièce pour votre compte. Le prix pièce inclut la TVA 20 % facturée par le fournisseur. Aucune marge cachée. <strong>Frais Stripe</strong> : appliqués UNIQUEMENT au paiement par carte/Apple Pay/Google Pay (1,5 % + 0,25 €). <strong>PayPal</strong> : facturé directement par PayPal selon votre compte. Le total affiché est sans ces frais — ils apparaissent à la page de paiement finale.",
     'delivery.title':'Livraison',
     'delivery.std_name':'Livraison Standard',
     'delivery.std_desc':'Sous 48h · passez commande avant 16h30<br>Lun – Mar – Mer',
@@ -5536,8 +5563,8 @@ const I18N = {
     'costs.shipping':'Shipping fees',
     'costs.mandate':'Mandate fee (commission)',
     'costs.repair':'Repair service (labor)',
-    'costs.fees':'Payment fees (1.5% + €0.25)',
-    'costs.note':'You authorize me to purchase the part on your behalf. The part price includes the 20% VAT charged by the supplier. No hidden margin. The payment fees (1.5% + €0.25) strictly cover the cost of the payment processor (Stripe) — they do not go to the repairer.',
+    'costs.fees':'Stripe card fee (1.5% + €0.25)',
+    'costs.note':'You authorize me to purchase the part on your behalf. The part price includes the 20% VAT charged by the supplier. No hidden margin. <strong>Stripe fees</strong> apply ONLY to card/Apple Pay/Google Pay payments (1.5% + €0.25). <strong>PayPal</strong> is billed directly by PayPal according to your account. The displayed total excludes these fees — they appear at the final payment page.',
     'delivery.title':'Delivery',
     'delivery.std_name':'Standard Delivery',
     'delivery.std_desc':'Within 48h · order before 4:30pm<br>Mon – Tue – Wed',
@@ -6377,9 +6404,11 @@ document.querySelectorAll('input[name="appointmentSlot"]').forEach(r => {
 });
 
 // Case mandat obligatoire — pilote l'état visuel "is-incomplete" du bouton checkout
+// + grise aussi Apple Pay / Google Pay / PayPal (Express Checkout) si pas valide
 function refreshCheckoutState() {
   const cb  = document.getElementById('mandateCheckbox');
   const btn = document.getElementById('checkoutBtn');
+  const ece = document.getElementById('expressCheckoutMount');
   if (!btn) return;
   // Si que des services purs : pas de livraison requise (RDV oui)
   const SERVICE_IDS = new Set((data?.repairs?.find(c => c.category === 'Services')?.repairs || []).map(r => r.id));
@@ -6389,6 +6418,8 @@ function refreshCheckoutState() {
           && appointmentDate && appointmentSlot
           && isValidEmail((document.getElementById('emailInput')?.value || '').trim());
   btn.classList.toggle('is-incomplete', !ok);
+  // Apple Pay / Google Pay / PayPal grisés tant que les champs ne sont pas remplis
+  if (ece) ece.classList.toggle('is-incomplete', !ok);
 }
 document.getElementById('mandateCheckbox')?.addEventListener('change', refreshCheckoutState);
 
