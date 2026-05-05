@@ -2448,9 +2448,9 @@ input:focus:not(:focus-visible) {
   .nav-side .nav-sep { display:none; }
   .hero { padding:72px 14px 24px; }
   /* Hero-title : tient sur 2 lignes "Réparer / mon iPhone" sur tous les iPhone.
-     Title agrandi (36→44) + eyebrow rétréci (12→10) pour hiérarchie plus marquée */
-  .hero-title { font-size:clamp(30px, 9vw, 44px); line-height:1.08; letter-spacing:-1.2px; }
-  .hero-title em { letter-spacing:-1px; }
+     Title encore agrandi (44→50) pour plus d'impact visuel */
+  .hero-title { font-size:clamp(32px, 10vw, 50px); line-height:1.06; letter-spacing:-1.4px; }
+  .hero-title em { letter-spacing:-1.1px; }
   .hero-eyebrow { font-size:10px; letter-spacing:2.5px; }
   .hero-sub { font-size:13.5px; line-height:1.55; }
   .hero-cta { padding:14px 22px; font-size:14px; }
@@ -2481,7 +2481,7 @@ input:focus:not(:focus-visible) {
 }
 /* — iPhone très étroit (SE, 6/7/8) — densification ultime — */
 @media (max-width: 380px) {
-  .hero-title { font-size:28px; line-height:1.1; letter-spacing:-1px; }
+  .hero-title { font-size:32px; line-height:1.08; letter-spacing:-1.2px; }
   .hero-eyebrow { font-size:9.5px; letter-spacing:2.2px; }
   .iphone-grid { grid-template-columns:1fr 1fr; gap:10px; padding:0 8px; }
   .iphone-card { padding:0; }
@@ -3749,12 +3749,11 @@ function fitTitleToEyebrow() {
   let newSize = REF_SIZE * (eyebrowWidth / widthAtRef);
 
   // CAP par les media queries mobile pour ne pas écraser le responsive :
-  // ≤380px → max 28px, ≤560px → max 44px, ≤820px → max 60px, sinon 120px
-  // (caps alignés avec les nouvelles règles CSS — title agrandi sur iPhone)
+  // ≤380px → max 32px, ≤560px → max 50px, ≤820px → max 60px, sinon 120px
   const vw = window.innerWidth || document.documentElement.clientWidth;
   let maxAllowed = 120;
-  if (vw <= 380) maxAllowed = 28;
-  else if (vw <= 560) maxAllowed = 44;
+  if (vw <= 380) maxAllowed = 32;
+  else if (vw <= 560) maxAllowed = 50;
   else if (vw <= 820) maxAllowed = 60;
   if (newSize > maxAllowed) newSize = maxAllowed;
 
