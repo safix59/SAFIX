@@ -1329,21 +1329,26 @@ header {
 .paypal-wordmark .pp-pay { color:#003087; }   /* navy officiel PayPal */
 .paypal-wordmark .pp-pal { color:#009CDE; }   /* cyan officiel PayPal */
 
-/* État désactivé : grisé + pas de clic tant que les champs ne sont pas remplis */
-.express-row.is-incomplete .express-checkout-mount,
-.express-row.is-incomplete .paypal-btn {
-  opacity:.3;
-  pointer-events:none;
-  filter:grayscale(.6);
+/* Apple Pay / PayPal : JAMAIS grisés. Visible normalement même si formulaire
+   incomplet. Le seul bouton qui attend la complétion = "Confier la commande".
+   La validation côté JS bloque quand même le paiement si les champs ne sont pas
+   remplis (validateCheckoutForm() inside ECE 'click' + paypalBtn click). */
+
+/* État SÉLECTIONNÉ : contour premium accent autour de la bulle (halo subtil) */
+.express-checkout-mount.selected,
+.paypal-btn.selected {
+  box-shadow:
+    0 0 0 2px var(--accent),
+    0 0 0 6px rgba(0,102,255,.18),
+    0 6px 18px rgba(0,102,255,.10);
+  transition:box-shadow .25s cubic-bezier(.34,1.56,.64,1);
 }
-.express-checkout-mount.is-incomplete {
-  opacity:.3;
-  pointer-events:none;
-  filter:grayscale(.6);
-}
-.express-checkout-mount.is-incomplete::after {
-  content:''; position:absolute; inset:0;
-  background:transparent; cursor:not-allowed;
+[data-theme="light"] .express-checkout-mount.selected,
+[data-theme="light"] .paypal-btn.selected {
+  box-shadow:
+    0 0 0 2px var(--accent),
+    0 0 0 5px rgba(0,102,255,.14),
+    0 6px 18px rgba(0,102,255,.08);
 }
 
 /* Divider "ou" entre Express Checkout et carte */
@@ -5013,11 +5018,16 @@ async function mountExpressCheckout(amountCents, orderContext) {
       console.error('[ECE] loaderror :', event.error);
     });
 
-    // Au CLICK sur Apple Pay/Google Pay (avant ouverture sheet) : valide le formulaire
-    // Si invalide → on n'appelle PAS event.resolve() → la sheet ne s'ouvrira pas.
-    // (Ceinture+bretelles : le CSS .is-incomplete + pointer-events:none bloque déjà
-    //  le click, mais cette validation côté JS est la dernière barrière sûre.)
+    // Au CLICK sur Apple Pay/Google Pay (avant ouverture sheet) :
+    //   1. Marque la bulle comme "selected" (outline premium)
+    //   2. Valide le formulaire — si invalide, n'ouvre pas la sheet
     _eceComponent.on('click', (event) => {
+      // Marque la bulle Apple Pay comme sélectionnée (outline premium)
+      document.getElementById('expressCheckoutMount')?.classList.add('selected');
+      document.getElementById('paypalBtn')?.classList.remove('selected');
+      document.querySelectorAll('.payment-card').forEach(c => c.classList.remove('selected'));
+      selectedPayment = 'applepay';
+      // Validation
       const { ok, firstMissing } = validateCheckoutForm();
       if (!ok) {
         firstMissing?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -6715,11 +6725,14 @@ document.querySelectorAll('.delivery-option').forEach(opt => {
   });
 });
 
-// Cards paiement : sélection (clear l'erreur rouge persistante)
+// Cards paiement (Carte bancaire) : sélection — désélectionne aussi les bulles Apple Pay / PayPal
 document.querySelectorAll('.payment-card').forEach(card => {
   card.addEventListener('click', () => {
     selectedPayment = card.dataset.payment;
     document.querySelectorAll('.payment-card').forEach(c => c.classList.toggle('selected', c === card));
+    // Désélectionne les bulles Apple Pay et PayPal (sélection unique)
+    document.getElementById('expressCheckoutMount')?.classList.remove('selected');
+    document.getElementById('paypalBtn')?.classList.remove('selected');
     document.querySelector('.payment-grid')?.classList.remove('flash-error');
     refreshCheckoutState();
   });
@@ -6740,13 +6753,14 @@ document.querySelectorAll('input[name="appointmentSlot"]').forEach(r => {
 });
 
 // Case mandat obligatoire — pilote l'état visuel "is-incomplete" du bouton checkout
-// + grise aussi Apple Pay / Google Pay / PayPal (Express Checkout) si pas valide
+// SEUL "Confier la commande au réparateur" se grise tant que les champs obligatoires
+// ne sont pas tous remplis. Apple Pay et PayPal restent visibles normalement.
+// (La validation reste effective côté JS dans leurs handlers — pas de paiement
+//  possible si le formulaire n'est pas valide, mais visuellement ils sont normaux.)
 function refreshCheckoutState() {
   const cb  = document.getElementById('mandateCheckbox');
   const btn = document.getElementById('checkoutBtn');
-  const ece = document.getElementById('expressCheckoutMount');
   if (!btn) return;
-  // Si que des services purs : pas de livraison requise (RDV oui)
   const SERVICE_IDS = new Set((data?.repairs?.find(c => c.category === 'Services')?.repairs || []).map(r => r.id));
   const onlyServ   = cart.length > 0 && cart.every(i => SERVICE_IDS.has(i.repairId));
   const deliveryOk = onlyServ ? true : !!selectedDelivery;
@@ -6754,19 +6768,22 @@ function refreshCheckoutState() {
           && appointmentDate && appointmentSlot
           && isValidEmail((document.getElementById('emailInput')?.value || '').trim());
   btn.classList.toggle('is-incomplete', !ok);
-  // Apple Pay / Google Pay / PayPal grisés tant que les champs ne sont pas remplis
-  if (ece) ece.classList.toggle('is-incomplete', !ok);
-  const expressRow = document.querySelector('.express-row');
-  if (expressRow) expressRow.classList.toggle('is-incomplete', !ok);
+  // ⚠️ Volontairement : on NE grise PAS Apple Pay/PayPal — ils restent visibles
+  // normalement (le user trouve plus propre ainsi). La validation a lieu au clic.
 }
 
 // ─── Bouton PayPal custom ────────────────────────────────────────
-// Visuel uniquement pour l'instant — config PayPal natif faite plus tard.
-// Pour l'instant : redirige vers Stripe Checkout avec payment_method_types: ['paypal','card']
-// Validation IDENTIQUE au bouton "Confier la commande" + reconstruction fresh DOM.
+// 1. Marque la bulle PayPal comme "selected" (outline premium)
+// 2. Valide le formulaire (mêmes règles que Apple Pay et Confier la commande)
+// 3. Redirige vers Stripe Checkout avec payment_method_types: ['paypal','card']
 document.getElementById('paypalBtn')?.addEventListener('click', async () => {
   if (!cart.length) return;
-  // Validation partagée (mêmes règles que checkoutBtn et Apple Pay)
+  // Marque la bulle PayPal comme sélectionnée (outline premium)
+  document.getElementById('paypalBtn')?.classList.add('selected');
+  document.getElementById('expressCheckoutMount')?.classList.remove('selected');
+  document.querySelectorAll('.payment-card').forEach(c => c.classList.remove('selected'));
+  selectedPayment = 'paypal';
+  // Validation
   const { ok, firstMissing } = validateCheckoutForm();
   if (!ok) {
     firstMissing?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -6781,7 +6798,7 @@ document.getElementById('paypalBtn')?.addEventListener('click', async () => {
   try {
     await payWithStripe({
       email:       ctx.email,
-      total:       ctx.totalWithFees || ctx.total,  // PayPal via Stripe Checkout = avec frais
+      total:       ctx.totalWithFees || ctx.total,
       lineItems:   ctx.lineItems,
       delivery:    ctx.delivery,
       paymentFees: ctx.paymentFees,
