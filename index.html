@@ -1276,26 +1276,27 @@ header {
 }
 .payment-note strong { color:var(--text); }
 
-/* Express Row : Apple Pay/Google Pay (ECE) + PayPal (custom) — 50/50 sur 1 ligne.
-   GRID avec colonnes fixes 1fr 1fr (au lieu de flex:1 min-width:0 qui faisait rendre
-   ECE à largeur 0 → Stripe abandonnait le rendu).
-   Si ECE empty (device sans wallet), :has() bascule PayPal en colonne unique. */
+/* Express Row : Apple Pay/Google Pay (ECE) + PayPal (custom) — TOUJOURS 50/50 côte à côte.
+   2 bulles fixes, peu importe si ECE charge ou pas. Si Apple Pay est indisponible sur le
+   device, la cellule gauche reste vide (placeholder neutre 44px de haut, jamais de
+   collapse) → la cellule PayPal garde sa moitié exacte. */
 .express-row {
   display:grid;
   grid-template-columns:1fr 1fr;
   gap:8px; align-items:stretch;
   margin-bottom:8px;
 }
-/* Si ECE n'a rien rendu (pas de wallet supporté) → PayPal prend toute la largeur */
-.express-row:has(.express-checkout-mount:empty) {
-  grid-template-columns:1fr;
-}
 .express-checkout-mount {
   min-height:44px; min-width:0;
   position:relative;
+  border-radius:6px;
   transition:opacity .25s, filter .25s;
 }
-.express-checkout-mount:empty { display:none; }
+/* Placeholder visuel discret quand ECE n'a rien rendu (Apple Pay/Google Pay indispo) */
+.express-checkout-mount:empty {
+  background:rgba(255,255,255,.04);
+  border:1px dashed rgba(255,255,255,.08);
+}
 
 /* Bouton PayPal custom — jaune officiel PayPal, wordmark minimaliste.
    width:100% → prend toute la largeur de sa cellule grid (50% normalement,
