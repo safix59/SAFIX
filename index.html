@@ -4972,24 +4972,30 @@ async function mountExpressCheckout(amountCents, orderContext) {
     });
     _eceLastAmount = amountCents;
 
-    // Détection device : Apple (iPhone, iPad, iPod, Mac) → Apple Pay,
-    //                    sinon (Android, Samsung, Windows…) → Google Pay
-    // 1 SEUL bouton wallet affiché selon le device → cellule ECE = 50% de la ligne
-    const ua = navigator.userAgent || '';
-    const isAppleDevice = /iPhone|iPad|iPod|Macintosh/i.test(ua) ||
-                          (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    // ─── Sélection wallet selon device + navigateur ─────────────────
+    // RÈGLES RÉELLES :
+    //   • Apple Pay : iOS Safari/Chrome (WebKit) + macOS Safari uniquement
+    //                 Ne marche PAS sur Chrome/Firefox sur Mac (limite Apple)
+    //   • Google Pay : Chrome (n'importe quel OS) + Android Samsung/etc.
+    // ON LAISSE STRIPE DÉCIDER VIA 'auto' :
+    //   - Stripe sait quel wallet est dispo sur le device exact
+    //   - Sur iPhone Safari → Apple Pay s'affiche
+    //   - Sur Mac Safari → Apple Pay s'affiche
+    //   - Sur Mac Chrome → Google Pay s'affiche (Apple Pay indispo)
+    //   - Sur Android Chrome → Google Pay s'affiche
+    //   - Sur Windows Edge/Firefox → rien (PayPal seul prend toute la largeur)
+    // C'est l'approche la plus fiable et zéro maintenance.
     _eceComponent = _eceElements.create('expressCheckout', {
       buttonType:   { applePay: 'plain', googlePay: 'plain', paypal: 'paypal' },
       buttonHeight: 44,
-      // Apple device → Apple Pay only ; Android/Chrome → Google Pay only.
-      // Link, PayPal et Amazon Pay sont gérés ailleurs (PayPal = bouton custom à droite).
       paymentMethods: {
-        applePay:  isAppleDevice ? 'always' : 'never',
-        googlePay: isAppleDevice ? 'never'  : 'always',
+        applePay:  'auto',     // Stripe affiche si device le supporte
+        googlePay: 'auto',     // Stripe affiche si device le supporte
         link:      'never',
         paypal:    'never',
         amazonPay: 'never',
       },
+      // maxColumns:1 + maxRows:1 → 1 SEUL bouton à la fois (Stripe choisit le meilleur)
       layout: { maxColumns: 1, maxRows: 1, overflow: 'never' },
     });
     _eceComponent.mount('#expressCheckoutMount');
