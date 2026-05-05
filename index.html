@@ -1276,46 +1276,64 @@ header {
 }
 .payment-note strong { color:var(--text); }
 
-/* Express Row : Apple Pay/Google Pay (ECE) + PayPal (custom) — TOUJOURS 50/50 côte à côte.
-   2 bulles fixes, peu importe si ECE charge ou pas. Si Apple Pay est indisponible sur le
-   device, la cellule gauche reste vide (placeholder neutre 44px de haut, jamais de
-   collapse) → la cellule PayPal garde sa moitié exacte. */
-.express-row {
+/* ═══ Bulles paiement Apple Pay / PayPal — Cartes de SÉLECTION (pas de paiement direct).
+   Le clic sélectionne le moyen de paiement. La validation se fait UNIQUEMENT via le
+   bouton "Confier la commande au réparateur" en bas du panier.
+   Outline premium quand sélectionné (border accent + halo subtil), checkmark à droite. */
+.pay-bulles-row {
   display:grid;
   grid-template-columns:1fr 1fr;
-  gap:8px; align-items:stretch;
+  gap:10px; align-items:stretch;
   margin-bottom:8px;
 }
-.express-checkout-mount {
-  min-height:44px; min-width:0;
+.pay-bulle {
   position:relative;
-  border-radius:12px;          /* mêmes coins que la bulle PayPal */
-  transition:opacity .25s, filter .25s;
-}
-/* Placeholder visuel discret quand ECE n'a rien rendu (Apple Pay/Google Pay indispo) */
-.express-checkout-mount:empty {
-  background:rgba(255,255,255,.04);
-  border:1px dashed rgba(255,255,255,.08);
-}
-
-/* Bouton PayPal custom — jaune officiel PayPal, wordmark minimaliste.
-   width:100% prend toute la largeur de sa cellule grid (50%).
-   border-radius:12px → mêmes coins que le bouton Apple Pay (Stripe ECE
-   appearance.variables.borderRadius = 12px). */
-.paypal-btn {
-  display:inline-flex; align-items:center; justify-content:center;
-  width:100%;
-  height:44px;
-  padding:0 16px;
-  background:#FFC439;
-  border:none; border-radius:12px;
+  display:flex; align-items:center; justify-content:center;
+  height:54px; padding:0 14px;
+  background:var(--surface);
+  border:1.5px solid var(--border);
+  border-radius:14px;
   cursor:pointer;
-  transition:opacity .2s, transform .15s, background .2s, filter .25s;
+  transition:border-color .25s, box-shadow .25s, background .2s, transform .12s;
   -webkit-tap-highlight-color:transparent;
 }
-.paypal-btn:hover { background:#F2BB36; }
-.paypal-btn:active { transform:scale(.97); }
-/* Wordmark "PayPal" — italic + couleurs officielles (navy + cyan) sur fond jaune */
+.pay-bulle:hover { border-color:var(--border2); background:var(--surface2); }
+.pay-bulle:active { transform:scale(.98); }
+.pay-bulle-inner {
+  display:inline-flex; align-items:center; justify-content:center;
+  gap:6px;
+  height:36px; min-width:80px;
+  padding:0 14px;
+  border-radius:8px;
+  user-select:none;
+  pointer-events:none;        /* clic captté par le wrapper .pay-bulle */
+}
+/* ─── Bulle Apple Pay : visuel officiel (logo Apple + Pay italic) ─── */
+.pay-bulle--apple .pay-bulle-inner {
+  background:#fff;             /* dark theme : fond blanc, logo noir → contraste max */
+  color:#000;
+}
+[data-theme="light"] .pay-bulle--apple .pay-bulle-inner {
+  background:#000;             /* light theme : fond noir, logo blanc */
+  color:#fff;
+}
+.pay-bulle-applelogo {
+  display:block;
+  margin-bottom:2px;          /* aligne optiquement avec "Pay" */
+}
+.apple-pay-text {
+  font-family:-apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+  font-weight:600;
+  font-size:18px;
+  letter-spacing:-.4px;
+  line-height:1;
+  font-style:normal;          /* Apple guidelines : non-italic */
+}
+/* ─── Bulle PayPal : jaune officiel + wordmark navy/cyan ─── */
+.pay-bulle--paypal .pay-bulle-inner {
+  background:#FFC439;
+  padding:0 16px;
+}
 .paypal-wordmark {
   font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   font-style:italic;
@@ -1326,27 +1344,40 @@ header {
   display:inline-flex; align-items:baseline;
   user-select:none;
 }
-.paypal-wordmark .pp-pay { color:#003087; }   /* navy officiel PayPal */
-.paypal-wordmark .pp-pal { color:#009CDE; }   /* cyan officiel PayPal */
-
-/* État désactivé : grisé + pas de clic tant que les champs ne sont pas remplis */
-.express-row.is-incomplete .express-checkout-mount,
-.express-row.is-incomplete .paypal-btn {
-  opacity:.3;
+.paypal-wordmark .pp-pay { color:#003087; }
+.paypal-wordmark .pp-pal { color:#009CDE; }
+/* ─── État sélectionné : outline premium accent + halo subtil + checkmark ─── */
+.pay-bulle.selected {
+  border-color:var(--accent);
+  box-shadow:0 0 0 4px rgba(0,102,255,.18), 0 4px 14px rgba(0,102,255,.12);
+}
+[data-theme="light"] .pay-bulle.selected {
+  box-shadow:0 0 0 4px rgba(0,102,255,.16), 0 6px 18px rgba(0,102,255,.10);
+}
+/* Checkmark accent en haut-droite quand sélectionné */
+.pay-bulle-check {
+  position:absolute; top:6px; right:6px;
+  width:18px; height:18px; border-radius:50%;
+  background:var(--accent);
+  opacity:0; transform:scale(.5);
+  transition:opacity .2s, transform .25s cubic-bezier(.34,1.56,.64,1);
+  display:flex; align-items:center; justify-content:center;
   pointer-events:none;
-  filter:grayscale(.6);
 }
-.express-checkout-mount.is-incomplete {
-  opacity:.3;
+.pay-bulle.selected .pay-bulle-check { opacity:1; transform:scale(1); }
+.pay-bulle-check::after {
+  content:''; width:8px; height:5px;
+  border-left:2px solid #fff; border-bottom:2px solid #fff;
+  transform:rotate(-45deg) translate(1px, -1px);
+}
+/* ─── État désactivé : grisé + pas de clic tant que formulaire incomplet ─── */
+.pay-bulles-row.is-incomplete .pay-bulle {
+  opacity:.35;
   pointer-events:none;
-  filter:grayscale(.6);
-}
-.express-checkout-mount.is-incomplete::after {
-  content:''; position:absolute; inset:0;
-  background:transparent; cursor:not-allowed;
+  filter:grayscale(.5);
 }
 
-/* Divider "ou" entre Express Checkout et carte */
+/* Divider "ou" entre les bulles wallet et la carte bancaire */
 .payment-divider {
   display:flex; align-items:center; gap:10px;
   margin:14px 0 12px;
@@ -1356,7 +1387,6 @@ header {
 .payment-divider::before, .payment-divider::after {
   content:''; flex:1; height:1px; background:var(--border);
 }
-.payment-divider:has(+ #expressCheckoutMount:empty) { display:none; }
 
 /* Bouton Carte (fallback) */
 .payment-card--card { width:100%; }
@@ -2810,18 +2840,29 @@ input:focus:not(:focus-visible) {
       <div class="contact-hint" data-i18n="contact.hint">Confirmation de commande envoyée par mail.</div>
     </div>
 
-    <!-- ═══ MOYENS DE PAIEMENT ═══ -->
+    <!-- ═══ MOYENS DE PAIEMENT — Sélection (validation par "Confier la commande") ═══ -->
     <div class="cart-section" id="paymentBlock" style="display:none">
       <div class="cart-section-title" data-i18n="payment.title">Paiement</div>
-      <!-- Express Checkout : Apple Pay + Google Pay (Stripe ECE) + PayPal custom — sur 1 ligne 50/50 -->
-      <div class="express-row">
-        <div id="expressCheckoutMount" class="express-checkout-mount"></div>
-        <button type="button" id="paypalBtn" class="paypal-btn" aria-label="PayPal">
-          <span class="paypal-wordmark" aria-hidden="true"><span class="pp-pay">Pay</span><span class="pp-pal">Pal</span></span>
+      <!-- 2 bulles sélectionnables : Apple Pay + PayPal (50/50) -->
+      <div class="pay-bulles-row">
+        <button type="button" class="pay-bulle pay-bulle--apple" data-payment="applepay" aria-label="Apple Pay">
+          <span class="pay-bulle-inner">
+            <svg class="pay-bulle-applelogo" width="14" height="18" viewBox="0 0 17 21" fill="currentColor" aria-hidden="true">
+              <path d="M14.06 11.16c-.03-2.7 2.2-3.99 2.3-4.05-1.26-1.84-3.21-2.09-3.9-2.12-1.66-.17-3.24.97-4.09.97-.85 0-2.15-.95-3.54-.92-1.82.03-3.5 1.06-4.43 2.69-1.89 3.28-.48 8.13 1.36 10.79.9 1.31 1.97 2.78 3.38 2.72 1.36-.06 1.87-.88 3.51-.88s2.11.88 3.55.85c1.46-.03 2.39-1.33 3.28-2.66 1.04-1.52 1.46-2.99 1.49-3.07-.03-.01-2.86-1.1-2.89-4.36zM11.36 3.1C12.11 2.18 12.62.9 12.48-.4c-1.11.05-2.46.74-3.24 1.66-.7.81-1.31 2.13-1.15 3.39 1.24.1 2.51-.63 3.27-1.55z" transform="translate(.5 .5)"/>
+            </svg>
+            <span class="pay-bulle-text apple-pay-text">Pay</span>
+          </span>
+          <span class="pay-bulle-check"></span>
+        </button>
+        <button type="button" class="pay-bulle pay-bulle--paypal" data-payment="paypal" aria-label="PayPal">
+          <span class="pay-bulle-inner">
+            <span class="paypal-wordmark" aria-hidden="true"><span class="pp-pay">Pay</span><span class="pp-pal">Pal</span></span>
+          </span>
+          <span class="pay-bulle-check"></span>
         </button>
       </div>
       <div class="payment-divider"><span data-i18n="payment.or">ou</span></div>
-      <!-- Carte fallback : Stripe Checkout en redirect -->
+      <!-- Carte bancaire (sélection identique aux bulles ci-dessus) -->
       <button type="button" class="payment-card payment-card--card" data-payment="card">
         <span class="payment-card-logo">
           <svg width="34" height="22" viewBox="0 0 34 22" fill="none">
@@ -2834,7 +2875,7 @@ input:focus:not(:focus-visible) {
         <span class="payment-card-check"></span>
       </button>
       <div class="payment-note" data-i18n="payment.note">
-        <strong>Paiement sécurisé Stripe.</strong> Apple Pay et Google Pay s'affichent automatiquement si votre appareil les supporte.
+        <strong>Sélectionnez un moyen de paiement</strong>, puis cliquez sur <strong>Confier la commande au réparateur</strong> en bas pour finaliser. Le paiement est sécurisé Stripe.
       </div>
     </div>
 
@@ -4529,9 +4570,10 @@ function syncCart() {
       cart: JSON.stringify(cartCompactEC),
     },
   };
-  // Monte (ou re-update) le ECE — montant SANS frais Stripe (le shop absorbe les frais
-  // pour Apple Pay/Google Pay/PayPal). Le sheet Apple Pay affichera donc le total panier exact.
-  mountExpressCheckout(Math.round(sum * 100), window._safixCurrentOrder).catch(() => {});
+  // ECE supprimé : Apple Pay / PayPal sont maintenant des bulles de SÉLECTION
+  // (cliquables pour choisir, validées uniquement via "Confier la commande").
+  // Stripe Checkout (lancé par "Confier la commande") affichera Apple Pay nativement
+  // sur les devices supportés.
 
   // Ventilation shariatique (pièce TTC / mandat / réparation) sommée sur tous les items
   // Utilise la VRAIE formule du scraper : margin = 25/35/50 selon repairId+model
@@ -6715,11 +6757,13 @@ document.querySelectorAll('.delivery-option').forEach(opt => {
   });
 });
 
-// Cards paiement : sélection (clear l'erreur rouge persistante)
+// Cards paiement (carte bancaire) : sélection — désélectionne aussi les bulles Apple/PayPal
 document.querySelectorAll('.payment-card').forEach(card => {
   card.addEventListener('click', () => {
     selectedPayment = card.dataset.payment;
     document.querySelectorAll('.payment-card').forEach(c => c.classList.toggle('selected', c === card));
+    // Désélectionne les bulles Apple Pay / PayPal (sélection unique entre les 3 méthodes)
+    document.querySelectorAll('.pay-bulle').forEach(b => b.classList.remove('selected'));
     document.querySelector('.payment-grid')?.classList.remove('flash-error');
     refreshCheckoutState();
   });
@@ -6739,12 +6783,11 @@ document.querySelectorAll('input[name="appointmentSlot"]').forEach(r => {
   });
 });
 
-// Case mandat obligatoire — pilote l'état visuel "is-incomplete" du bouton checkout
-// + grise aussi Apple Pay / Google Pay / PayPal (Express Checkout) si pas valide
+// État du bouton "Confier la commande au réparateur" + bulles Apple Pay/PayPal :
+// is-incomplete tant que les champs obligatoires ne sont pas remplis.
 function refreshCheckoutState() {
   const cb  = document.getElementById('mandateCheckbox');
   const btn = document.getElementById('checkoutBtn');
-  const ece = document.getElementById('expressCheckoutMount');
   if (!btn) return;
   // Si que des services purs : pas de livraison requise (RDV oui)
   const SERVICE_IDS = new Set((data?.repairs?.find(c => c.category === 'Services')?.repairs || []).map(r => r.id));
@@ -6754,43 +6797,24 @@ function refreshCheckoutState() {
           && appointmentDate && appointmentSlot
           && isValidEmail((document.getElementById('emailInput')?.value || '').trim());
   btn.classList.toggle('is-incomplete', !ok);
-  // Apple Pay / Google Pay / PayPal grisés tant que les champs ne sont pas remplis
-  if (ece) ece.classList.toggle('is-incomplete', !ok);
-  const expressRow = document.querySelector('.express-row');
-  if (expressRow) expressRow.classList.toggle('is-incomplete', !ok);
+  // Bulles Apple Pay / PayPal grisées tant que les champs ne sont pas remplis
+  document.querySelector('.pay-bulles-row')?.classList.toggle('is-incomplete', !ok);
 }
 
-// ─── Bouton PayPal custom ────────────────────────────────────────
-// Visuel uniquement pour l'instant — config PayPal natif faite plus tard.
-// Pour l'instant : redirige vers Stripe Checkout avec payment_method_types: ['paypal','card']
-// Validation IDENTIQUE au bouton "Confier la commande" + reconstruction fresh DOM.
-document.getElementById('paypalBtn')?.addEventListener('click', async () => {
-  if (!cart.length) return;
-  // Validation partagée (mêmes règles que checkoutBtn et Apple Pay)
-  const { ok, firstMissing } = validateCheckoutForm();
-  if (!ok) {
-    firstMissing?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    showToast('⚠️', currentLang === 'en'
-      ? 'Please complete the required fields'
-      : 'Veuillez remplir les champs obligatoires');
-    return;
-  }
-  // Reconstruit le contexte FRAIS depuis le DOM (pas de stale data)
-  const ctx = buildOrderContextFromDOM();
-  const orderMetaPaypal = { ...ctx.orderMeta, paymentMethod: 'paypal' };
-  try {
-    await payWithStripe({
-      email:       ctx.email,
-      total:       ctx.totalWithFees || ctx.total,  // PayPal via Stripe Checkout = avec frais
-      lineItems:   ctx.lineItems,
-      delivery:    ctx.delivery,
-      paymentFees: ctx.paymentFees,
-      orderMeta:   orderMetaPaypal,
-    });
-  } catch (e) {
-    console.warn('[SAFIX] PayPal click error :', e.message);
-    showToast('⚠️', currentLang === 'en' ? 'Payment failed' : 'Le paiement a échoué');
-  }
+// ─── Bulles Apple Pay / PayPal : SÉLECTION uniquement (pas de paiement direct) ────
+// Le clic sur une bulle marque selectedPayment et applique le contour premium.
+// La validation se fait UNIQUEMENT via le bouton "Confier la commande au réparateur"
+// en bas du panier — c'est le seul moyen de déclencher le paiement.
+document.querySelectorAll('.pay-bulle').forEach(bulle => {
+  bulle.addEventListener('click', () => {
+    selectedPayment = bulle.dataset.payment;  // 'applepay' ou 'paypal'
+    // Désélectionne les autres bulles ET la carte bancaire (selection unique)
+    document.querySelectorAll('.pay-bulle').forEach(b => b.classList.toggle('selected', b === bulle));
+    document.querySelectorAll('.payment-card').forEach(c => c.classList.remove('selected'));
+    // Cleanup des erreurs
+    document.querySelector('.pay-bulles-row')?.classList.remove('flash-error');
+    refreshCheckoutState();
+  });
 });
 document.getElementById('mandateCheckbox')?.addEventListener('change', refreshCheckoutState);
 
