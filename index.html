@@ -3785,6 +3785,9 @@ function applyTheme(t) {
   document.documentElement.setAttribute('data-theme', t);
   themeIcon.innerHTML = t==='dark' ? moonSVG : sunSVG;
   localStorage.setItem(THEME_KEY, t);
+  // Notifie les composants qui doivent réagir au changement de thème
+  // (ex : Express Checkout Element pour adapter le buttonTheme Apple Pay/Google Pay)
+  window.dispatchEvent(new CustomEvent('safix:theme-change', { detail: { theme: t } }));
 }
 applyTheme(localStorage.getItem(THEME_KEY) || 'dark');
 themeBtn.addEventListener('click', () => {
@@ -4979,14 +4982,18 @@ async function mountExpressCheckout(amountCents, orderContext) {
     });
     _eceLastAmount = amountCents;
 
-    // Configuration ECE — IDENTIQUE à la version qui marchait avant l'ajout PayPal,
-    // sauf paypal:'never' (on a un bouton PayPal custom à droite, pas besoin que
-    // Stripe en duplique un dans ECE).
-    // 'always' force Stripe à essayer même en cas de doute → plus fiable.
-    // 'overflow: auto' laisse Stripe gérer si plusieurs wallets sont dispos.
+    // Détecte le thème courant (sombre / clair) pour adapter le style des boutons wallet.
+    // Apple/Google guidelines :
+    //   • Fond sombre → bouton 'white' (fond blanc, logo noir → maximum de contraste)
+    //   • Fond clair  → bouton 'black' (fond noir, logo blanc → maximum de contraste)
+    const isDarkMode = (document.documentElement.getAttribute('data-theme') || 'dark') === 'dark';
     _eceComponent = _eceElements.create('expressCheckout', {
       buttonType:   { applePay: 'plain', googlePay: 'plain', paypal: 'paypal' },
       buttonHeight: 44,
+      buttonTheme:  {
+        applePay:  isDarkMode ? 'white' : 'black',
+        googlePay: isDarkMode ? 'white' : 'black',
+      },
       paymentMethods: {
         applePay:  'always',
         googlePay: 'always',
@@ -5097,6 +5104,21 @@ async function mountExpressCheckout(amountCents, orderContext) {
     mount.innerHTML = '';
   }
 }
+
+// Quand l'utilisateur switche le thème (sombre ↔ clair), on détruit le composant
+// ECE et on le remonte avec le bon buttonTheme (Apple Pay/Google Pay : white ↔ black).
+window.addEventListener('safix:theme-change', () => {
+  if (_eceComponent) {
+    try { _eceComponent.unmount(); } catch {}
+    try { _eceComponent.destroy?.(); } catch {}
+    _eceComponent = null;
+    _eceElements  = null;
+    _eceLastAmount = 0;
+    // Trigger un re-render du panier qui appellera mountExpressCheckout avec
+    // le buttonTheme à jour (lu sur document.documentElement.data-theme)
+    if (typeof syncCart === 'function') syncCart();
+  }
+});
 
 async function payWithStripe({ email, total, lineItems, delivery, paymentFees, orderMeta }) {
   const cfg = window.SAFIX_CONFIG.stripe;
