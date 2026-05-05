@@ -1289,7 +1289,7 @@ header {
 .express-checkout-mount {
   min-height:44px; min-width:0;
   position:relative;
-  border-radius:6px;
+  border-radius:12px;          /* mêmes coins que la bulle PayPal */
   transition:opacity .25s, filter .25s;
 }
 /* Placeholder visuel discret quand ECE n'a rien rendu (Apple Pay/Google Pay indispo) */
@@ -1299,15 +1299,16 @@ header {
 }
 
 /* Bouton PayPal custom — jaune officiel PayPal, wordmark minimaliste.
-   width:100% → prend toute la largeur de sa cellule grid (50% normalement,
-   100% si ECE est masqué via le sélecteur :has() au-dessus). */
+   width:100% prend toute la largeur de sa cellule grid (50%).
+   border-radius:12px → mêmes coins que le bouton Apple Pay (Stripe ECE
+   appearance.variables.borderRadius = 12px). */
 .paypal-btn {
   display:inline-flex; align-items:center; justify-content:center;
   width:100%;
   height:44px;
   padding:0 16px;
   background:#FFC439;
-  border:none; border-radius:6px;
+  border:none; border-radius:12px;
   cursor:pointer;
   transition:opacity .2s, transform .15s, background .2s, filter .25s;
   -webkit-tap-highlight-color:transparent;
