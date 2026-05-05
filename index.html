@@ -1277,27 +1277,32 @@ header {
 .payment-note strong { color:var(--text); }
 
 /* Express Row : Apple Pay/Google Pay (ECE) + PayPal (custom) — 50/50 sur 1 ligne.
-   Flexbox plutôt que grid : si ECE est vide (device sans wallet), PayPal s'étend
-   automatiquement à toute la largeur grâce à flex:1 + display:none sur ECE vide. */
+   GRID avec colonnes fixes 1fr 1fr (au lieu de flex:1 min-width:0 qui faisait rendre
+   ECE à largeur 0 → Stripe abandonnait le rendu).
+   Si ECE empty (device sans wallet), :has() bascule PayPal en colonne unique. */
 .express-row {
-  display:flex;
+  display:grid;
+  grid-template-columns:1fr 1fr;
   gap:8px; align-items:stretch;
   margin-bottom:8px;
 }
+/* Si ECE n'a rien rendu (pas de wallet supporté) → PayPal prend toute la largeur */
+.express-row:has(.express-checkout-mount:empty) {
+  grid-template-columns:1fr;
+}
 .express-checkout-mount {
-  flex:1; min-width:0;          /* min-width:0 pour permettre le shrink */
-  min-height:44px;
+  min-height:44px; min-width:0;
   position:relative;
   transition:opacity .25s, filter .25s;
 }
 .express-checkout-mount:empty { display:none; }
 
 /* Bouton PayPal custom — jaune officiel PayPal, wordmark minimaliste.
-   flex:1 → prend la moitié de la ligne quand ECE est aussi présent (50/50),
-   ou toute la largeur si ECE est masqué (device sans Apple Pay/Google Pay). */
+   width:100% → prend toute la largeur de sa cellule grid (50% normalement,
+   100% si ECE est masqué via le sélecteur :has() au-dessus). */
 .paypal-btn {
   display:inline-flex; align-items:center; justify-content:center;
-  flex:1; min-width:0;
+  width:100%;
   height:44px;
   padding:0 16px;
   background:#FFC439;
@@ -4972,31 +4977,22 @@ async function mountExpressCheckout(amountCents, orderContext) {
     });
     _eceLastAmount = amountCents;
 
-    // ─── Sélection wallet selon device + navigateur ─────────────────
-    // RÈGLES RÉELLES :
-    //   • Apple Pay : iOS Safari/Chrome (WebKit) + macOS Safari uniquement
-    //                 Ne marche PAS sur Chrome/Firefox sur Mac (limite Apple)
-    //   • Google Pay : Chrome (n'importe quel OS) + Android Samsung/etc.
-    // ON LAISSE STRIPE DÉCIDER VIA 'auto' :
-    //   - Stripe sait quel wallet est dispo sur le device exact
-    //   - Sur iPhone Safari → Apple Pay s'affiche
-    //   - Sur Mac Safari → Apple Pay s'affiche
-    //   - Sur Mac Chrome → Google Pay s'affiche (Apple Pay indispo)
-    //   - Sur Android Chrome → Google Pay s'affiche
-    //   - Sur Windows Edge/Firefox → rien (PayPal seul prend toute la largeur)
-    // C'est l'approche la plus fiable et zéro maintenance.
+    // Configuration ECE — IDENTIQUE à la version qui marchait avant l'ajout PayPal,
+    // sauf paypal:'never' (on a un bouton PayPal custom à droite, pas besoin que
+    // Stripe en duplique un dans ECE).
+    // 'always' force Stripe à essayer même en cas de doute → plus fiable.
+    // 'overflow: auto' laisse Stripe gérer si plusieurs wallets sont dispos.
     _eceComponent = _eceElements.create('expressCheckout', {
       buttonType:   { applePay: 'plain', googlePay: 'plain', paypal: 'paypal' },
       buttonHeight: 44,
       paymentMethods: {
-        applePay:  'auto',     // Stripe affiche si device le supporte
-        googlePay: 'auto',     // Stripe affiche si device le supporte
+        applePay:  'always',
+        googlePay: 'always',
         link:      'never',
         paypal:    'never',
         amazonPay: 'never',
       },
-      // maxColumns:1 + maxRows:1 → 1 SEUL bouton à la fois (Stripe choisit le meilleur)
-      layout: { maxColumns: 1, maxRows: 1, overflow: 'never' },
+      layout: { maxColumns: 1, maxRows: 1, overflow: 'auto' },
     });
     _eceComponent.mount('#expressCheckoutMount');
 
