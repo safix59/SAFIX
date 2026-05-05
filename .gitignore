@@ -52,3 +52,5 @@ bot/bot-auth.json
 scraper/.user-data/
 scraper/logs/
 .vercel
+*.env.vercel*
+.env.vercel*
