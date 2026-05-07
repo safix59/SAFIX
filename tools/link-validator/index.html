@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<title>SAFIX — Validateur de liens Utopya</title>
+<style>
+  :root {
+    --bg:#0a0a0a; --surface:#141414; --surface2:#1c1c1e; --border:#2a2a2c;
+    --text:#fff; --text2:#a1a1a6; --text3:#6e6e73;
+    --accent:#0066ff; --green:#30d158; --red:#ff3b30; --orange:#ff9500;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html, body { height:100%; }
+  body {
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",sans-serif;
+    background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased;
+    display:flex; flex-direction:column; min-height:100vh;
+  }
+  header {
+    padding:18px 28px; border-bottom:1px solid var(--border);
+    display:flex; justify-content:space-between; align-items:center;
+    background:rgba(20,20,20,.7); backdrop-filter:blur(20px); position:sticky; top:0; z-index:10;
+  }
+  header h1 { font-size:18px; font-weight:700; letter-spacing:-.4px; }
+  header .meta { font-size:13px; color:var(--text2); }
+  main { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:40px 24px; }
+  .card {
+    width:100%; max-width:640px;
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:24px; padding:36px 32px;
+    box-shadow:0 8px 32px rgba(0,0,0,.4);
+  }
+  .badge {
+    display:inline-block; padding:5px 12px; font-size:11px; font-weight:700;
+    text-transform:uppercase; letter-spacing:1.5px; border-radius:999px;
+    background:linear-gradient(135deg,var(--accent),#5AC8FA);
+    color:#fff; margin-bottom:14px;
+  }
+  .model { font-size:36px; font-weight:800; letter-spacing:-1.4px; margin-bottom:6px; }
+  .type { font-size:18px; color:var(--text2); margin-bottom:24px; }
+  .url {
+    font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+    font-size:12px; color:var(--text3); word-break:break-all;
+    padding:12px 14px; background:var(--surface2); border-radius:10px;
+    margin-bottom:24px;
+  }
+  .url a { color:var(--accent); text-decoration:none; }
+  .url a:hover { text-decoration:underline; }
+  .timer-wrap { display:flex; align-items:center; gap:14px; margin-bottom:24px; }
+  .timer-circle {
+    width:64px; height:64px; border-radius:50%;
+    background:conic-gradient(var(--accent) calc(var(--p)*1%), var(--surface2) 0);
+    display:flex; align-items:center; justify-content:center;
+    font-size:22px; font-weight:700; position:relative;
+    transition:--p .1s linear;
+  }
+  .timer-circle::before {
+    content:''; position:absolute; inset:6px; background:var(--surface);
+    border-radius:50%; z-index:0;
+  }
+  .timer-circle span { position:relative; z-index:1; }
+  .timer-label { font-size:14px; color:var(--text2); }
+  .actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  button {
+    padding:14px 18px; border-radius:14px; border:none; cursor:pointer;
+    font-family:inherit; font-size:15px; font-weight:600;
+    transition:transform .12s, opacity .2s, background .2s;
+    -webkit-tap-highlight-color:transparent;
+  }
+  button:active { transform:scale(.97); }
+  .btn-bad { background:var(--red); color:#fff; }
+  .btn-bad:hover { background:#d92e25; }
+  .btn-skip { background:var(--orange); color:#000; }
+  .btn-skip:hover { background:#e0850c; }
+  .btn-pause { background:var(--surface2); color:var(--text); border:1px solid var(--border); }
+  .btn-prev  { background:var(--surface2); color:var(--text); border:1px solid var(--border); }
+  .btn-pri   { background:var(--accent); color:#fff; }
+  .btn-pri:hover { background:#0052cc; }
+  .row { display:flex; gap:10px; margin-top:12px; }
+  .row > * { flex:1; }
+  .progress {
+    width:100%; max-width:640px; margin-top:24px;
+    background:var(--surface2); border-radius:8px; height:6px; overflow:hidden;
+  }
+  .progress-bar { height:100%; background:linear-gradient(90deg,var(--accent),#5AC8FA); transition:width .3s; }
+  .stats {
+    display:flex; gap:24px; justify-content:center; margin-top:16px;
+    font-size:13px; color:var(--text2);
+  }
+  .stats span strong { color:var(--text); font-size:15px; }
+  .stats .ok strong { color:var(--green); }
+  .stats .ko strong { color:var(--red); }
+
+  /* Écran d'intro */
+  .intro h2 { font-size:32px; font-weight:800; letter-spacing:-1px; margin-bottom:10px; }
+  .intro p { color:var(--text2); margin-bottom:14px; line-height:1.6; }
+  .intro ul { color:var(--text2); margin-left:20px; margin-bottom:20px; line-height:1.8; }
+  .intro li::marker { color:var(--accent); }
+  .intro kbd {
+    display:inline-block; padding:2px 8px; background:var(--surface2);
+    border:1px solid var(--border); border-radius:6px; font-family:ui-monospace,monospace;
+    font-size:12px; color:var(--text);
+  }
+
+  /* Écran final */
+  .final h2 { font-size:36px; font-weight:800; letter-spacing:-1.2px; margin-bottom:10px; }
+  .final .ok-count { color:var(--green); font-size:48px; font-weight:800; }
+  .final .ko-count { color:var(--red);  font-size:48px; font-weight:800; }
+  .final-summary { display:flex; gap:30px; justify-content:center; margin-bottom:24px; }
+  .ko-list {
+    background:var(--surface2); border-radius:14px; padding:16px; max-height:280px; overflow:auto;
+    margin-bottom:20px;
+  }
+  .ko-list li { font-size:13px; color:var(--text2); padding:6px 0; line-height:1.4; }
+  .ko-list li strong { color:var(--text); }
+  textarea {
+    width:100%; height:200px; padding:12px; border-radius:10px;
+    border:1px solid var(--border); background:var(--surface2); color:var(--text);
+    font-family:ui-monospace,monospace; font-size:11px;
+  }
+
+  /* Hide */
+  .hidden { display:none !important; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🔗 Validateur de liens Utopya — SAFIX</h1>
+  <div class="meta" id="metaInfo">393 liens · 15 catégories</div>
+</header>
+
+<main>
+
+  <!-- ÉCRAN 1 : INTRO -->
+  <div class="card intro" id="screenIntro">
+    <span class="badge">Mode validation</span>
+    <h2>Vérifie 393 liens en 7 secondes par lien</h2>
+    <p>Chaque lien va s'ouvrir <strong>automatiquement</strong> dans un onglet pendant <strong>7 secondes</strong>. Pendant ce temps, regarde la page Utopya pour vérifier que la pièce correspond bien au modèle et à la catégorie indiqués.</p>
+    <ul>
+      <li>Si le lien est <strong>BON</strong> → ne fais rien, ça passe au suivant après 7s</li>
+      <li>Si le lien est <strong>MAUVAIS</strong> → clique <kbd>✗ Mauvais lien</kbd> ou appuie sur <kbd>N</kbd></li>
+      <li>Besoin de plus de temps ? → clique <kbd>+ 7s</kbd> ou appuie sur <kbd>Espace</kbd></li>
+      <li>Pour reculer → <kbd>Précédent</kbd> ou <kbd>←</kbd></li>
+      <li>Pour pause → <kbd>Pause</kbd> ou <kbd>P</kbd></li>
+    </ul>
+    <p>Ta progression est <strong>sauvegardée automatiquement</strong> — tu peux fermer la page et reprendre plus tard.</p>
+    <div class="actions">
+      <button class="btn-pri" id="btnStart">▶ Démarrer la validation</button>
+      <button class="btn-pause" id="btnReset">↻ Tout recommencer</button>
+    </div>
+    <div id="resumeNote" style="margin-top:14px; font-size:13px; color:var(--orange); display:none;">
+      ↳ Tu reprendras au lien <strong id="resumeIndex"></strong>
+    </div>
+  </div>
+
+  <!-- ÉCRAN 2 : VALIDATION EN COURS -->
+  <div class="card hidden" id="screenValidate">
+    <span class="badge" id="catBadge">Châssis</span>
+    <div class="model" id="modelName">iPhone 14</div>
+    <div class="type" id="typeName">Châssis complet</div>
+    <div class="url"><a id="urlLink" href="#" target="safix_utopya_validator" rel="noopener">https://...</a></div>
+
+    <div class="timer-wrap">
+      <div class="timer-circle" id="timerCircle" style="--p:0;"><span id="timerNum">7</span></div>
+      <div class="timer-label" id="timerLabel">⏱ Validation auto dans 7s — clique "Mauvais" si erreur</div>
+    </div>
+
+    <div class="actions">
+      <button class="btn-bad" id="btnBad">✗ Mauvais lien</button>
+      <button class="btn-skip" id="btnAddTime">+ 7 secondes</button>
+    </div>
+    <div class="row">
+      <button class="btn-prev" id="btnPrev">← Précédent</button>
+      <button class="btn-pause" id="btnPause">⏸ Pause</button>
+      <button class="btn-pri" id="btnNext" style="display:none;">→ Suivant maintenant</button>
+    </div>
+
+    <div class="progress"><div class="progress-bar" id="progressBar" style="width:0%"></div></div>
+    <div class="stats">
+      <span>📍 <strong id="statCurrent">1</strong>/<strong id="statTotal">393</strong></span>
+      <span class="ok">✓ <strong id="statOk">0</strong> OK</span>
+      <span class="ko">✗ <strong id="statKo">0</strong> NOK</span>
+      <span>⏳ <strong id="statRemain">393</strong> restants</span>
+    </div>
+  </div>
+
+  <!-- ÉCRAN 3 : RÉSUMÉ FINAL -->
+  <div class="card final hidden" id="screenFinal">
+    <span class="badge">Validation terminée</span>
+    <h2>🎉 393 liens vérifiés</h2>
+    <div class="final-summary">
+      <div><div class="ok-count" id="finalOk">0</div><div>BONS LIENS</div></div>
+      <div><div class="ko-count" id="finalKo">0</div><div>À CORRIGER</div></div>
+    </div>
+    <h3 style="margin-bottom:10px; color:var(--red);">Liens à remplacer :</h3>
+    <ul class="ko-list" id="koList"></ul>
+    <h3 style="margin-bottom:10px;">Export pour Claude (copie-colle dans le chat) :</h3>
+    <textarea id="exportText" readonly></textarea>
+    <div class="row">
+      <button class="btn-pri" id="btnCopy">📋 Copier l'export</button>
+      <button class="btn-pause" id="btnRestart">↻ Recommencer</button>
+    </div>
+  </div>
+
+</main>
+
+<script>
+const STORAGE_KEY = 'safix_link_validator_v1';
+const TIMER_DURATION = 7;  // secondes
+
+let links = [];
+let state = {
+  index: 0,
+  results: [],   // [{url, status: 'ok'|'ko'|'pending', model, type, category}]
+  paused: false,
+};
+let timerId = null;
+let secondsLeft = TIMER_DURATION;
+let popupRef = null;
+
+// ─── Chargement des liens ───────────────────────────
+async function loadLinks() {
+  try {
+    const r = await fetch('./links.json');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    links = await r.json();
+    document.getElementById('metaInfo').textContent =
+      links.length + ' liens · ' + new Set(links.map(l=>l.category)).size + ' catégories';
+    document.getElementById('statTotal').textContent = links.length;
+    document.getElementById('statRemain').textContent = links.length;
+  } catch (e) {
+    alert('Erreur de chargement : ' + e.message + '\n\nLance la page via un serveur local :\n  cd tools/link-validator && python3 -m http.server 8000\n  → http://localhost:8000/');
+  }
+}
+
+// ─── Persistance localStorage ───────────────────────
+function saveState() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    index: state.index, results: state.results,
+  }));
+}
+function loadState() {
+  try {
+    const s = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (s && Array.isArray(s.results)) {
+      state.index = s.index || 0;
+      state.results = s.results || [];
+      return state.index > 0;
+    }
+  } catch {}
+  return false;
+}
+function resetState() {
+  state = { index: 0, results: [], paused: false };
+  localStorage.removeItem(STORAGE_KEY);
+}
+
+// ─── Timer ──────────────────────────────────────────
+function startTimer() {
+  stopTimer();
+  secondsLeft = TIMER_DURATION;
+  updateTimerDisplay();
+  timerId = setInterval(() => {
+    secondsLeft -= 0.1;
+    if (secondsLeft <= 0) {
+      stopTimer();
+      markOk();
+      return;
+    }
+    updateTimerDisplay();
+  }, 100);
+}
+function stopTimer() {
+  if (timerId) { clearInterval(timerId); timerId = null; }
+}
+function updateTimerDisplay() {
+  const pct = Math.max(0, ((TIMER_DURATION - secondsLeft) / TIMER_DURATION) * 100);
+  const circle = document.getElementById('timerCircle');
+  circle.style.setProperty('--p', pct.toFixed(1));
+  document.getElementById('timerNum').textContent = Math.max(0, Math.ceil(secondsLeft));
+}
+
+// ─── Affichage du lien courant ──────────────────────
+function showCurrentLink() {
+  if (state.index >= links.length) {
+    showFinal();
+    return;
+  }
+  const link = links[state.index];
+  document.getElementById('catBadge').textContent = link.category;
+  document.getElementById('modelName').textContent = link.model;
+  document.getElementById('typeName').textContent = link.type;
+  const a = document.getElementById('urlLink');
+  a.href = link.url;
+  a.textContent = link.url;
+
+  // Stats
+  const okCount = state.results.filter(r => r.status === 'ok').length;
+  const koCount = state.results.filter(r => r.status === 'ko').length;
+  document.getElementById('statCurrent').textContent = state.index + 1;
+  document.getElementById('statOk').textContent = okCount;
+  document.getElementById('statKo').textContent = koCount;
+  document.getElementById('statRemain').textContent = links.length - state.index;
+  document.getElementById('progressBar').style.width = ((state.index / links.length) * 100) + '%';
+
+  // Ouvre le lien dans un onglet (réutilise la même fenêtre)
+  try {
+    if (popupRef && !popupRef.closed) {
+      popupRef.location.href = link.url;
+    } else {
+      popupRef = window.open(link.url, 'safix_utopya_validator');
+    }
+  } catch (e) { /* popup bloqué : l'utilisateur doit cliquer le lien */ }
+
+  startTimer();
+}
+
+function markOk() {
+  if (state.index >= links.length) return;
+  const link = links[state.index];
+  state.results[state.index] = { ...link, status: 'ok' };
+  state.index++;
+  saveState();
+  showCurrentLink();
+}
+function markKo() {
+  if (state.index >= links.length) return;
+  stopTimer();
+  const link = links[state.index];
+  state.results[state.index] = { ...link, status: 'ko' };
+  state.index++;
+  saveState();
+  showCurrentLink();
+}
+function goPrev() {
+  if (state.index === 0) return;
+  stopTimer();
+  state.index--;
+  // Reset le résultat de ce lien (on va le revoir)
+  state.results[state.index] = null;
+  saveState();
+  showCurrentLink();
+}
+
+// ─── Pause / Reprise ────────────────────────────────
+function togglePause() {
+  state.paused = !state.paused;
+  if (state.paused) {
+    stopTimer();
+    document.getElementById('btnPause').textContent = '▶ Reprendre';
+    document.getElementById('btnNext').style.display = 'block';
+    document.getElementById('timerLabel').textContent = '⏸ En pause — clique Reprendre quand tu veux';
+  } else {
+    document.getElementById('btnPause').textContent = '⏸ Pause';
+    document.getElementById('btnNext').style.display = 'none';
+    document.getElementById('timerLabel').textContent = '⏱ Validation auto — clique "Mauvais" si erreur';
+    startTimer();
+  }
+}
+
+// ─── Écran final ────────────────────────────────────
+function showFinal() {
+  stopTimer();
+  document.getElementById('screenValidate').classList.add('hidden');
+  const screen = document.getElementById('screenFinal');
+  screen.classList.remove('hidden');
+
+  const ok = state.results.filter(r => r && r.status === 'ok');
+  const ko = state.results.filter(r => r && r.status === 'ko');
+  document.getElementById('finalOk').textContent = ok.length;
+  document.getElementById('finalKo').textContent = ko.length;
+
+  const koList = document.getElementById('koList');
+  koList.innerHTML = '';
+  if (ko.length === 0) {
+    koList.innerHTML = '<li style="color:var(--green)">✓ Aucun lien à corriger ! Tout est bon.</li>';
+  } else {
+    ko.forEach(r => {
+      const li = document.createElement('li');
+      li.innerHTML = `<strong>${r.model}</strong> · ${r.category} → ${r.type}<br>↳ <a href="${r.url}" target="_blank" rel="noopener" style="color:var(--accent)">${r.url}</a>`;
+      koList.appendChild(li);
+    });
+  }
+
+  // Export markdown pour Claude
+  let md = `# Liens Utopya à corriger (${ko.length}/${state.results.length})\n\n`;
+  if (ko.length === 0) {
+    md += 'Tous les liens sont validés ! Aucune correction nécessaire.\n';
+  } else {
+    md += 'Claude, voici les liens marqués comme INCORRECTS — il faut chercher la bonne pièce Utopya pour chaque cas :\n\n';
+    ko.forEach(r => {
+      md += `- **${r.model}** [${r.category}] [${r.type}] → ❌ ${r.url}\n`;
+    });
+  }
+  document.getElementById('exportText').value = md;
+}
+
+// ─── Init ───────────────────────────────────────────
+async function init() {
+  await loadLinks();
+  const hasResume = loadState();
+  if (hasResume) {
+    document.getElementById('resumeNote').style.display = 'block';
+    document.getElementById('resumeIndex').textContent = (state.index + 1) + ' / ' + links.length;
+    document.getElementById('btnStart').textContent = '▶ Reprendre la validation';
+  }
+}
+
+document.getElementById('btnStart').addEventListener('click', () => {
+  document.getElementById('screenIntro').classList.add('hidden');
+  document.getElementById('screenValidate').classList.remove('hidden');
+  if (state.index >= links.length) showFinal();
+  else showCurrentLink();
+});
+document.getElementById('btnReset').addEventListener('click', () => {
+  if (confirm('Effacer la progression et tout recommencer depuis le lien 1 ?')) {
+    resetState();
+    location.reload();
+  }
+});
+document.getElementById('btnBad').addEventListener('click', markKo);
+document.getElementById('btnAddTime').addEventListener('click', () => {
+  secondsLeft += TIMER_DURATION;
+  updateTimerDisplay();
+});
+document.getElementById('btnPrev').addEventListener('click', goPrev);
+document.getElementById('btnPause').addEventListener('click', togglePause);
+document.getElementById('btnNext').addEventListener('click', markOk);
+document.getElementById('btnRestart').addEventListener('click', () => {
+  if (confirm('Recommencer la validation depuis le début ?')) {
+    resetState();
+    location.reload();
+  }
+});
+document.getElementById('btnCopy').addEventListener('click', () => {
+  const ta = document.getElementById('exportText');
+  ta.select();
+  document.execCommand('copy');
+  document.getElementById('btnCopy').textContent = '✓ Copié !';
+  setTimeout(() => { document.getElementById('btnCopy').textContent = '📋 Copier l\'export'; }, 1500);
+});
+
+// Raccourcis clavier
+document.addEventListener('keydown', (e) => {
+  if (document.getElementById('screenValidate').classList.contains('hidden')) return;
+  if (e.key === 'n' || e.key === 'N')         { e.preventDefault(); markKo(); }
+  else if (e.key === 'ArrowLeft')             { e.preventDefault(); goPrev(); }
+  else if (e.key === ' ')                     { e.preventDefault(); secondsLeft += TIMER_DURATION; updateTimerDisplay(); }
+  else if (e.key === 'p' || e.key === 'P')    { e.preventDefault(); togglePause(); }
+  else if (e.key === 'Enter')                 { e.preventDefault(); markOk(); }
+});
+
+init();
+</script>
+
+</body>
+</html>

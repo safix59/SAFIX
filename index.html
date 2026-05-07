@@ -1154,21 +1154,76 @@ header {
   box-shadow:0 18px 40px rgba(0,0,0,.4);
 }
 .gm-qrwrap canvas, .gm-qrwrap img { display:block; max-width:100%; max-height:100%; }
+/* Snapcode cliquable : toute la zone agit comme le bouton "Ouvrir Snapchat".
+   Effet 3D Touch / pression iPhone : scale subtil au :active, ombre dynamique
+   au :hover. Animation premium Apple-style (easing cubic-bezier élastique). */
+.gm-snap-qr-link {
+  display:block; position:relative;
+  width:240px; max-width:100%;
+  margin:8px auto 14px;
+  border-radius:32px;
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+  transition:transform .25s cubic-bezier(.34,1.56,.64,1),
+             filter .25s ease,
+             box-shadow .3s ease;
+  outline:none;
+}
+.gm-snap-qr-link:hover {
+  transform:translateY(-2px) scale(1.015);
+  filter:brightness(1.03);
+}
+.gm-snap-qr-link:active {
+  transform:scale(.96);
+  transition:transform .08s cubic-bezier(.4,0,.6,1);
+  filter:brightness(.96);
+}
+.gm-snap-qr-link:focus-visible {
+  box-shadow:0 0 0 3px var(--accent), 0 0 0 6px rgba(0,102,255,.25);
+}
+.gm-snap-qr-link::after {
+  /* Halo pulsant subtil au repos pour signaler l'interactivité */
+  content:''; position:absolute; inset:-6px;
+  border-radius:38px;
+  background:radial-gradient(closest-side, rgba(255,252,0,.18), transparent 70%);
+  z-index:-1; opacity:0;
+  animation:snapQrPulse 2.4s ease-in-out infinite;
+  pointer-events:none;
+}
+@keyframes snapQrPulse {
+  0%,100% { opacity:.4; transform:scale(1); }
+  50%     { opacity:.8; transform:scale(1.04); }
+}
 .gm-snap-qr {
-  display:block; margin:8px auto 18px;
+  display:block; margin:0 auto;
   max-width:240px; width:100%;
   /* Le PNG du Snapcode a déjà son fond jaune et ses coins arrondis intégrés.
-     On utilise clip-path pour découper PROPREMENT à la même courbure
-     (~13.5% — calibré sur le PNG 600×600) → plus de bordure jaune visible
-     autour de la forme, ni en mode clair ni en mode sombre. */
+     clip-path découpe à la même courbure (~13.5% — calibré sur PNG 600×600). */
   clip-path:inset(0 round 13.5%);
   background:transparent;
   box-shadow:0 14px 36px rgba(0,0,0,.30);
+  transition:box-shadow .3s ease;
+  user-select:none; -webkit-user-drag:none;
+  pointer-events:none;  /* Le clic est capté par le <a> parent, pas par l'image */
 }
-/* En mode clair, ombre adoucie pour s'intégrer au fond clair */
+.gm-snap-qr-link:hover .gm-snap-qr {
+  box-shadow:0 22px 50px rgba(255,252,0,.18), 0 12px 32px rgba(0,0,0,.32);
+}
 [data-theme="light"] .gm-snap-qr {
   box-shadow:0 8px 24px rgba(0,0,0,.15);
 }
+[data-theme="light"] .gm-snap-qr-link:hover .gm-snap-qr {
+  box-shadow:0 14px 32px rgba(255,213,0,.28), 0 8px 22px rgba(0,0,0,.18);
+}
+/* Hint textuel discret sous le QR (s'efface au hover/active) */
+.gm-snap-qr-hint {
+  display:block; margin-top:8px;
+  text-align:center; font-size:11px;
+  font-weight:600; letter-spacing:1px; text-transform:uppercase;
+  color:var(--text3);
+  transition:opacity .25s, color .25s;
+}
+.gm-snap-qr-link:hover .gm-snap-qr-hint { color:var(--text); opacity:1; }
 .gm-cta {
   display:inline-flex; align-items:center; gap:8px;
   padding:11px 22px; border-radius:14px;
@@ -2050,6 +2105,11 @@ header {
 .payment-card-name {
   font-size:11.5px; font-weight:600; color:var(--text);
 }
+/* ⚠️ Le payment-card-check (petit rond top-right) est conservé pour les autres
+   payment-cards futurs, mais SUPPRIMÉ pour la carte bancaire — voir override
+   .payment-card--card .payment-card-check { display:none } plus bas.
+   Le user trouve ce rond "parasite" et préfère un simple outline accent comme
+   Apple Pay / PayPal. */
 .payment-card-check {
   position:absolute; top:6px; right:6px;
   width:16px; height:16px; border-radius:50%;
@@ -2064,6 +2124,43 @@ header {
   width:4px; height:8px; border:solid #fff;
   border-width:0 2px 2px 0; transform:rotate(45deg);
 }
+
+/* ─── Carte bancaire : harmonisation avec Apple Pay/PayPal ─── */
+/* Même hauteur (54px), même rayon (14px), même outline premium quand sélectionnée
+   Pas de "petite bulle parasite" (checkmark rond) → outline accent suffit, comme
+   les bulles wallet ci-dessus. */
+.payment-card--card {
+  flex-direction:row;        /* Logo carte + nom alignés horizontalement (compact) */
+  height:54px;               /* Même hauteur que les bulles Apple Pay / PayPal */
+  padding:0 18px;
+  gap:14px;
+  border-radius:14px;
+  border-width:1.5px;
+  transition:border-color .25s, box-shadow .25s, background .2s, transform .12s;
+}
+.payment-card--card .payment-card-check { display:none; }   /* ⚠️ bulle parasite retirée */
+.payment-card--card .payment-card-logo {
+  background:transparent; padding:0; height:auto;
+  color:var(--text);
+}
+.payment-card--card .payment-card-logo svg { width:28px; height:18px; }
+.payment-card--card .payment-card-name { font-size:14px; font-weight:600; }
+/* Sélection : outline premium accent identique à Apple Pay/PayPal (cohérence visuelle) */
+.payment-card--card.selected {
+  border-color:var(--accent);
+  background:var(--bg2);     /* pas de tint accent en background — match les wallets */
+  box-shadow:
+    0 0 0 2px var(--accent),
+    0 0 0 6px rgba(0,102,255,.18),
+    0 6px 18px rgba(0,102,255,.10);
+}
+[data-theme="light"] .payment-card--card.selected {
+  box-shadow:
+    0 0 0 2px var(--accent),
+    0 0 0 5px rgba(0,102,255,.14),
+    0 6px 18px rgba(0,102,255,.08);
+}
+.payment-card--card:active { transform:scale(.98); }
 .cart-empty {
   display:flex; flex-direction:column; align-items:center; justify-content:center;
   padding:80px 0; color:var(--text3); gap:12px; text-align:center;
@@ -2961,7 +3058,10 @@ input:focus:not(:focus-visible) {
     <button class="gm-close" id="snapClose" aria-label="Fermer">✕</button>
     <div class="gm-title" data-i18n="snap.title">Besoin d'aide ?</div>
     <div class="gm-sub" data-i18n="snap.sub">Échangez avec nous sur Snapchat.</div>
-    <img class="gm-snap-qr" src="images/snap-qr.png" alt="Snapchat QR safix.59">
+    <a class="gm-snap-qr-link" id="snapQrLink" href="https://www.snapchat.com/add/safix.59" target="_blank" rel="noopener" aria-label="Ouvrir Snapchat — @safix.59">
+      <img class="gm-snap-qr" src="images/snap-qr.png" alt="Snapchat QR safix.59">
+      <span class="gm-snap-qr-hint" data-i18n="snap.qr_hint">Appuyer pour ouvrir</span>
+    </a>
     <div class="gm-cta-row">
       <a class="gm-cta" id="snapOpenBtn" href="https://www.snapchat.com/add/safix.59" target="_blank" rel="noopener">
         <span data-i18n="snap.open">Ouvrir Snapchat</span>
@@ -5839,7 +5939,7 @@ const I18N = {
     'prices.contact':'Contacter le support',
     'qr.copied':'Lien copié !',
     'snap.title':"Besoin d'aide ?", 'snap.sub':'Échangez avec nous sur Snapchat.',
-    'snap.open':'Ouvrir Snapchat',
+    'snap.open':'Ouvrir Snapchat', 'snap.qr_hint':'Appuyer pour ouvrir',
     'footer.title':'Support client',
     'footer.email_label':'Assistance par mail',
     'footer.snap_label':'Support via Snapchat',
@@ -5937,7 +6037,7 @@ const I18N = {
     'prices.contact':'Contact support',
     'qr.copied':'Link copied!',
     'snap.title':'Need help?', 'snap.sub':'Chat with us on Snapchat.',
-    'snap.open':'Open Snapchat',
+    'snap.open':'Open Snapchat', 'snap.qr_hint':'Tap to open',
     'footer.title':'Customer support',
     'footer.email_label':'Email assistance',
     'footer.snap_label':'Snapchat support',
@@ -6245,6 +6345,11 @@ function applyI18n() {
   document.querySelectorAll('[data-i18n-title]').forEach(el => {
     const key = el.getAttribute('data-i18n-title');
     el.title = t(key);
+    // Si le bouton est dans le menu overflow (kebab), met aussi à jour son label visible.
+    // Sinon le bouton garde l'ancien label tant que la page n'est pas refresh.
+    if (el.hasAttribute('data-overflow-label')) {
+      el.setAttribute('data-overflow-label', el.title);
+    }
   });
   document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
     const key = el.getAttribute('data-i18n-placeholder');
