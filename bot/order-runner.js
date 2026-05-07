@@ -137,10 +137,25 @@ const MODEL_KEY_MAP = {
   'iphone6splus':'iPhone 6s Plus', 'iphone6s':'iPhone 6s', 'iphone6plus':'iPhone 6 Plus', 'iphone6':'iPhone 6',
 };
 
+// IDs d'accessoires : 1 lien unique par accessoire (pas par modèle iPhone),
+// car ces produits sont COMPATIBLES avec tous les iPhone supportés. Évite la
+// duplication des entrées dans links.json (50 doublons retirés).
+const ACCESSORY_IDS = new Set([
+  'cable_usb_c',
+  'adaptateur_secteur_usb_c',
+  'cable_usb_c_lightning',
+]);
+
 function findUtopyaUrl(repairId, modelOrKey) {
-  // Accepte soit la modelKey ('iphone13promax') soit le nom canonique ('iPhone 13 Pro Max')
+  // ── Accessoires : résolu par repair_id seul (model:null dans links.json) ──
+  if (ACCESSORY_IDS.has(repairId)) {
+    const candidates = LINKS
+      .filter(L => L.repair_id === repairId)
+      .sort((a, b) => (a.priority || 1) - (b.priority || 1));
+    return candidates[0]?.url || null;
+  }
+  // ── Pièces : résolu par repair_id + model ──
   const model = MODEL_KEY_MAP[modelOrKey] || modelOrKey;
-  // Sélectionne la priorité 1 par défaut, puis 2, etc.
   const candidates = LINKS
     .filter(L => L.repair_id === repairId && L.model === model)
     .sort((a, b) => (a.priority || 1) - (b.priority || 1));
@@ -330,6 +345,57 @@ async function placeOrderOnUtopya(context, order) {
     await page.goto('https://www.utopya.fr/checkout/', { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => {});
     await sleep(3000);
+
+    // ─── SHIPPING : sélectionne Express ou Standard selon order.delivery ───
+    // Le client paie Express sur SAFIX → on sélectionne Express côté Utopya pour
+    // que la livraison aille bien. Sinon le delta SAFIX/Utopya est absorbé.
+    // Heuristique multi-langue / multi-carrier (DPD, Chronopost, UPS, Colissimo) :
+    //   • express : 'express|chrono|24h|j+1|next.day|next-day|24 h'
+    //   • standard : 'standard|economique|eco|colissimo|home|domicile' (par défaut)
+    const wantExpress = (order.delivery === 'express');
+    log.info(`    Shipping demandé par client : ${order.delivery || '(non précisé)'}`);
+    const shippingResult = await page.evaluate((isExpress) => {
+      // Cherche tous les radios de transporteurs (Magento : input.radio + label associé)
+      const rows = Array.from(document.querySelectorAll(
+        'input[type="radio"][name*="ko_unique"], input[type="radio"][name*="shipping_method"], ' +
+        'tr.row input[type="radio"], .table-checkout-shipping-method input[type="radio"]'
+      ));
+      if (!rows.length) return { found: false, reason: 'no shipping radios' };
+
+      // Récupère le label de chaque radio (texte de la ligne + attributs)
+      const opts = rows.map(r => {
+        const tr = r.closest('tr') || r.closest('label') || r.closest('.option') || r.parentElement;
+        const text = (tr?.textContent || '').toLowerCase().replace(/\s+/g, ' ').trim();
+        return { radio: r, text, value: r.value };
+      });
+
+      const RX_EXPRESS = /(express|chrono|24\s*h|j\s*\+\s*1|next.?day|exp\.|prioritaire|relay\+)/i;
+      const RX_STANDARD = /(standard|économique|economique|\beco\b|colissimo|domicile|relais|relay|point|dpd|\bhome\b|2\s*-?\s*5\s*j|48\s*h)/i;
+
+      let pick = null;
+      if (isExpress) {
+        pick = opts.find(o => RX_EXPRESS.test(o.text));
+      } else {
+        pick = opts.find(o => RX_STANDARD.test(o.text));
+      }
+      // Fallback : si rien trouvé, laisser la sélection par défaut Magento
+      if (!pick) pick = opts.find(o => o.radio.checked) || opts[0];
+
+      if (pick && !pick.radio.checked) {
+        pick.radio.click();
+        // Trigger change/input event au cas où Knockout/binding écouterait
+        pick.radio.dispatchEvent(new Event('change', { bubbles: true }));
+        pick.radio.dispatchEvent(new Event('input',  { bubbles: true }));
+      }
+      return {
+        found: true,
+        clicked: pick?.text?.slice(0, 60) || null,
+        wanted: isExpress ? 'express' : 'standard',
+        all: opts.map(o => o.text.slice(0, 50)),
+      };
+    }, wantExpress);
+    log.info(`    Shipping : ${JSON.stringify(shippingResult).slice(0, 240)}`);
+    await sleep(2000);  // Magento recalcule le total après changement transporteur
 
     // Passer à l'étape 2 (Payment) — chercher le bouton "Suivant" / "Continuer"
     const nextStepBtn = await page.evaluate(() => {

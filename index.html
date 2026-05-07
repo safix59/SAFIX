@@ -3098,6 +3098,21 @@ input:focus:not(:focus-visible) {
   </div>
 </div>
 
+<!-- ═══ PAYPAL DIRECT MODAL — Affiché si PayPal Business configuré ═══ -->
+<!-- Reçoit les boutons PayPal SDK rendus dynamiquement quand l'utilisateur clique
+     sur la bulle PayPal jaune. Économise les frais Stripe d'orchestration. -->
+<div class="gm-overlay" id="paypalOverlay">
+  <div class="gm-modal" style="max-width:380px;">
+    <button class="gm-close" id="paypalClose" aria-label="Fermer">✕</button>
+    <div class="gm-title" data-i18n="paypal.title">Paiement PayPal</div>
+    <div class="gm-sub" data-i18n="paypal.sub">Connectez-vous à PayPal pour finaliser.</div>
+    <div id="paypalSdkContainer" style="margin-top:18px; min-height:50px;"></div>
+    <div id="paypalLoadingHint" style="margin-top:14px; font-size:12px; color:var(--text2); text-align:center;">
+      <span data-i18n="paypal.loading">Chargement de PayPal…</span>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ FOOTER SUPPORT ═══ -->
 <footer class="site-footer">
   <div class="footer-inner">
@@ -5226,6 +5241,40 @@ async function loadStripeJs() {
   return _stripeJsPromise;
 }
 
+// ─── PayPal SDK loader (conditionnel — actif si /api/paypal-config dit enabled) ─
+// Quand PAYPAL_CLIENT_ID + PAYPAL_CLIENT_SECRET sont set sur Vercel, on charge le
+// SDK PayPal et on bascule la bulle PayPal sur le flux DIRECT (pas Stripe). Sinon
+// fallback sur Stripe Checkout (comportement actuel). Évite les frais Stripe
+// d'orchestration sur PayPal (~0,2 % + 0,10 €/tx).
+let _paypalConfig = null;       // { enabled, clientId, mode }
+let _paypalSdkPromise = null;
+let _paypalRendered = false;
+async function loadPayPalSdk() {
+  if (window.paypal) return window.paypal;
+  if (_paypalSdkPromise) return _paypalSdkPromise;
+  // Récupère la config (enabled + clientId) côté backend
+  if (!_paypalConfig) {
+    try {
+      const r = await fetch('/api/paypal-config');
+      _paypalConfig = await r.json();
+    } catch { _paypalConfig = { enabled: false }; }
+  }
+  if (!_paypalConfig.enabled || !_paypalConfig.clientId) return null;
+  _paypalSdkPromise = new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(_paypalConfig.clientId)}`
+          + `&currency=EUR&intent=capture&components=buttons&commit=true&disable-funding=credit,card`;
+    s.onload  = () => res(window.paypal || null);
+    s.onerror = () => rej(new Error('PayPal SDK load failed'));
+    document.head.appendChild(s);
+  });
+  return _paypalSdkPromise;
+}
+// Pré-charge la config dès que la page est interactive (silencieux)
+window.addEventListener('DOMContentLoaded', () => {
+  fetch('/api/paypal-config').then(r => r.json()).then(c => { _paypalConfig = c; }).catch(() => {});
+});
+
 // ─── Stripe Express Checkout (Apple Pay/Google Pay/Link directs) ──────
 // Monte dynamiquement quand le panier change. Le bouton Apple Pay déclenche
 // la sheet native sans passer par un redirect Stripe Checkout.
@@ -6119,6 +6168,7 @@ const I18N = {
     'qr.copied':'Lien copié !',
     'snap.title':"Besoin d'aide ?", 'snap.sub':'Échangez avec nous sur Snapchat.',
     'snap.open':'Ouvrir Snapchat',
+    'paypal.title':'Paiement PayPal','paypal.sub':'Connectez-vous à PayPal pour finaliser.','paypal.loading':'Chargement de PayPal…',
     'footer.title':'Support client',
     'footer.email_label':'Assistance par mail',
     'footer.snap_label':'Support via Snapchat',
@@ -6217,6 +6267,7 @@ const I18N = {
     'qr.copied':'Link copied!',
     'snap.title':'Need help?', 'snap.sub':'Chat with us on Snapchat.',
     'snap.open':'Open Snapchat',
+    'paypal.title':'PayPal payment','paypal.sub':'Sign in to PayPal to complete.','paypal.loading':'Loading PayPal…',
     'footer.title':'Customer support',
     'footer.email_label':'Email assistance',
     'footer.snap_label':'Snapchat support',
@@ -7060,15 +7111,108 @@ function refreshCheckoutState() {
 
 // ─── Bouton PayPal custom ────────────────────────────────────────
 // 1. Marque la bulle PayPal comme "selected" (outline premium)
-// 2. Valide le formulaire (mêmes règles que Apple Pay et Confier la commande)
-// 3. Redirige vers Stripe Checkout avec payment_method_types: ['paypal','card']
+// 2. Valide silencieusement (pas de rouge — seul "Confier la commande" peint)
+// 3a. Si PayPal SDK direct configuré (PAYPAL_CLIENT_ID env Vercel) → modal PayPal IN-PAGE
+//     (économise les frais Stripe d'orchestration ~0,2%+0,10€/tx)
+// 3b. Sinon → fallback Stripe Checkout avec payment_method_types: ['paypal','card']
+async function openPayPalDirectModal(ctx) {
+  const overlay = document.getElementById('paypalOverlay');
+  const container = document.getElementById('paypalSdkContainer');
+  const loadingHint = document.getElementById('paypalLoadingHint');
+  if (!overlay || !container) return false;
+
+  openModal('paypalOverlay');
+  loadingHint.style.display = 'block';
+
+  // Charge le SDK si pas déjà fait
+  const paypal = await loadPayPalSdk().catch(() => null);
+  if (!paypal) {
+    loadingHint.textContent = currentLang === 'en'
+      ? 'PayPal direct unavailable, falling back to Stripe…'
+      : 'PayPal direct indisponible, bascule sur Stripe…';
+    setTimeout(() => closeModal('paypalOverlay'), 800);
+    return false;
+  }
+
+  // Render les boutons PayPal une seule fois (réutilisé entre paiements)
+  if (!_paypalRendered) {
+    paypal.Buttons({
+      style: { layout: 'vertical', color: 'gold', shape: 'pill', label: 'paypal', height: 44 },
+
+      // 1) Création de l'order côté serveur (frais PayPal seuls, pas Stripe)
+      createOrder: async () => {
+        // ctx peut avoir changé entre 2 ouvertures du modal — on rebuild fresh
+        const live = buildOrderContextFromDOM();
+        const r = await fetch('/api/paypal-create-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            total:     live.total,
+            lineItems: live.lineItems,
+            delivery:  live.delivery,
+            orderMeta: { ...live.orderMeta, paymentMethod: 'paypal_direct' },
+          }),
+        });
+        if (!r.ok) throw new Error('paypal-create-order HTTP ' + r.status);
+        const j = await r.json();
+        if (!j.id) throw new Error(j.error || 'no order id');
+        return j.id;
+      },
+
+      // 2) Approbation client → capture côté serveur
+      onApprove: async (data) => {
+        try {
+          const r = await fetch('/api/paypal-capture-order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderID: data.orderID }),
+          });
+          if (!r.ok) throw new Error('paypal-capture-order HTTP ' + r.status);
+          const j = await r.json();
+          if (!j.ok) throw new Error('capture incomplete');
+          // Persiste pour le ?paid=1 (modale + email post-redirect)
+          try {
+            const live = buildOrderContextFromDOM();
+            localStorage.setItem('safix_pending_order', JSON.stringify({
+              email: live.email, phone: live.orderMeta.phone, snap: live.orderMeta.snap,
+              model: live.orderMeta.model, cart,
+              deliveryMode: live.orderMeta.delivery,
+              deliveryCost: live.delivery ? live.delivery.price : 0,
+              baseAmount: live.total, paymentFees: 0,
+              total: live.total, paymentMethod: 'paypal_direct',
+              appointmentDate, appointmentSlot, appointmentAddress,
+              paypalCaptureId: j.captureId, payerEmail: j.payerEmail,
+              ts: Date.now(),
+            }));
+          } catch {}
+          window.location.href = window.location.pathname + '?paid=1&via=paypal';
+        } catch (e) {
+          console.error('[PayPal] capture error :', e);
+          showToast('⚠️', currentLang === 'en' ? 'Payment failed' : 'Paiement échoué');
+        }
+      },
+
+      onCancel: () => {
+        closeModal('paypalOverlay');
+      },
+      onError: (err) => {
+        console.warn('[PayPal] SDK error :', err);
+        showToast('⚠️', currentLang === 'en' ? 'PayPal error' : 'Erreur PayPal');
+      },
+    }).render('#paypalSdkContainer');
+    _paypalRendered = true;
+  }
+  loadingHint.style.display = 'none';
+  return true;
+}
+
 document.getElementById('paypalBtn')?.addEventListener('click', async () => {
   if (!cart.length) return;
   document.getElementById('paypalBtn')?.classList.add('selected');
   document.getElementById('expressCheckoutMount')?.classList.remove('selected');
   document.querySelectorAll('.payment-card').forEach(c => c.classList.remove('selected'));
   selectedPayment = 'paypal';
-  // Validation SILENCIEUSE (pas de rouge — seul "Confier la commande" peint en rouge)
+  // Validation SILENCIEUSE
   const { ok } = validateCheckoutForm({ silent: true });
   if (!ok) {
     showToast('⚠️', currentLang === 'en'
@@ -7076,8 +7220,16 @@ document.getElementById('paypalBtn')?.addEventListener('click', async () => {
       : 'Champs manquants — utilisez “Confier la commande”');
     return;
   }
-  // Reconstruit le contexte FRAIS depuis le DOM (pas de stale data)
   const ctx = buildOrderContextFromDOM();
+
+  // ── PayPal direct (in-page) si PAYPAL_CLIENT_ID configuré ──
+  if (_paypalConfig?.enabled) {
+    const opened = await openPayPalDirectModal(ctx);
+    if (opened) return;
+    // Sinon (load fail) → fallback Stripe Checkout ci-dessous
+  }
+
+  // ── Fallback Stripe Checkout (PayPal via Stripe — frais Stripe + PayPal) ──
   const orderMetaPaypal = { ...ctx.orderMeta, paymentMethod: 'paypal' };
   try {
     await payWithStripe({
@@ -7092,6 +7244,12 @@ document.getElementById('paypalBtn')?.addEventListener('click', async () => {
     console.warn('[SAFIX] PayPal click error :', e.message);
     showToast('⚠️', currentLang === 'en' ? 'Payment failed' : 'Le paiement a échoué');
   }
+});
+
+// Bouton fermer le modal PayPal
+document.getElementById('paypalClose')?.addEventListener('click', () => closeModal('paypalOverlay'));
+document.getElementById('paypalOverlay')?.addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeModal('paypalOverlay');
 });
 document.getElementById('mandateCheckbox')?.addEventListener('change', refreshCheckoutState);
 
