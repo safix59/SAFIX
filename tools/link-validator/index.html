@@ -121,6 +121,41 @@
     font-family:ui-monospace,monospace; font-size:11px;
   }
 
+  /* Raccourcis clavier visibles directement sur les boutons (corner badge) */
+  button {
+    position:relative;
+  }
+  .kbd-hint {
+    position:absolute; top:-7px; right:-7px;
+    background:var(--surface); color:var(--text);
+    border:1.5px solid var(--accent);
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:10px; font-weight:700; line-height:1;
+    padding:3px 6px; border-radius:6px;
+    box-shadow:0 2px 6px rgba(0,0,0,.3);
+    pointer-events:none;
+    letter-spacing:.3px;
+  }
+  .btn-bad .kbd-hint   { border-color:var(--red);   color:#fff; background:var(--red); }
+  .btn-skip .kbd-hint  { border-color:var(--orange);color:#000; background:var(--orange); }
+  .btn-prev .kbd-hint  { border-color:var(--text2); color:var(--text); background:var(--surface); }
+  .btn-pause .kbd-hint { border-color:var(--text2); color:var(--text); background:var(--surface); }
+  .btn-pri .kbd-hint   { border-color:var(--accent);color:#fff; background:var(--accent); }
+
+  /* Légende globale en bas du card "validate" */
+  .kbd-legend {
+    margin-top:18px; padding-top:14px;
+    border-top:1px solid var(--border);
+    display:flex; flex-wrap:wrap; gap:14px; justify-content:center;
+    font-size:12px; color:var(--text2);
+  }
+  .kbd-legend kbd {
+    display:inline-block; padding:2px 7px; min-width:18px; text-align:center;
+    background:var(--surface2); border:1px solid var(--border); border-radius:5px;
+    font-family:ui-monospace,monospace; font-size:11px;
+    color:var(--text); margin-right:4px;
+  }
+
   /* Hide */
   .hidden { display:none !important; }
 </style>
@@ -169,13 +204,13 @@
     </div>
 
     <div class="actions">
-      <button class="btn-bad" id="btnBad">✗ Mauvais lien</button>
-      <button class="btn-skip" id="btnAddTime">+ 7 secondes</button>
+      <button class="btn-bad" id="btnBad">✗ Mauvais lien<span class="kbd-hint">N</span></button>
+      <button class="btn-skip" id="btnAddTime">+ 7 secondes<span class="kbd-hint">␣</span></button>
     </div>
     <div class="row">
-      <button class="btn-prev" id="btnPrev">← Précédent</button>
-      <button class="btn-pause" id="btnPause">⏸ Pause</button>
-      <button class="btn-pri" id="btnNext" style="display:none;">→ Suivant maintenant</button>
+      <button class="btn-prev" id="btnPrev">← Précédent<span class="kbd-hint">←</span></button>
+      <button class="btn-pause" id="btnPause">⏸ Pause<span class="kbd-hint">P</span></button>
+      <button class="btn-pri" id="btnNext" style="display:none;">→ Suivant maintenant<span class="kbd-hint">⏎</span></button>
     </div>
 
     <div class="progress"><div class="progress-bar" id="progressBar" style="width:0%"></div></div>
@@ -184,6 +219,14 @@
       <span class="ok">✓ <strong id="statOk">0</strong> OK</span>
       <span class="ko">✗ <strong id="statKo">0</strong> NOK</span>
       <span>⏳ <strong id="statRemain">393</strong> restants</span>
+    </div>
+
+    <div class="kbd-legend">
+      <span><kbd>N</kbd> Mauvais</span>
+      <span><kbd>⏎</kbd> Valider</span>
+      <span><kbd>␣</kbd> + 7s</span>
+      <span><kbd>←</kbd> Précédent</span>
+      <span><kbd>P</kbd> Pause</span>
     </div>
   </div>
 
