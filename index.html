@@ -5340,9 +5340,21 @@ async function mountExpressCheckout(amountCents, orderContext) {
     });
     _eceComponent.mount('#expressCheckoutMount');
 
-    // Debug : log ce qui est dispo / pourquoi rien ne s'affiche
+    // Debug : log ce qui est dispo / pourquoi rien ne s'affiche.
+    // Stocké en dataset pour diagnostique facile (visible sans console).
     _eceComponent.on('ready', (event) => {
-      console.log('[ECE] ready :', event.availablePaymentMethods);
+      const avail = event.availablePaymentMethods || {};
+      const summary = Object.entries(avail).filter(([_, v]) => v).map(([k]) => k).join(',') || 'none';
+      console.log('[ECE] ready — wallets disponibles :', summary, avail);
+      // Diagnostique visible : data attribute sur le mount
+      mount.dataset.wallets = summary;
+      // Si AUCUN wallet dispo → garder une trace pour Sami (visible via DevTools)
+      if (summary === 'none') {
+        console.warn('[ECE] Aucun wallet disponible sur ce device — possibles causes :\n' +
+          '  • Pas de carte Apple Pay/Google Pay enregistrée sur le device\n' +
+          '  • Navigateur non supporté (Apple Pay = Safari uniquement, Google Pay = Chrome/Edge)\n' +
+          '  • CSP bloque pay.google.com ou *.stripe.network (vérifier vercel.json)');
+      }
     });
     _eceComponent.on('loaderror', (event) => {
       console.error('[ECE] loaderror :', event.error);
