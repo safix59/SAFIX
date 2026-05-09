@@ -4166,7 +4166,10 @@ async function applyDynamicColor(model) {
   }
 }
 
-const cardGlowCache = new Map();
+// cardGlowCache déclaré ici en `var` pour éviter la TDZ : `boot()` est appelé
+// à la ligne 3912 (avant ce point), donc une déclaration `const`/`let` ici
+// jetterait "Cannot access cardGlowCache before initialization" dans applyCardGlow().
+var cardGlowCache = new Map();
 
 async function applyCardGlow(card, model) {
   let color = cardGlowCache.get(model);
