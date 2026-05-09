@@ -4166,12 +4166,13 @@ async function applyDynamicColor(model) {
   }
 }
 
-// cardGlowCache déclaré ici en `var` pour éviter la TDZ : `boot()` est appelé
-// à la ligne 3912 (avant ce point), donc une déclaration `const`/`let` ici
-// jetterait "Cannot access cardGlowCache before initialization" dans applyCardGlow().
+// cardGlowCache : déclaration `var` hoisted (accessible avant ligne) +
+// initialisation lazy DANS la fonction pour gérer le cas où boot() est appelé
+// AVANT que cette ligne soit exécutée (var hoist la déclaration mais pas la valeur).
 var cardGlowCache = new Map();
 
 async function applyCardGlow(card, model) {
+  if (!cardGlowCache) cardGlowCache = new Map();   // ceinture+bretelles
   let color = cardGlowCache.get(model);
   if (!color) {
     color = MODEL_GLOW_COLORS[model] || await extractColor(imgPath(model));
@@ -5343,24 +5344,31 @@ async function mountExpressCheckout(amountCents, orderContext) {
     });
     _eceComponent.mount('#expressCheckoutMount');
 
-    // Debug : log ce qui est dispo / pourquoi rien ne s'affiche.
-    // Stocké en dataset pour diagnostique facile (visible sans console).
+    // Debug + fallback UX : si aucun wallet dispo (Apple Pay/Google Pay ne se
+    // charge pas), on masque la cellule vide et PayPal s'étend en pleine largeur.
+    // Évite le placeholder "trou" perçu comme un bug par l'utilisateur.
     _eceComponent.on('ready', (event) => {
       const avail = event.availablePaymentMethods || {};
       const summary = Object.entries(avail).filter(([_, v]) => v).map(([k]) => k).join(',') || 'none';
       console.log('[ECE] ready — wallets disponibles :', summary, avail);
-      // Diagnostique visible : data attribute sur le mount
       mount.dataset.wallets = summary;
-      // Si AUCUN wallet dispo → garder une trace pour Sami (visible via DevTools)
+      const row = document.querySelector('.pay-bulles-row, .express-row');
       if (summary === 'none') {
-        console.warn('[ECE] Aucun wallet disponible sur ce device — possibles causes :\n' +
-          '  • Pas de carte Apple Pay/Google Pay enregistrée sur le device\n' +
-          '  • Navigateur non supporté (Apple Pay = Safari uniquement, Google Pay = Chrome/Edge)\n' +
-          '  • CSP bloque pay.google.com ou *.stripe.network (vérifier vercel.json)');
+        console.warn('[ECE] Aucun wallet disponible — masquage cellule + PayPal full-width.');
+        mount.style.display = 'none';
+        if (row) row.style.gridTemplateColumns = '1fr';
+      } else {
+        // Wallet dispo → s'assurer que la cellule est visible
+        mount.style.display = '';
+        if (row) row.style.gridTemplateColumns = '';
       }
     });
     _eceComponent.on('loaderror', (event) => {
       console.error('[ECE] loaderror :', event.error);
+      // En cas d'erreur de chargement → masquer la cellule wallet
+      const row = document.querySelector('.pay-bulles-row, .express-row');
+      mount.style.display = 'none';
+      if (row) row.style.gridTemplateColumns = '1fr';
     });
 
     // Au CLICK sur Apple Pay/Google Pay (avant ouverture sheet) :
