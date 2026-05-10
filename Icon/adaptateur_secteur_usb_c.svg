@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 125" fill="none" stroke="black" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+  <!-- 2 broches européennes (cylindriques) sortant du dessus -->
+  <line x1="40" y1="18" x2="40" y2="38" stroke-width="4.5"/>
+  <line x1="60" y1="18" x2="60" y2="38" stroke-width="4.5"/>
+  <circle cx="40" cy="14" r="3.5" fill="black"/>
+  <circle cx="60" cy="14" r="3.5" fill="black"/>
+  <!-- Cube adaptateur Apple-style (coins arrondis) -->
+  <rect x="20" y="38" width="60" height="68" rx="10"/>
+  <!-- Port USB-C dans le bloc (pill réversible) -->
+  <rect x="34" y="80" width="32" height="14" rx="7"/>
+</svg>

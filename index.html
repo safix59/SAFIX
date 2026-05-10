@@ -135,84 +135,32 @@
     });
   } catch(_) {}
 
-  // ─── Détection redimensionnement window (DevTools docké) ──────────
-  // Si écart entre outerWidth/innerWidth > 160 → DevTools probablement docké
-  var thresh = 160;
-  setInterval(function(){
-    var dx = (window.outerWidth  - window.innerWidth);
-    var dy = (window.outerHeight - window.innerHeight);
-    if ((dx > thresh || dy > thresh) && !devToolsOpen) {
-      devToolsOpen = true; wipePage();
-    }
-  }, 1500);
-
-  // ─── Anti-capture d'écran (best-effort) ────────────────────────────
-  // Black overlay temporaire quand :
-  //   • la fenêtre perd le focus (outil capture actif probablement)
-  //   • la tab devient cachée (ALT+TAB / minimisation)
-  //   • raccourci OS de capture est détecté (Cmd+Shift+3/4/5, PrtSc, Win+Shift+S)
-  //   • impression (window.print, Cmd+P)
-  // Les captures iOS/Android au niveau OS (boutons physiques) ne peuvent PAS être
-  // bloquées en JS — on fait au mieux. Idem pour les OS-level screenshots desktop
-  // (la capture est prise AVANT que le JS puisse réagir).
-  // Mais on rend la chose dissuasive : moindre frame visible = capture plus tardive
-  // = utilisateur voit le black screen → screenshot attrape le black screen.
-  function ensureSecOverlay(){
-    var el = document.getElementById('safix_sec_overlay');
-    if (el) return el;
-    el = document.createElement('div');
-    el.id = 'safix_sec_overlay';
-    el.style.cssText = 'position:fixed;inset:0;background:#000;z-index:2147483647;'
-                     + 'display:none;align-items:center;justify-content:center;'
-                     + 'flex-direction:column;gap:14px;font-family:-apple-system,system-ui,sans-serif;'
-                     + 'color:#fff;text-align:center;padding:24px;-webkit-user-select:none;user-select:none;';
-    el.innerHTML = '<div style="font-size:28px;font-weight:800;letter-spacing:-1px">SAFIX</div>'
-                 + '<div style="font-size:14px;opacity:.7;max-width:360px;line-height:1.5">'
-                 + 'Contenu protégé. Les captures d\'écran ne sont pas autorisées.</div>';
-    document.body.appendChild(el);
-    return el;
-  }
-  function showSecOverlay(){
-    var el = ensureSecOverlay();
-    el.style.display = 'flex';
-  }
-  function hideSecOverlay(){
-    var el = document.getElementById('safix_sec_overlay');
-    if (el) el.style.display = 'none';
-  }
-  // 1) Visibility / blur (tab caché, alt+tab, capture window-picker)
-  document.addEventListener('visibilitychange', function(){
-    if (document.hidden) showSecOverlay(); else hideSecOverlay();
-  });
-  window.addEventListener('blur',  showSecOverlay);
-  window.addEventListener('focus', hideSecOverlay);
-  // 2) Raccourcis OS de capture (Cmd+Shift+3/4/5 Mac, PrtSc, Ctrl+PrtSc, Win+Shift+S)
-  document.addEventListener('keydown', function(e){
-    var K = (e.key || '');
-    var isMacShot = e.metaKey && e.shiftKey && /^[3-5]$/.test(K);
-    var isPrtSc   = K === 'PrintScreen';
-    var isWinSnip = e.metaKey && e.shiftKey && (K === 'S' || K === 's');  // Windows Win+Shift+S
-    var isCtrlSc  = e.ctrlKey && e.shiftKey && (K === 'S' || K === 's');   // navigateurs (variantes)
-    if (isMacShot || isPrtSc || isWinSnip || isCtrlSc) {
-      showSecOverlay();
-      setTimeout(hideSecOverlay, 2000);
-    }
-  }, { capture: true });
-  // 3) Impression (Cmd+P / Ctrl+P)
-  window.addEventListener('beforeprint', showSecOverlay);
-  window.addEventListener('afterprint',  hideSecOverlay);
-
-  // 4) CSS injecté : page blanchie en impression (autre couche de défense)
+  // ─── Anti-impression (vraie protection : on contrôle ce qu'on imprime) ────
+  // CSS @media print : page blanchie + message court. Aucun faux positif possible.
   try {
     var st = document.createElement('style');
     st.textContent = '@media print { body * { visibility:hidden !important; }'
-                   + '  body::before { content:"SAFIX — Contenu non imprimable";'
+                   + '  body::before { content:"SAFIX — safix59.fr";'
                    + '    visibility:visible; position:fixed; inset:0; display:flex;'
-                   + '    align-items:center; justify-content:center; font:600 24px system-ui;'
+                   + '    align-items:center; justify-content:center; font:600 22px system-ui;'
                    + '    color:#000; background:#fff; }'
                    + '}';
     document.head.appendChild(st);
   } catch(_) {}
+
+  // Note volontaire : pas de détection de capture d'écran OS-level (iPhone bouton
+  // volume+power, Cmd+Shift+3/4/5 Mac, PrintScreen Windows). Le navigateur ne peut
+  // pas réellement les bloquer ni les détecter de manière fiable — toute
+  // tentative entraîne des faux positifs (zoom Cmd+plus, alt+tab, etc.).
+  // Mieux vaut ne RIEN faire que de gêner l'utilisateur normal.
+  //
+  // Les vraies protections en place ailleurs :
+  //   • Anti-clic droit (CSS oncontextmenu + JS)
+  //   • Anti-drag/save sur images (-webkit-user-drag:none, pointer-events:none)
+  //   • Anti-DevTools via debugger; timing (ci-dessus)
+  //   • Anti-raccourcis dev (F12, Cmd+Opt+I, Cmd+S, etc.) — voir bloc keydown plus haut
+  //   • CSP stricte, X-Frame-Options DENY, etc. — voir vercel.json
+  //   • Watermark imprimable (au-dessus, @media print)
 })();
 </script>
 <!-- Plausible Analytics — RGPD-friendly, sans cookie. À activer en remplaçant DOMAIN. -->
@@ -3466,7 +3414,7 @@ const ICON_ALIASES = {
 // IDs sans ic\u00f4ne : cache compl\u00e8tement le conteneur .repair-icon (pas de bo\u00eete vide).
 // Pour r\u00e9-activer une ic\u00f4ne, retire l'ID de la liste et ajoute /Icon/{id}.svg ou .png
 const NO_ICON_IDS = new Set([
-  'adaptateur_secteur_usb_c',   // pas d'ic\u00f4ne pour l'instant (le user d\u00e9cidera)
+  // (vide pour l'instant \u2014 utiliser cette liste si on veut explicitement masquer une ic\u00f4ne)
 ]);
 
 function setupIcon(img, id) {
