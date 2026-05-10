@@ -1050,11 +1050,11 @@ header {
   opacity:1;
 }
 /* Accessoires : SVG inline rendu via setupIcon (currentColor → s'adapte au thème).
-   Container portrait (20×40) qui matche le ratio des SVG sources (viewBox 100×200).
-   Le SVG est centré dans le conteneur .repair-icon (44×44) avec marge naturelle. */
+   Container 26×34 qui matche le ratio compact des SVG (viewBox 100×130 = 1:1.3).
+   Visible mais sans trop dépasser dans .repair-icon (44×44). */
 .accessory-svg-host {
   display:flex; align-items:center; justify-content:center;
-  width:20px; height:40px;
+  width:26px; height:34px;
   color:var(--text); opacity:.85;
   transition:color .2s, opacity .2s, transform .2s;
 }
@@ -3451,53 +3451,40 @@ const ICON_ALIASES = {
 };
 
 // SVG inline pour les accessoires \u2014 REPRODUCTIONS FID\u00c8LES aux images sources
-// fournies par le user. Lightning et USB-C ont des structures diff\u00e9rentes (Lightning
-// a un cable strain relief, USB-C n'en a pas \u2014 comme dans les images sources).
-// Adaptateur : cube Apple-style avec 2 broches europ\u00e9ennes.
-// Tous viewBox 100\u00d7200 (m\u00eames dimensions). currentColor \u2192 clair/sombre auto.
+// fournies par le user. Designs identiques aux images, juste viewBox compact\u00e9
+// 100\u00d7130 (au lieu de 100\u00d7200) pour un meilleur affichage en petite taille.
+// currentColor \u2192 clair/sombre auto.
 const ACCESSORY_SVGS = {
-  // \u2500\u2500\u2500 USB-C : EXACTEMENT comme l'image source "TYPE C" (pill + slot stroke + body)
-  //            Pas de c\u00e2ble, pas d'\u00e9paulement (fid\u00e8le \u00e0 l'image source).
-  'cable_usb_c': `<svg viewBox="0 0 100 200" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <!-- Tip USB-C (pill ovale r\u00e9versible) -->
-    <rect x="22" y="35" width="56" height="34" rx="17"/>
-    <!-- Slot int\u00e9rieur (pill plus petite, stroke seul comme l'image) -->
-    <rect x="32" y="44" width="36" height="16" rx="8"/>
-    <!-- Corps du connecteur -->
-    <rect x="22" y="76" width="56" height="106" rx="10"/>
+  // \u2500\u2500\u2500 USB-C : pill + slot stroke + body (fid\u00e8le \u00e0 l'image "TYPE C", pas de c\u00e2ble)
+  'cable_usb_c': `<svg viewBox="0 0 100 130" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <rect x="22" y="15" width="56" height="30" rx="15"/>
+    <rect x="32" y="22" width="36" height="16" rx="8"/>
+    <rect x="22" y="50" width="56" height="70" rx="9"/>
   </svg>`,
 
-  // \u2500\u2500\u2500 Lightning : EXACTEMENT comme l'image source (tip + 7 broches + shoulder
-  //                + body + cable strain relief)
-  'cable_usb_c_lightning': `<svg viewBox="0 0 100 200" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <!-- 1. Tip Lightning (rectangle avec 7 broches verticales) -->
-    <rect x="34" y="22" width="32" height="28" rx="2.5"/>
-    <line x1="38" y1="28" x2="38" y2="44"/>
-    <line x1="42" y1="28" x2="42" y2="44"/>
-    <line x1="46" y1="28" x2="46" y2="44"/>
-    <line x1="50" y1="28" x2="50" y2="44"/>
-    <line x1="54" y1="28" x2="54" y2="44"/>
-    <line x1="58" y1="28" x2="58" y2="44"/>
-    <line x1="62" y1="28" x2="62" y2="44"/>
-    <!-- 2. \u00c9paulement (l\u00e9g\u00e8rement plus large que le tip) -->
-    <rect x="28" y="50" width="44" height="6" rx="2"/>
-    <!-- 3. Corps du connecteur (cable head) -->
-    <rect x="22" y="58" width="56" height="106" rx="10"/>
-    <!-- 4. C\u00e2ble strain relief -->
-    <rect x="43" y="164" width="14" height="28" rx="7"/>
+  // \u2500\u2500\u2500 Lightning : tip + 7 broches + shoulder + body + cable (fid\u00e8le \u00e0 l'image)
+  'cable_usb_c_lightning': `<svg viewBox="0 0 100 130" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <rect x="34" y="8" width="32" height="22" rx="2.5"/>
+    <line x1="38" y1="13" x2="38" y2="25"/>
+    <line x1="42" y1="13" x2="42" y2="25"/>
+    <line x1="46" y1="13" x2="46" y2="25"/>
+    <line x1="50" y1="13" x2="50" y2="25"/>
+    <line x1="54" y1="13" x2="54" y2="25"/>
+    <line x1="58" y1="13" x2="58" y2="25"/>
+    <line x1="62" y1="13" x2="62" y2="25"/>
+    <rect x="28" y="30" width="44" height="5" rx="2"/>
+    <rect x="22" y="36" width="56" height="70" rx="9"/>
+    <rect x="43" y="106" width="14" height="20" rx="6"/>
   </svg>`,
 
   // \u2500\u2500\u2500 Adaptateur secteur : 2 broches europ\u00e9ennes + cube Apple-style + port USB-C
-  'adaptateur_secteur_usb_c': `<svg viewBox="0 0 100 200" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <!-- 2 broches europ\u00e9ennes cylindriques (sortant du dessus) -->
-    <line x1="38" y1="48" x2="38" y2="22" stroke-width="4.5"/>
-    <line x1="62" y1="48" x2="62" y2="22" stroke-width="4.5"/>
-    <circle cx="38" cy="20" r="3" fill="currentColor" stroke="none"/>
-    <circle cx="62" cy="20" r="3" fill="currentColor" stroke="none"/>
-    <!-- Cube adaptateur Apple (coins tr\u00e8s arrondis) -->
-    <rect x="18" y="48" width="64" height="120" rx="14"/>
-    <!-- Port USB-C dans le bloc (pill r\u00e9versible) -->
-    <rect x="32" y="130" width="36" height="20" rx="10"/>
+  'adaptateur_secteur_usb_c': `<svg viewBox="0 0 100 130" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <line x1="38" y1="30" x2="38" y2="10" stroke-width="4.5"/>
+    <line x1="62" y1="30" x2="62" y2="10" stroke-width="4.5"/>
+    <circle cx="38" cy="8" r="3" fill="currentColor" stroke="none"/>
+    <circle cx="62" cy="8" r="3" fill="currentColor" stroke="none"/>
+    <rect x="18" y="30" width="64" height="90" rx="14"/>
+    <rect x="32" y="86" width="36" height="20" rx="10"/>
   </svg>`,
 };
 
