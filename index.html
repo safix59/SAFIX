@@ -1043,6 +1043,12 @@ header {
   opacity:.9;
   transition:filter .2s, opacity .2s;
 }
+/* Accessoires (SVG du Noun Project) : un peu plus grands que les PNG des
+   réparations pour mieux remplir le conteneur 44×44 et matcher la finesse
+   du trait des SVG vectoriels. */
+.repair-icon img[src$=".svg"] {
+  width:30px; height:30px;
+}
 [data-theme="dark"] .repair-icon img  { filter:brightness(0) invert(1); }
 [data-theme="light"] .repair-icon img { filter:brightness(0); }
 .repair-card.selected .repair-icon img {
