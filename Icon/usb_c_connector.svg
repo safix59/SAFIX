@@ -1,12 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 200" width="100" height="200" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
-  <!-- 1. Tip USB-C (pill ovale réversible signature USB-C) -->
-  <rect x="26" y="22" width="48" height="28" rx="14"/>
-  <!-- Slot intérieur plein (la barrette de contacts) -->
-  <rect x="33" y="31" width="34" height="10" rx="5" fill="currentColor" stroke="none"/>
-  <!-- 2. Épaulement (légèrement plus large que le tip, moins que le corps) -->
-  <rect x="24" y="50" width="52" height="6" rx="2"/>
-  <!-- 3. Corps du connecteur (identique au Lightning pour cohérence) -->
-  <rect x="22" y="58" width="56" height="106" rx="10"/>
-  <!-- 4. Câble qui sort du corps -->
-  <rect x="43" y="164" width="14" height="28" rx="7"/>
+  <!-- 1. Tip USB-C (pill ovale réversible — signature USB-C) -->
+  <rect x="22" y="35" width="56" height="34" rx="17"/>
+  <!-- 2. Slot intérieur (petite pill stroke seule, comme dans l'image source) -->
+  <rect x="32" y="44" width="36" height="16" rx="8"/>
+  <!-- 3. Corps du connecteur (sans câble, sans épaulement — fidèle à l'image source) -->
+  <rect x="22" y="76" width="56" height="106" rx="10"/>
 </svg>

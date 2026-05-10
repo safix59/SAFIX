@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 200" width="100" height="200" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
-  <!-- 1. Tip Lightning (rectangle avec 7 broches verticales) -->
+  <!-- 1. Tip Lightning (rectangle plat avec 7 broches verticales) -->
   <rect x="34" y="22" width="32" height="28" rx="2.5"/>
   <line x1="38" y1="28" x2="38" y2="44"/>
   <line x1="42" y1="28" x2="42" y2="44"/>
@@ -12,6 +12,6 @@
   <rect x="28" y="50" width="44" height="6" rx="2"/>
   <!-- 3. Corps du connecteur (cable head) -->
   <rect x="22" y="58" width="56" height="106" rx="10"/>
-  <!-- 4. Câble qui sort du corps -->
+  <!-- 4. Câble strain relief en bas -->
   <rect x="43" y="164" width="14" height="28" rx="7"/>
 </svg>
