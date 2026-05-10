@@ -991,16 +991,11 @@ header {
   opacity:.9;
   transition:filter .2s, opacity .2s;
 }
-/* Accessoires (SVG du Noun Project) : un peu plus grands que les PNG des
-   réparations pour mieux remplir le conteneur 44×44 et matcher la finesse
-   du trait des SVG vectoriels. */
+/* Accessoires (SVG du Noun Project) : 38×38 pour être bien visibles dans le
+   conteneur 44×44. USB-C et Lightning ont tous deux un viewBox cropé tight
+   (ratio 0.46 portrait) → ils s'affichent à taille visuelle équivalente.
+   L'adaptateur (custom SVG, ratio 0.8) reste un peu plus carré, OK. */
 .repair-icon img[src$=".svg"] {
-  width:30px; height:30px;
-}
-/* Lightning : viewBox naturellement plus portrait (cropé tight à 127×274,
-   ratio 0.46) → il paraît plus étroit. On l'agrandit pour qu'il occupe
-   visuellement autant d'espace que l'USB-C (qui a un ratio plus carré 0.8). */
-.repair-icon img[src*="cable_usb_c_lightning"] {
   width:38px; height:38px;
 }
 [data-theme="dark"] .repair-icon img  { filter:brightness(0) invert(1); }
