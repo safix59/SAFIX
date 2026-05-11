@@ -732,7 +732,8 @@ header {
   /* Fond avec léger dégradé vertical (Apple Store : ciel doux vers sol clair) */
   background:linear-gradient(180deg, #ffffff 0%, #f5f5f7 100%);
   height:140px; overflow:hidden; position:relative;
-  display:flex; align-items:center; justify-content:center;
+  display:flex; align-items:flex-end; justify-content:center;   /* iPhones alignés sur le sol */
+  padding-bottom:8px;                                            /* petit espace au-dessus du reflet */
   transition:background .3s;
 }
 [data-theme="light"] .card-img-wrap {
@@ -785,7 +786,12 @@ header {
 @media(min-width:800px) { .card-img-wrap { height:130px; } }
 .card-img-wrap img {
   position:relative; z-index:1;
-  max-width:90%; max-height:90%;
+  /* max-height proportionnelle à la HAUTEUR OFFICIELLE de chaque iPhone.
+     --phone-h-ratio est défini sur .iphone-card (0.76 → 1.0 selon le modèle).
+     Référence : iPhone 17 Pro Max @ 163.4 mm = ratio 1.0 → max-height 92 %.
+     Le plus petit (iPhone SE 2016 @ 123.8 mm) → ratio 0.758 → max-height ≈ 70 %. */
+  max-width:90%;
+  max-height:calc(var(--phone-h-ratio, 0.95) * 92%);
   width:auto; height:auto;
   object-fit:contain;
   /* Ombre portée naturelle sous l'iPhone (effet Apple Store) */
@@ -793,7 +799,7 @@ header {
     drop-shadow(0 14px 18px rgba(0,0,0,.20))
     drop-shadow(0 6px 8px rgba(0,0,0,.12))
     drop-shadow(0 2px 3px rgba(0,0,0,.10));
-  transition:transform .5s var(--spring), filter .4s;
+  transition:transform .5s var(--spring), filter .4s, max-height .25s;
   will-change:transform;
 }
 .iphone-card:hover .card-img-wrap img {
@@ -3332,7 +3338,7 @@ const IMG_MAP = {
   'iPhone 15 Pro':'iphone15pro','iPhone 15 Pro Max':'iphone15promax',
   'iPhone 14':'iphone14','iPhone 14 Plus':'iphone14plus',
   'iPhone 14 Pro':'iphone14pro','iPhone 14 Pro Max':'iphone14promax',
-  'iPhone SE (2022)':'iphoneSE(2022)','iPhone SE (2020)':'iphoneSE(2020)',
+  'iPhone SE (2022)':'iphoneSE(2022)','iPhone SE (2020)':'iphoneSE(2020)','iPhone SE (2016)':'iphoneSE(2016)',
   'iPhone 13 mini':'iphone13mini','iPhone 13':'iphone13',
   'iPhone 13 Pro':'iphone13pro','iPhone 13 Pro Max':'iphone13promax',
   'iPhone 12 mini':'iphone12mini','iPhone 12':'iphone12',
@@ -3392,8 +3398,68 @@ const MODEL_GLOW_COLORS = {
   'iPhone 6': [200,150,80],
   'iPhone 6 Plus': [200,150,80],
   'iPhone 6s': [200,150,80],
-  'iPhone 6s Plus': [200,150,80]
+  'iPhone 6s Plus': [200,150,80],
+  'iPhone SE (2016)': [180,180,180]
 };
+
+// ─── Hauteurs officielles iPhone (en mm, source : Apple specs) ───────────────
+// Permet d'afficher chaque iPhone à sa taille relative réelle dans le catalogue,
+// au lieu d'avoir tous les modèles à la même hauteur visuelle.
+// Référence : iPhone 17 Pro Max (163.4 mm) = 100 % de l'espace dispo.
+const MODEL_HEIGHTS_MM = {
+  'iPhone 17 Pro Max':  163.4,
+  'iPhone 17 Pro':      150.0,
+  'iPhone 17 Air':      156.2,
+  'iPhone 17':          149.6,
+  'iPhone 17e':         146.7,
+  'iPhone 16 Pro Max':  163.0,
+  'iPhone 16 Pro':      149.6,
+  'iPhone 16 Plus':     160.9,
+  'iPhone 16':          147.6,
+  'iPhone 16e':         146.7,
+  'iPhone 15 Pro Max':  159.9,
+  'iPhone 15 Pro':      146.6,
+  'iPhone 15 Plus':     160.9,
+  'iPhone 15':          147.6,
+  'iPhone 14 Pro Max':  160.7,
+  'iPhone 14 Pro':      147.5,
+  'iPhone 14 Plus':     160.8,
+  'iPhone 14':          146.7,
+  'iPhone SE (2022)':   138.4,
+  'iPhone 13 Pro Max':  160.8,
+  'iPhone 13 Pro':      146.7,
+  'iPhone 13':          146.7,
+  'iPhone 13 mini':     131.5,
+  'iPhone 12 Pro Max':  160.8,
+  'iPhone 12 Pro':      146.7,
+  'iPhone 12':          146.7,
+  'iPhone 12 mini':     131.5,
+  'iPhone SE (2020)':   138.4,
+  'iPhone 11 Pro Max':  158.0,
+  'iPhone 11 Pro':      144.0,
+  'iPhone 11':          150.9,
+  'iPhone XS Max':      157.5,
+  'iPhone XS':          143.6,
+  'iPhone XR':          150.9,
+  'iPhone X':           143.6,
+  'iPhone 8 Plus':      158.4,
+  'iPhone 8':           138.4,
+  'iPhone 7 Plus':      158.2,
+  'iPhone 7':           138.3,
+  'iPhone SE (2016)':   123.8,   // le plus petit du catalogue
+  'iPhone 6s Plus':     158.2,
+  'iPhone 6s':          138.3,
+  'iPhone 6 Plus':      158.1,
+  'iPhone 6':           138.1,
+};
+const MAX_HEIGHT_MM = 163.4;   // iPhone 17 Pro Max = référence 100 %
+
+// Retourne le pourcentage (0..1) de la hauteur officielle par rapport au max.
+// Utilisé pour définir --phone-h-ratio sur chaque carte iPhone du catalogue.
+function getModelHeightRatio(model) {
+  const h = MODEL_HEIGHTS_MM[model];
+  return h ? (h / MAX_HEIGHT_MM) : 0.9;   // fallback : 90 % si modèle inconnu
+}
 
 function imgPath(m) { return 'images/' + (IMG_MAP[m] || m.replace(/\s+/g,'').toLowerCase()) + '.png'; }
 
@@ -3511,6 +3577,7 @@ data = {
     {"series":"iPhone X / XR / XS","models":["iPhone X","iPhone XR","iPhone XS","iPhone XS Max"]},
     {"series":"iPhone 8",          "models":["iPhone 8","iPhone 8 Plus"]},
     {"series":"iPhone 7",          "models":["iPhone 7","iPhone 7 Plus"]},
+    {"series":"iPhone SE",         "models":["iPhone SE (2016)"]},
     {"series":"iPhone 6",          "models":["iPhone 6","iPhone 6 Plus","iPhone 6s","iPhone 6s Plus"]}
   ],
   "repairs":[
@@ -4111,6 +4178,9 @@ function renderHome() {
       card.style.animationDelay = `${i * 0.05}s`;
       card.dataset.model = model.toLowerCase();
       card.style.setProperty('--card-glow', getCardGlowColor(model).join(','));
+      // Hauteur officielle iPhone → ratio appliqué à l'image (chaque iPhone est
+      // affiché à sa taille réelle relative — 17 Pro Max plus grand, SE plus petit)
+      card.style.setProperty('--phone-h-ratio', getModelHeightRatio(model).toFixed(3));
       card.innerHTML = `
         <div class="card-img-wrap"><img src="${imgPath(model)}" alt="${model}" loading="lazy" onerror="this.style.opacity='.12'"></div>
         <div class="card-body">
