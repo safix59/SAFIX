@@ -494,12 +494,13 @@ header {
           mask-image:linear-gradient(to bottom, #000 0%, #000 55%, rgba(0,0,0,.5) 78%, rgba(0,0,0,.2) 92%, transparent 100%);
   animation:meshFloat 28s ease-in-out infinite alternate;
 }
-/* Mouvement très lent et organique */
+/* Mouvement très lent et organique — pas de scale (pour ne pas donner
+   l'impression que la page "respire" en zoomant), juste un léger drift. */
 @keyframes meshFloat {
-  0%   { transform:translate(0, 0)      scale(1)    rotate(0deg);   }
-  33%  { transform:translate(-8px, 5px) scale(1.03) rotate(-.4deg); }
-  66%  { transform:translate(6px, -4px) scale(1.05) rotate(.6deg);  }
-  100% { transform:translate(-2px, 2px) scale(1.02) rotate(0deg);   }
+  0%   { transform:translate(0, 0)      rotate(0deg);   }
+  33%  { transform:translate(-8px, 5px) rotate(-.4deg); }
+  66%  { transform:translate(6px, -4px) rotate(.6deg);  }
+  100% { transform:translate(-2px, 2px) rotate(0deg);   }
 }
 @media (prefers-reduced-motion: reduce) {
   .hero-mesh { animation:none; }
@@ -731,9 +732,8 @@ header {
 .card-img-wrap {
   /* Fond avec léger dégradé vertical (Apple Store : ciel doux vers sol clair) */
   background:linear-gradient(180deg, #ffffff 0%, #f5f5f7 100%);
-  height:140px; overflow:hidden; position:relative;
-  display:flex; align-items:flex-end; justify-content:center;   /* iPhones alignés sur le sol */
-  padding-bottom:8px;                                            /* petit espace au-dessus du reflet */
+  height:160px; overflow:hidden; position:relative;
+  display:flex; align-items:center; justify-content:center;
   transition:background .3s;
 }
 [data-theme="light"] .card-img-wrap {
@@ -788,18 +788,21 @@ header {
   position:relative; z-index:1;
   /* max-height proportionnelle à la HAUTEUR OFFICIELLE de chaque iPhone.
      --phone-h-ratio est défini sur .iphone-card (0.76 → 1.0 selon le modèle).
-     Référence : iPhone 17 Pro Max @ 163.4 mm = ratio 1.0 → max-height 92 %.
-     Le plus petit (iPhone SE 2016 @ 123.8 mm) → ratio 0.758 → max-height ≈ 70 %. */
-  max-width:90%;
-  max-height:calc(var(--phone-h-ratio, 0.95) * 92%);
+     Référence : iPhone 17 Pro Max @ 163.4 mm = ratio 1.0 → max-height 98 %.
+     Le plus petit (iPhone SE 2016 @ 123.8 mm) → ratio 0.758 → max-height ≈ 74 %. */
+  max-width:92%;
+  max-height:calc(var(--phone-h-ratio, 0.95) * 98%);
   width:auto; height:auto;
   object-fit:contain;
+  /* transform-origin center → scale au hover grandit symétriquement, ne décale
+     pas la page (les neighbors ne bougent pas). */
+  transform-origin:center center;
   /* Ombre portée naturelle sous l'iPhone (effet Apple Store) */
   filter:
     drop-shadow(0 14px 18px rgba(0,0,0,.20))
     drop-shadow(0 6px 8px rgba(0,0,0,.12))
     drop-shadow(0 2px 3px rgba(0,0,0,.10));
-  transition:transform .5s var(--spring), filter .4s, max-height .25s;
+  transition:transform .5s var(--spring), filter .4s;
   will-change:transform;
 }
 .iphone-card:hover .card-img-wrap img {
