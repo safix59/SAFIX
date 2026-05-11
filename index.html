@@ -519,7 +519,9 @@ header {
   background-clip:text;
 }
 .hero-title {
-  font-size:clamp(44px, 7vw, 72px);
+  /* Taille FIXE en px (pas de vw) pour ne pas rétrécir au zoom — voir media
+     queries plus bas pour les adaptations responsive par breakpoint. */
+  font-size:64px;
   font-weight:800; letter-spacing:-2px; line-height:1.05;
   margin-bottom:20px;
   color:var(--text);
@@ -2516,7 +2518,7 @@ input:focus:not(:focus-visible) {
   :root { --hh: 54px; }
   header { padding:0 14px; }
   .hero { padding:80px 18px 30px; }
-  .hero-title { font-size:clamp(38px, 9vw, 60px); line-height:1.05; }
+  .hero-title { font-size:54px; line-height:1.05; }
   .hero-sub { font-size:14.5px; }
   .search-wrap { padding:0 16px; }
   .iphone-grid { grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:18px; padding:0 12px; }
@@ -2535,7 +2537,7 @@ input:focus:not(:focus-visible) {
   .hero { padding:72px 14px 24px; }
   /* Hero-title : tient sur 2 lignes "Réparer / mon iPhone" sur tous les iPhone.
      Title encore agrandi (44→50) pour plus d'impact visuel */
-  .hero-title { font-size:clamp(32px, 10vw, 50px); line-height:1.06; letter-spacing:-1.4px; }
+  .hero-title { font-size:44px; line-height:1.06; letter-spacing:-1.4px; }
   .hero-title em { letter-spacing:-1.1px; }
   .hero-eyebrow { font-size:10px; letter-spacing:2.5px; }
   .hero-sub { font-size:13.5px; line-height:1.55; }
@@ -3952,22 +3954,13 @@ function fitTitleToEyebrow() {
   title.style.fontSize = newSize.toFixed(2) + 'px';
 }
 
-// Recalcule au resize (rotation iPhone, redimensionnement window)
-let _fitTitleTimer = null;
-window.addEventListener('resize', () => {
-  if (_fitTitleTimer) clearTimeout(_fitTitleTimer);
-  _fitTitleTimer = setTimeout(fitTitleToEyebrow, 150);
-});
-
-// Appel APRÈS chargement des polices (sinon mesure incorrecte avec fallback Inter)
-if (document.fonts && document.fonts.ready) {
-  document.fonts.ready.then(() => {
-    // Petit délai pour s'assurer que tout est rendu
-    setTimeout(fitTitleToEyebrow, 50);
-  });
-} else {
-  setTimeout(fitTitleToEyebrow, 200);
-}
+// ⚠️ DÉSACTIVÉ : auparavant on recomputait la taille du titre "Réparer mon iPhone"
+// à chaque resize pour qu'il fit exactement la largeur de l'eyebrow. Problème :
+// le ZOOM (Cmd+plus, pinch) déclenche aussi un event resize → window.innerWidth
+// change → le titre rétrécit. L'utilisateur perçoit la page "qui respire".
+// Solution : taille FIXE via CSS clamp() comme les autres titres du site. Plus
+// de recompute JS. La fonction fitTitleToEyebrow() reste définie au cas où on
+// veut la réactiver manuellement plus tard, mais elle n'est plus appelée auto.
 
 /* ═══════════════════════════════════════════════════
    THEME
