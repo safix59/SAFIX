@@ -732,7 +732,7 @@ header {
 .card-img-wrap {
   /* Fond avec léger dégradé vertical (Apple Store : ciel doux vers sol clair) */
   background:linear-gradient(180deg, #ffffff 0%, #f5f5f7 100%);
-  height:160px; overflow:hidden; position:relative;
+  height:200px; overflow:hidden; position:relative;
   display:flex; align-items:center; justify-content:center;
   transition:background .3s;
 }
@@ -783,15 +783,15 @@ header {
   transform:translate(-50%,-50%) scale(1.12);
   opacity:1;
 }
-@media(min-width:800px) { .card-img-wrap { height:130px; } }
+@media(min-width:800px) { .card-img-wrap { height:200px; } }
 .card-img-wrap img {
   position:relative; z-index:1;
   /* max-height proportionnelle à la HAUTEUR OFFICIELLE de chaque iPhone.
      --phone-h-ratio est défini sur .iphone-card (0.76 → 1.0 selon le modèle).
-     Référence : iPhone 17 Pro Max @ 163.4 mm = ratio 1.0 → max-height 98 %.
-     Le plus petit (iPhone SE 2016 @ 123.8 mm) → ratio 0.758 → max-height ≈ 74 %. */
-  max-width:92%;
-  max-height:calc(var(--phone-h-ratio, 0.95) * 98%);
+     Référence : iPhone 17 Pro Max @ 163.4 mm = ratio 1.0 → max-height 100 %.
+     Le plus petit (iPhone SE 2016 @ 123.8 mm) → ratio 0.758 → max-height 76 %. */
+  max-width:96%;
+  max-height:calc(var(--phone-h-ratio, 0.95) * 100%);
   width:auto; height:auto;
   object-fit:contain;
   /* transform-origin center → scale au hover grandit symétriquement, ne décale
@@ -2543,8 +2543,10 @@ input:focus:not(:focus-visible) {
   /* Grid 2 colonnes mobile, cards 100% width (pas de width fixe 160px) */
   .iphone-grid { grid-template-columns:repeat(2, 1fr); gap:12px; padding:0 10px; }
   .iphone-card { width:auto; min-width:0; max-width:none; }
-  .card-img-wrap { height:120px; }
-  .card-img-wrap img { max-width:78%; max-height:78%; }
+  .card-img-wrap { height:180px; }
+  /* Override mobile : on garde le ratio --phone-h-ratio mais avec multiplier 92%
+     pour laisser un peu d'air autour sur les petits écrans */
+  .card-img-wrap img { max-width:88%; max-height:calc(var(--phone-h-ratio, 0.95) * 92%); }
   .card-body { padding:9px 11px 11px; }
   .card-model { font-size:12px; }
   .card-cta { font-size:10px; white-space:nowrap; }
@@ -2571,8 +2573,8 @@ input:focus:not(:focus-visible) {
   .hero-eyebrow { font-size:9.5px; letter-spacing:2.2px; }
   .iphone-grid { grid-template-columns:1fr 1fr; gap:10px; padding:0 8px; }
   .iphone-card { padding:0; }
-  .card-img-wrap { height:100px; }
-  .card-img-wrap img { max-width:75%; max-height:75%; }
+  .card-img-wrap { height:150px; }
+  .card-img-wrap img { max-width:85%; max-height:calc(var(--phone-h-ratio, 0.95) * 90%); }
   .card-body { padding:8px 9px 10px; }
   .card-model { font-size:11.5px; }
   .card-cta { font-size:9.5px; }
