@@ -3462,11 +3462,52 @@ const MODEL_HEIGHTS_MM = {
 };
 const MAX_HEIGHT_MM = 163.4;   // iPhone 17 Pro Max = référence 100 %
 
-// Retourne le pourcentage (0..1) de la hauteur officielle par rapport au max.
-// Utilisé pour définir --phone-h-ratio sur chaque carte iPhone du catalogue.
+// ─── Compensation par image : chaque PNG iPhone est un carré, mais l'iPhone
+// VISIBLE à l'intérieur occupe une proportion DIFFÉRENTE selon les images.
+// Ex : iPhone 12 mini → iPhone occupe 77.4 % du canvas. iPhone 13 mini → 63.4 %.
+// Sans correction, le 12 mini paraît plus gros que le 13 mini alors qu'ils ont
+// la même hauteur officielle (131.5 mm). Valeurs mesurées par script PIL.
+const IPHONE_VISUAL_RATIO_IN_IMAGE = {
+  'iPhone 17e':         0.708,  'iPhone 17':          0.708,
+  'iPhone 17 Air':      0.708,  'iPhone 17 Pro':      0.854,   // image plus serrée
+  'iPhone 17 Pro Max':  0.708,
+  'iPhone 16e':         0.651,  'iPhone 16':          0.659,
+  'iPhone 16 Plus':     0.717,  'iPhone 16 Pro':      0.667,
+  'iPhone 16 Pro Max':  0.727,
+  'iPhone 15':          0.643,  'iPhone 15 Plus':     0.725,
+  'iPhone 15 Pro':      0.666,  'iPhone 15 Pro Max':  0.728,
+  'iPhone 14':          0.666,  'iPhone 14 Plus':     0.728,
+  'iPhone 14 Pro':      0.714,  'iPhone 14 Pro Max':  0.782,
+  'iPhone SE (2022)':   0.714,
+  'iPhone SE (2020)':   0.708,  'iPhone SE (2016)':   0.708,   // fallback (images manquantes)
+  'iPhone 13 mini':     0.634,  'iPhone 13':          0.708,
+  'iPhone 13 Pro':      0.644,  'iPhone 13 Pro Max':  0.712,
+  'iPhone 12 mini':     0.774,  'iPhone 12':          0.774,   // série 12 = images plus serrées
+  'iPhone 12 Pro':      0.778,  'iPhone 12 Pro Max':  0.776,
+  'iPhone 11':          0.708,  'iPhone 11 Pro':      0.708,  'iPhone 11 Pro Max':  0.708,
+  'iPhone X':           0.708,  'iPhone XR':          0.708,
+  'iPhone XS':          0.708,  'iPhone XS Max':      0.708,
+  'iPhone 8':           0.708,  'iPhone 8 Plus':      0.708,
+  'iPhone 7':           0.708,  'iPhone 7 Plus':      0.708,
+  'iPhone 6s Plus':     0.708,  'iPhone 6s':          0.708,
+  'iPhone 6 Plus':      0.708,  'iPhone 6':           0.708,
+};
+
+// Cible visuelle : taille relative que l'iPhone 17 Pro Max VISIBLE doit prendre
+// dans son card (0..1 du wrapper). 0.68 = sécurité confortable pour que le pire
+// cas (image moins serrée) ne dépasse pas 100 % du wrapper après compensation.
+const VISUAL_TARGET = 0.68;
+
+// Retourne le ratio à appliquer en max-height à l'IMAGE pour qu'à l'écran,
+// l'iPhone VISIBLE ait la bonne taille relative selon son modèle officiel.
+// Formule : max_height_image = (h_mm / h_max) × VISUAL_TARGET / (iPhone in canvas)
 function getModelHeightRatio(model) {
   const h = MODEL_HEIGHTS_MM[model];
-  return h ? (h / MAX_HEIGHT_MM) : 0.9;   // fallback : 90 % si modèle inconnu
+  if (!h) return 0.9;
+  const canvasRatio = IPHONE_VISUAL_RATIO_IN_IMAGE[model] || 0.708;
+  const visibleTarget = (h / MAX_HEIGHT_MM) * VISUAL_TARGET;
+  const imageRatio = visibleTarget / canvasRatio;
+  return Math.min(imageRatio, 1.0);   // cap à 100 % (sécurité débordement)
 }
 
 function imgPath(m) { return 'images/' + (IMG_MAP[m] || m.replace(/\s+/g,'').toLowerCase()) + '.png'; }
