@@ -235,7 +235,14 @@
   --sh2:      0 0 0 1px rgba(0,0,0,.06), 0 8px 32px rgba(0,0,0,.08);
 }
 *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
-html { scroll-behavior:smooth; }
+html {
+  scroll-behavior:smooth;
+  /* Fond racine = fond de page (var(--bg) suit le thème : clair en light,
+     noir en dark). Sinon iOS Safari peint la safe-area derrière la barre
+     d'outils en noir (html transparent par défaut). Aucun overflow ici →
+     ne casse PAS le position:sticky du scroll-story. */
+  background:var(--bg);
+}
 
 /* ═══════════════════════════════════════════════════════════════════════
    PROTECTION ANTI-COPIE — désactive sélection / drag / save d'images
