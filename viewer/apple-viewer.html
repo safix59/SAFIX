@@ -208,9 +208,12 @@
     // Pick scene based on screen and KTX support
     function pickSceneName() {
       const w = window.outerWidth || window.innerWidth;
+      // Toujours la scène LARGE (4K, net comme en local), même sur mobile.
+      // MEDIUM uniquement pour les très petits écrans (perf), jamais SMALL
+      // qui était flou au zoom.
       let base = SCENES.large;
-      if (FeatureDetect.touchAvailable()) {
-        base = w <= 884 ? SCENES.small : SCENES.medium;
+      if (FeatureDetect.touchAvailable() && w <= 380) {
+        base = SCENES.medium;
       }
       // Texture format
       let hasASTC = false;

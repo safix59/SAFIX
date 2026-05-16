@@ -1189,7 +1189,9 @@ header {
 [data-theme="dark"] .repair-icon img  { filter:brightness(0) invert(1); }
 [data-theme="light"] .repair-icon img { filter:brightness(0); }
 .repair-card.selected .repair-icon img {
-  filter:brightness(0) saturate(100%) invert(35%) sepia(95%) saturate(2000%) hue-rotate(195deg) brightness(100%) contrast(102%);
+  /* Calibré au pixel sur #007AFF (nouvel accent) → rgb(3,120,255), Δ4.
+     L'ancien filtre tombait sur ~rgb(10,132,255) = ancien bleu iOS. */
+  filter:brightness(0) saturate(100%) invert(46%) sepia(99%) saturate(4800%) hue-rotate(201deg) brightness(99%) contrast(103%);
   opacity:1;
 }
 /* Accessoires : SVG inline rendu via setupIcon (currentColor → s'adapte au thème).
@@ -4365,12 +4367,21 @@ body.premium-mode .card-model {
   letter-spacing: -.2px !important;
   margin-bottom: 3px !important;
   color: #fff !important;
+  /* Texte complet (ex : "iPhone 17 Pro Max") — plus de "..." */
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  line-height: 1.2 !important;
 }
 body.premium-mode .card-cta {
   font-size: 11.5px !important;
   font-weight: 500 !important;
   letter-spacing: .02em;
-  /* Conserve le gradient bleu */
+  /* Conserve le gradient bleu — texte complet ("Voir les réparations") */
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  line-height: 1.25 !important;
 }
 
 /* Hover premium : halo plus contenu, ne s'étale pas trop */
@@ -4455,14 +4466,14 @@ body.premium-mode .series-block > .iphone-grid {
 .safix-loader {
   position:fixed; inset:0;
   z-index:99999;
-  background:#000;
+  background:var(--bg);            /* = fond de page (pas de flash noir en clair) */
   display:flex; align-items:center; justify-content:center;
   pointer-events:auto;
   overflow:hidden;
 }
 .safix-loader-bg {
   position:absolute; inset:0;
-  background:#000;
+  background:var(--bg);
   opacity:1;
 }
 @keyframes loaderBgIn { to { opacity:1; } }
@@ -6130,7 +6141,11 @@ function getModelHeightRatio(model) {
 
 // Cache-buster images : généré une fois par chargement de page → tout remplacement
 // d'image s'affiche immédiatement sans hard-refresh (plus de cache navigateur figé).
-const IMG_CB = Date.now();
+// Version STABLE (avant : Date.now() régénéré à chaque chargement →
+// aucune mise en cache, 44 images re-téléchargées à chaque visite/retour
+// = grille vide quelques secondes). Bumper cette valeur quand on change
+// une image (ex : '20260516b') pour forcer le rafraîchissement.
+const IMG_CB = '20260516';
 function imgPath(m) { return 'images/' + (IMG_MAP[m] || m.replace(/\s+/g,'').toLowerCase()) + '.png?v=' + IMG_CB; }
 
 function iconPath(id) {
@@ -6950,7 +6965,7 @@ function renderHome() {
       // affiché à sa taille réelle relative — 17 Pro Max plus grand, SE plus petit)
       card.style.setProperty('--phone-h-ratio', getModelHeightRatio(model).toFixed(3));
       card.innerHTML = `
-        <div class="card-img-wrap"><img src="${imgPath(model)}" alt="${model}" loading="lazy" onerror="this.style.opacity='.12'"></div>
+        <div class="card-img-wrap"><img src="${imgPath(model)}" alt="${model}" loading="lazy" decoding="async" onerror="this.style.opacity='.12'"></div>
         <div class="card-body">
           <div class="card-model">${model}</div>
           <div class="card-cta">Voir les réparations →</div>
@@ -11030,40 +11045,27 @@ setInterval(refreshDeliveryAvailability, 60000); // ré-évalue chaque minute (c
     ];
     stages.forEach(s => setTimeout(() => setProgress(s.to), s.delay));
 
-    // Quand DOMContentLoaded + Three.js prêt + 2 secondes minimum
-    let domReady = false, threeReady = false;
-    const minTime = performance.now() + 1800;
-
+    // Démarrage PROPRE : on retire le loader dès que le DOM est prêt.
+    // Pas d'attente artificielle (avant : 1.8s mini) ni de gating sur la
+    // 3D — elle se charge derrière avec son propre loader interne.
+    // → fini l'écran de plusieurs secondes au démarrage.
+    let loaderDone = false;
     function finishLoader() {
+      if (loaderDone) return;
+      loaderDone = true;
       setProgress(100);
-      setTimeout(() => {
-        const wait = Math.max(0, minTime - performance.now());
-        setTimeout(() => {
-          loader.classList.add('loaded');
-          document.body.classList.remove('preload');
-          // Lance la timeline GSAP du hero
-          if (typeof startHeroTimeline === 'function') startHeroTimeline();
-          // Cleanup loader from DOM after exit anim
-          setTimeout(() => loader.remove(), 1000);
-        }, wait + 200);
-      }, 350);
+      loader.classList.add('loaded');
+      document.body.classList.remove('preload');
+      if (typeof startHeroTimeline === 'function') startHeroTimeline();
+      setTimeout(() => loader.remove(), 600);
     }
-
-    document.addEventListener('DOMContentLoaded', () => {
-      domReady = true;
-      if (threeReady) finishLoader();
-    });
-    window.addEventListener('safix:3d-ready', () => {
-      threeReady = true;
-      if (domReady) finishLoader();
-    });
-    // Fallback : force après 4s même si Three.js fail
-    setTimeout(() => {
-      if (!document.body.classList.contains('preload')) return;
-      threeReady = true;
-      if (domReady) finishLoader();
-      else { document.addEventListener('DOMContentLoaded', finishLoader); }
-    }, 4000);
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', finishLoader, { once: true });
+    } else {
+      finishLoader();
+    }
+    // Filet de sécurité : ne jamais rester bloqué
+    setTimeout(finishLoader, 1200);
   }
 
   // ════════════════════════════════════════════════════════════════
