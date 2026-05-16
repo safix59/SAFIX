@@ -129,18 +129,20 @@ export default async function handler(req, res) {
       locale: 'fr',
       metadata: {
         platform: 'safix',
-        total_announced: String(total),
-        // Métadonnées de la commande pour le mail client + bot
+        total_announced: String(total).slice(0, 490),
+        // Métadonnées commande (mail client + bot). Stripe REFUSE toute
+        // valeur > 500 car. → un gros panier rendait la commande IMPAYABLE
+        // en silence. On borne chaque valeur à 490 (O1/F-wave).
         ...(orderMeta && {
-          model:    String(orderMeta.model    || ''),
-          phone:    String(orderMeta.phone    || ''),
-          snap:     String(orderMeta.snap     || ''),
-          delivery: String(orderMeta.delivery || ''),
-          addr:     String(orderMeta.addr     || ''),
-          apptDate: String(orderMeta.apptDate || ''),
-          apptSlot: String(orderMeta.apptSlot || ''),
-          lang:     String(orderMeta.lang     || 'fr'),
-          cart:     String(orderMeta.cart     || ''),  // JSON compact pour bot
+          model:    String(orderMeta.model    || '').slice(0, 490),
+          phone:    String(orderMeta.phone    || '').slice(0, 490),
+          snap:     String(orderMeta.snap     || '').slice(0, 490),
+          delivery: String(orderMeta.delivery || '').slice(0, 490),
+          addr:     String(orderMeta.addr     || '').slice(0, 490),
+          apptDate: String(orderMeta.apptDate || '').slice(0, 490),
+          apptSlot: String(orderMeta.apptSlot || '').slice(0, 490),
+          lang:     String(orderMeta.lang     || 'fr').slice(0, 490),
+          cart:     String(orderMeta.cart     || '').slice(0, 490),  // JSON compact pour bot
         }),
       },
     });

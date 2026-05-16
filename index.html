@@ -6663,10 +6663,11 @@ async function loadLivePrices(opts = {}) {
   try {
     const headers = { 'Cache-Control': 'no-cache' };
     if (priceETag) headers['If-None-Match'] = priceETag;
-    const resp = await fetch(LIVE_PRICES_URL + '?t=' + Date.now(), {
-      cache: 'no-store',
-      headers,
-    });
+    // Pas de '?t='+Date.now() : ce cache-buster rendait chaque requête
+    // unique → le CDN Vercel ne pouvait jamais mutualiser → 1000 onglets
+    // = ~2000 hits origine/min (O3). URL stable → le CDN (max-age=15)
+    // absorbe la charge ; l'ETag/304 garde la fraîcheur.
+    const resp = await fetch(LIVE_PRICES_URL, { headers });
     if (resp.status === 304) {
       // Pas de changement, on ne refait rien
       priceFailCount = 0;
