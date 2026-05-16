@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>SAFIX — Test 3D mobile (model-viewer)</title>
+<style>
+  :root { color-scheme: dark; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; background:#07080c; color:#e7ebef;
+    font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    -webkit-text-size-adjust:100%; }
+  .wrap { min-height:100%; display:flex; flex-direction:column; }
+  header { padding:18px 20px 8px; }
+  h1 { font-size:16px; font-weight:650; }
+  .hint { color:#9aa4af; font-size:12.5px; margin-top:4px; }
+  .stage { flex:1; position:relative; min-height:62vh; }
+  model-viewer {
+    width:100%; height:100%;
+    --poster-color:#07080c;
+    background:radial-gradient(120% 90% at 50% 35%, #14171f 0%, #07080c 70%);
+    touch-action:pan-y;          /* la page scrolle encore autour du modèle */
+  }
+  .bar { padding:14px 20px 26px; display:flex; gap:10px; flex-wrap:wrap;
+    border-top:1px solid #20252e; }
+  button { flex:1; min-width:130px; background:#161a20; color:#e7ebef;
+    border:1px solid #2a313b; border-radius:10px; padding:11px 12px;
+    font-size:13px; font-weight:600; }
+  button:active { background:#1f2530; }
+  .ok { color:#34d39a; } .warn { color:#ff9f43; }
+  .meta { font-size:11.5px; color:#7a8794; padding:0 20px 14px; }
+  .err { position:absolute; inset:0; display:none; align-items:center;
+    justify-content:center; text-align:center; padding:24px; color:#9aa4af; }
+</style>
+<script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Test 3D mobile — model-viewer + GLB léger</h1>
+    <div class="hint">Tourne (1 doigt), zoome (pince). But : <b>net même zoomé</b> et <b>aucun crash</b> Safari.</div>
+  </header>
+
+  <div class="stage">
+    <model-viewer
+      id="mv"
+      src="iphone17pro.glb"
+      alt="iPhone 17 Pro 3D"
+      camera-controls
+      disable-pan
+      interaction-prompt="none"
+      touch-action="pan-y"
+      exposure="1.05"
+      shadow-intensity="0.9"
+      shadow-softness="0.85"
+      environment-image="neutral"
+      camera-orbit="-18deg 78deg 105%"
+      min-camera-orbit="auto auto 70%"
+      max-camera-orbit="auto auto 160%"
+      min-field-of-view="22deg"
+      max-field-of-view="42deg"
+      loading="eager"
+      reveal="auto">
+      <div class="err" id="mvErr">Le modèle n'a pas pu se charger.<br>(dis-le moi)</div>
+    </model-viewer>
+  </div>
+
+  <div class="bar">
+    <button id="bModel">Modèle : iphone17pro.glb</button>
+    <button id="bReset">Recentrer</button>
+  </div>
+  <div class="meta" id="meta">Chargement…</div>
+</div>
+
+<script type="module">
+  const mv   = document.getElementById('mv');
+  const meta = document.getElementById('meta');
+  const err  = document.getElementById('mvErr');
+  // 2 GLB légers à comparer (les "apple" 6–9M sont volontairement exclus :
+  // même classe de poids que la scène Lotus qui crashe).
+  const MODELS = ['iphone17pro.glb', 'iphone17pro-v2.glb'];
+  let mi = 0;
+  const t0 = performance.now();
+
+  mv.addEventListener('load', () => {
+    const ms = Math.round(performance.now() - t0);
+    meta.innerHTML = `<span class="ok">✓ chargé</span> — ${mv.src.split('/').pop()} · ${ms} ms · zoom borné (pas d'OOM). Pince pour tester la netteté.`;
+  });
+  mv.addEventListener('error', () => {
+    err.style.display = 'flex';
+    meta.innerHTML = `<span class="warn">✗ échec de chargement</span> — ${mv.src.split('/').pop()}`;
+  });
+
+  document.getElementById('bModel').addEventListener('click', () => {
+    mi = (mi + 1) % MODELS.length;
+    err.style.display = 'none';
+    meta.textContent = 'Chargement ' + MODELS[mi] + '…';
+    mv.src = MODELS[mi];
+    document.getElementById('bModel').textContent = 'Modèle : ' + MODELS[mi];
+  });
+  document.getElementById('bReset').addEventListener('click', () => {
+    mv.cameraOrbit = '-18deg 78deg 105%';
+    mv.fieldOfView = '32deg';
+  });
+</script>
+</body>
+</html>
