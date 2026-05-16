@@ -4084,9 +4084,14 @@ body.premium-mode .repair-card.out-of-stock:hover {
   box-shadow: none !important;
 }
 body.premium-mode .repair-card.out-of-stock .repair-price {
-  /* Comme l'archive : texte rouge gras simple, pas de pastille rose */
+  /* Comme l'archive : texte rouge gras simple, pas de pastille rose.
+     -webkit-text-fill-color OBLIGATOIRE : la base .repair-price met un
+     dégradé bleu via text-fill:transparent qui gagne sur color. */
   background: none !important;
   color: var(--red) !important;
+  -webkit-text-fill-color: var(--red) !important;
+  -webkit-background-clip: border-box !important;
+  background-clip: border-box !important;
   padding: 0 !important;
   border-radius: 0 !important;
   font-size: 10.5px !important;
@@ -4117,7 +4122,10 @@ body.premium-mode .repair-card.no-link .repair-price {
   min-width: 32px !important;
   border-radius: 50% !important;
   background: rgba(255,59,48,.15) !important;
+  background-clip: border-box !important;
+  -webkit-background-clip: border-box !important;
   color: var(--red) !important;
+  -webkit-text-fill-color: var(--red) !important;
   font-size: 18px !important;
   font-weight: 900 !important;
   padding: 0 !important;
