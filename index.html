@@ -8563,7 +8563,7 @@ async function mountExpressCheckout(amountCents, orderContext) {
       const { ok } = validateCheckoutForm({ silent: true });
       if (!ok) {
         showToast('⚠️', currentLang === 'en'
-          ? 'Please use “Confier la commande” to complete required fields'
+          ? 'Please complete the required fields first'
           : 'Utilisez “Confier la commande” pour compléter les champs');
         return;
       }
@@ -8582,7 +8582,7 @@ async function mountExpressCheckout(amountCents, orderContext) {
             event.paymentFailed({ reason: 'fail' });
           }
           showToast('⚠️', currentLang === 'en'
-            ? 'Please complete missing fields via “Confier la commande”'
+            ? 'Please complete the required fields first'
             : 'Champs manquants — utilisez “Confier la commande”');
           return;
         }
@@ -9429,7 +9429,7 @@ const I18N = {
     'footer.about':'À propos','footer.legal':'Mentions légales','footer.privacy':'Confidentialité','footer.terms':'CGV','footer.cookies':'Cookies',
     'footer.snap_hint':" — scannez le QR ou cliquez sur l'icône 👻 en haut.",
     'footer.copyright':'© 2026 SAFIX — Réparation iPhone',
-    'checkout.success':'Devis validé pour {model}',
+    'checkout.success':'Commande confirmée pour {model}',
     'checkout.contact':'Nous vous recontacterons sous 24h sur {email}.',
     'checkout.share':'📲 Partagez le site avec vos proches',
   },
@@ -9528,7 +9528,7 @@ const I18N = {
     'footer.about':'About','footer.legal':'Legal notice','footer.privacy':'Privacy','footer.terms':'Terms','footer.cookies':'Cookies',
     'footer.snap_hint':' — scan the QR or click the 👻 icon at the top.',
     'footer.copyright':'© 2026 SAFIX — iPhone Repair',
-    'checkout.success':'Quote confirmed for {model}',
+    'checkout.success':'Order confirmed for {model}',
     'checkout.contact':"We'll get back to you within 24h at {email}.",
     'checkout.share':'📲 Share the site with friends',
   },
@@ -9878,6 +9878,10 @@ function applyI18n() {
   if (heroSub)     heroSub.innerHTML       = currentLang === 'en'
     ? 'Pick your model to view our real-time<br>repair pricing.'
     : 'Choisissez votre modèle pour découvrir nos tarifs de réparation en temps réel.';
+  // Bouton CTA hero : pas de data-i18n + ignoré par le localizer → restait
+  // "Choisir mon modèle" même en EN (bug confirmé G1, capture à l'appui).
+  const heroCta = document.getElementById('heroCtaBtn');
+  if (heroCta) heroCta.textContent = currentLang === 'en' ? 'Choose my model' : 'Choisir mon modèle';
   const searchInput = document.getElementById('searchInput');
   if (searchInput) searchInput.placeholder = currentLang === 'en' ? 'Search a model…' : 'Rechercher un modèle…';
   const repairsHd = document.querySelector('.repairs-heading');
@@ -9903,7 +9907,20 @@ function setLang(lang) {
   localStorage.setItem(LANG_KEY, lang);
   applyI18n();
 }
-document.getElementById('langBtn')?.addEventListener('click', () => setLang(currentLang === 'fr' ? 'en' : 'fr'));
+// Bascule langue ROBUSTE : handler délégué en phase CAPTURE sur document.
+// Avant : addEventListener direct sur #langBtn — peu fiable (le bouton est
+// déplacé dans le menu kebab par checkOverflow, et un wrapper "magnetic"
+// premium pouvait intercepter le pointer → clic sans effet, EN cassé).
+// La capture + closest() fire quoi qu'il arrive ; garde anti double-fire.
+(function () {
+  let _busy = false;
+  document.addEventListener('click', (e) => {
+    const b = e.target && e.target.closest && e.target.closest('#langBtn, .lang-box-btn');
+    if (!b || _busy) return;
+    _busy = true; setTimeout(() => { _busy = false; }, 250);
+    setLang(currentLang === 'fr' ? 'en' : 'fr');
+  }, true);
+})();
 
 /* ═══════════════════════════════════════════════════
    DELIVERY — toujours commandable, calcul date livraison
