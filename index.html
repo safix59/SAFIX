@@ -281,6 +281,12 @@ a img, button img, .clickable-img,
     font-family:system-ui, sans-serif;
   }
 }
+/* Filet de sécurité racine : clip horizontal au niveau <html> (overflow-x:clip
+   ne crée PAS de conteneur de scroll → ne casse pas position:sticky du
+   scroll-story, contrairement à overflow-x:hidden). Empêche tout débordement
+   horizontal résiduel de créer une bande vide visible au dézoom iOS Safari.
+   Le fond sur <html> évite un vide noir si du contenu dépasse. */
+html { overflow-x:clip; background:var(--bg); }
 body {
   font-family:'Inter',-apple-system,'SF Pro Display',sans-serif;
   background:var(--bg);
@@ -4194,9 +4200,12 @@ body.premium-mode .series-block:not(:last-child)::before {
   content: '';
   position: absolute;
   bottom: 0;
-  /* Plus large que le viewport pour garantir bord-à-bord, clipped par body overflow-x:hidden */
-  left: -100vw;
-  width: 300vw;
+  /* Full-bleed sûr : 100vw centré (l'ancien -100vw/300vw débordait de 3× le
+     viewport → bande noire à droite au dézoom sur iOS Safari). */
+  left: 50%;
+  right: auto;
+  width: 100vw;
+  margin-left: -50vw;
   height: 1px;
   background: rgba(0, 0, 0, .05);
   pointer-events: none;
