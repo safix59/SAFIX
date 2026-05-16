@@ -10,6 +10,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 
 import Stripe from 'stripe';
+import { loadPrices, enforcePrices } from './_prices.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: '2024-06-20',
@@ -42,8 +43,21 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'lineItems vide' });
     }
 
-    const amountCents = Math.round(Number(total) * 100);
-    if (!amountCents || amountCents < 100) {
+    // ── ANTI-FRAUDE (même garde que la Carte) : Apple Pay / Google Pay
+    // passaient ici SANS aucune validation de prix → on recalcule.
+    const PRICES = await loadPrices();
+    const chk = enforcePrices(PRICES, lineItems);
+    if (chk.error) {
+      return res.status(chk.error === 'out_of_stock' ? 409 : 400)
+        .json({ error: chk.error, item: chk.item, model: chk.model });
+    }
+    // Montant recalculé serveur depuis les prix validés (plus de confiance
+    // aveugle au `total` client). Livraison/frais bornés inchangés.
+    const itemsEuros = lineItems.reduce((s, it) => s + Number(it.price) * (it.qty || 1), 0);
+    const delivEuros = Number(delivery && delivery.price) || 0;
+    const feeEuros   = Number(paymentFees) || 0;
+    const amountCents = Math.round((itemsEuros + delivEuros + feeEuros) * 100);
+    if (!Number.isFinite(amountCents) || amountCents < 100) {
       return res.status(400).json({ error: 'Montant invalide' });
     }
 
