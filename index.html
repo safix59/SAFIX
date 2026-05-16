@@ -773,8 +773,10 @@ header {
   backdrop-filter:saturate(180%) blur(20px);
   -webkit-backdrop-filter:saturate(180%) blur(20px);
 }
-/* La search-wrap doit aussi monter pour que dropdown soit au-dessus des cartes */
-.search-wrap:focus-within { z-index:800; position:relative; }
+/* search-wrap TOUJOURS au-dessus des cartes (pas seulement :focus-within) :
+   sinon au clic ailleurs le focus part instantanément et le menu, encore
+   en train de disparaître (fondu .22s), repasse DERRIÈRE les cartes. */
+.search-wrap { position:relative; z-index:800; }
 .search-dropdown.show { opacity:1; transform:none; pointer-events:all; }
 /* Scrollbar discret dans dropdown */
 .search-dropdown::-webkit-scrollbar { width:6px; }
