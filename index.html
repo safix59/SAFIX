@@ -4894,8 +4894,10 @@ body.premium-mode .iphone-card:hover .card-shine { opacity:1; }
   perspective: 1400px;
   perspective-origin: 50% 50%;
   cursor: grab;
-  touch-action: none;
-  user-select: none;
+  /* touch-action:none / user-select:none retirés : reliquat de l'ancien
+     drag CSS-3D (désactivé) dont la spécificité ID écrasait pan-y →
+     bloquait le scroll page sur iOS au-dessus du 3D. */
+  touch-action: pan-y;
 }
 #heroIphoneStage:active { cursor: grabbing; }
 
