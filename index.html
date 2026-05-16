@@ -6267,7 +6267,12 @@ function vibrate(pattern=[10]) {
    STATE
 ═══════════════════════════════════════════════════ */
 let data = null;
-let cart = [];
+// Panier PERSISTANT : rehydraté depuis localStorage (avant : en mémoire
+// seule → perdu au refresh / retour Stripe / bouton retour).
+let cart = (() => {
+  try { const s = localStorage.getItem('safix_cart'); const a = s ? JSON.parse(s) : []; return Array.isArray(a) ? a : []; }
+  catch { return []; }
+})();
 let activeModel = null;
 let activeCard  = null;
 let compareA = null, compareB = null, comparePickingFor = 'B';
@@ -7591,6 +7596,8 @@ function splitPrice(item) {
 }
 
 function syncCart() {
+  // Persiste le panier à chaque changement (anti-perte commande).
+  try { localStorage.setItem('safix_cart', JSON.stringify(cart)); } catch {}
   const badge      = document.getElementById('cartBadge');
   const empty      = document.getElementById('cartEmpty');
   const subtitle   = document.getElementById('cartSubtitle');

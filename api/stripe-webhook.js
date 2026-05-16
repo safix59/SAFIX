@@ -304,7 +304,9 @@ function buildClientEmailHtml({ session, lineItems }) {
 
 // ─── Mail server-side : Web3Forms (try) puis Resend (fallback) ───────────
 async function sendEmailToShop({ session, lineItems }) {
-  const accessKey = process.env.WEB3FORMS_KEY || '7b0a17ee-8678-48f1-a0a2-f71b2455d269';
+  // Plus de secret en dur (était commité dans git). Si l'env n'est pas
+  // défini, on saute Web3Forms et on tombe sur Resend (fallback ci-dessous).
+  const accessKey = process.env.WEB3FORMS_KEY;
   const customer  = session.customer_details || {};
   const total     = (session.amount_total / 100).toFixed(2);
   const html      = buildShopEmailHtml({ session, lineItems });
@@ -330,8 +332,8 @@ ${lines || '—'}
 TOTAL : ${total} €
 Reçu le : ${new Date().toLocaleString('fr-FR')}`;
 
-  // 1) Web3Forms (si Pro plan) — sinon refusé en server-side
-  try {
+  // 1) Web3Forms (si Pro plan ET clé fournie en env) — sinon on saute → Resend
+  if (accessKey) try {
     const r = await fetch('https://api.web3forms.com/submit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
