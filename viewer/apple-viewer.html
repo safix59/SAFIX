@@ -207,14 +207,11 @@
 
     // Pick scene based on screen and KTX support
     function pickSceneName() {
-      const w = window.outerWidth || window.innerWidth;
-      // Toujours la scène LARGE (4K, net comme en local), même sur mobile.
-      // MEDIUM uniquement pour les très petits écrans (perf), jamais SMALL
-      // qui était flou au zoom.
+      // TOUJOURS la scène LARGE (4K, net comme en local) — sur TOUS les
+      // appareils. (Bug précédent : on testait window.innerWidth qui, dans
+      // l'iframe, vaut la largeur du stage ~337px et non celle de l'écran
+      // → ça tombait sur MEDIUM/SMALL sur iPhone. On ne teste plus rien.)
       let base = SCENES.large;
-      if (FeatureDetect.touchAvailable() && w <= 380) {
-        base = SCENES.medium;
-      }
       // Texture format
       let hasASTC = false;
       try {
