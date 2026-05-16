@@ -6343,9 +6343,33 @@ function vibrate(pattern=[10]) {
 let data = null;
 // Panier PERSISTANT : rehydraté depuis localStorage (avant : en mémoire
 // seule → perdu au refresh / retour Stripe / bouton retour).
+function escHtml(v) {
+  return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+// Message clair pour un refus serveur (rupture / prix). Sans ça le client
+// voit "paiement échoué" sans savoir quoi faire → impasse, commande perdue.
+function paymentErrMsg(code) {
+  const en = (window.__lang || 'fr') === 'en';
+  if (code === 'out_of_stock')   return en ? 'An item is out of stock — remove it from your cart.' : 'Un article est en rupture — retire-le du panier.';
+  if (code === 'price_mismatch') return en ? 'A price changed — check your cart and try again.'    : 'Un prix a changé — vérifie ton panier et réessaie.';
+  return en ? 'Payment failed' : 'Le paiement a échoué';
+}
+// Panier rehydraté + ASSAINI : un safix_cart empoisonné (lien partagé,
+// extension, autre XSS) ne doit jamais pouvoir réinjecter du HTML au rendu.
 let cart = (() => {
-  try { const s = localStorage.getItem('safix_cart'); const a = s ? JSON.parse(s) : []; return Array.isArray(a) ? a : []; }
-  catch { return []; }
+  try {
+    const s = localStorage.getItem('safix_cart');
+    const a = s ? JSON.parse(s) : [];
+    if (!Array.isArray(a)) return [];
+    return a.filter(i => i && typeof i === 'object' && i.name != null).map(i => ({
+      name: String(i.name),
+      price: Number(i.price) || 0,
+      qty: Math.max(1, Math.min(10, Math.floor(Number(i.qty)) || 1)),
+      modelKey: String(i.modelKey || ''),
+      repairId: i.repairId == null ? undefined : String(i.repairId),
+      colorName: i.colorName == null ? undefined : String(i.colorName),
+    }));
+  } catch { return []; }
 })();
 let activeModel = null;
 let activeCard  = null;
@@ -7745,7 +7769,7 @@ function syncCart() {
       const row = document.createElement('div');
       row.className = 'cart-row';
       row.innerHTML = `
-        <span class="cart-row-name">${tr(item.name)}${unitLabel}</span>
+        <span class="cart-row-name">${escHtml(tr(item.name))}${unitLabel}</span>
         <div class="cart-qty">
           <button class="cart-qty-btn" data-act="dec" aria-label="${currentLang==='en'?'Decrease quantity':'Diminuer la quantité'}" ${qty <= 1 ? 'disabled' : ''}>−</button>
           <span class="cart-qty-val">${qty}</span>
@@ -8233,7 +8257,7 @@ window.SAFIX_CONFIG = window.SAFIX_CONFIG || {
     enabled:    true,
     publicKey:  'pk_test_51TT8xtF7kToZ9qFc1QPGe75RMx97JoKcyxTgyXzttRiZPRRTQ1sRre0wFRqm73WAz34m60WcSFqGtjl8WOgrSV5b00FgN1EIC7',
     createSessionUrl: '/api/create-checkout-session',  // backend serverless (voir api/create-checkout-session.js)
-    successUrl: window.location.origin + window.location.pathname + '?paid=1',
+    successUrl: window.location.origin + window.location.pathname + '?paid=1&session={CHECKOUT_SESSION_ID}',
     cancelUrl:  window.location.origin + window.location.pathname + '?cancel=1',
   },
 };
@@ -8522,7 +8546,12 @@ async function mountExpressCheckout(amountCents, orderContext) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(ctx),
         });
-        if (!r.ok) throw new Error('PaymentIntent backend HTTP ' + r.status);
+        if (!r.ok) {
+          const j = await r.json().catch(() => ({}));
+          const e = new Error(j.error || ('HTTP ' + r.status));
+          e.code = j.error;
+          throw e;
+        }
         const { clientSecret } = await r.json();
 
         // Persiste la commande pour le post-redirect ?paid=1 (modale + email)
@@ -8544,6 +8573,7 @@ async function mountExpressCheckout(amountCents, orderContext) {
           }));
         } catch {}
 
+        try { sessionStorage.setItem('sfx_pay', String(Date.now())); } catch {}
         const { error } = await _eceStripe.confirmPayment({
           elements:      _eceElements,
           clientSecret,
@@ -8558,7 +8588,8 @@ async function mountExpressCheckout(amountCents, orderContext) {
         }
       } catch (e) {
         console.error('[ECE] Confirm fatal :', e);
-        showToast('⚠️', currentLang === 'en' ? 'Payment failed' : 'Le paiement a échoué');
+        showToast('⚠️', paymentErrMsg(e && e.code));
+        if (e && (e.code === 'out_of_stock' || e.code === 'price_mismatch')) syncCart();
       }
     });
 
@@ -8591,6 +8622,9 @@ async function payWithStripe({ email, total, lineItems, delivery, paymentFees, o
     return { paid: false, reason: 'not_configured' };
   }
   try {
+    // Marqueur anti-spoof : prouve qu'un vrai paiement a démarré dans CET
+    // onglet (le retour ?paid=1 n'est cru que si ce marqueur OU un session= existe).
+    try { sessionStorage.setItem('sfx_pay', String(Date.now())); } catch {}
     // 1) Création de la session Stripe via ton backend
     const resp = await fetch(cfg.createSessionUrl, {
       method: 'POST',
@@ -8603,7 +8637,12 @@ async function payWithStripe({ email, total, lineItems, delivery, paymentFees, o
         cancel_url:  cfg.cancelUrl,
       }),
     });
-    if (!resp.ok) throw new Error('Backend create-session HTTP ' + resp.status);
+    if (!resp.ok) {
+      const j = await resp.json().catch(() => ({}));
+      const e = new Error(j.error || ('HTTP ' + resp.status));
+      e.code = j.error;
+      throw e;
+    }
     const { sessionId, url } = await resp.json();
     if (url) { window.location.href = url; return { paid: true, redirected: true }; }
     // 2) Sinon utiliser le SDK Stripe.js
@@ -8620,7 +8659,7 @@ async function payWithStripe({ email, total, lineItems, delivery, paymentFees, o
     return { paid: true, redirected: true };
   } catch (err) {
     console.error('[SAFIX] Stripe erreur', err);
-    return { paid: false, reason: err?.message || 'unknown' };
+    return { paid: false, reason: err?.code || err?.message || 'unknown' };
   }
 }
 
@@ -8809,7 +8848,8 @@ document.getElementById('checkoutBtn')?.addEventListener('click', async () => {
     const stripeResp = await payWithStripe({ email, total: totalNow, lineItems, delivery: deliveryLine, paymentFees, orderMeta });
     if (stripeResp.redirected) return;          // navigation vers Stripe → on stoppe ici
     if (!stripeResp.paid) {
-      showToast('⚠️', currentLang === 'en' ? 'Payment failed' : 'Le paiement a échoué');
+      showToast('⚠️', paymentErrMsg(stripeResp.reason));
+      if (stripeResp.reason === 'out_of_stock' || stripeResp.reason === 'price_mismatch') syncCart();
       return;
     }
   }
@@ -8832,8 +8872,8 @@ document.getElementById('checkoutBtn')?.addEventListener('click', async () => {
   const lines = cart.map(i => {
     const q = i.qty || 1;
     return q > 1
-      ? `<li>${i.name} <span style="color:var(--text2);font-size:.9em">×${q}</span> — <strong>${i.price * q} €</strong></li>`
-      : `<li>${i.name} — <strong>${i.price} €</strong></li>`;
+      ? `<li>${escHtml(i.name)} <span style="color:var(--text2);font-size:.9em">×${q}</span> — <strong>${i.price * q} €</strong></li>`
+      : `<li>${escHtml(i.name)} — <strong>${i.price} €</strong></li>`;
   }).join('');
   const delivLabel = selectedDelivery === 'express'
     ? `<li>${t('delivery.exp_name')} — <strong>${deliv} €</strong></li>`
@@ -10323,6 +10363,7 @@ async function openPayPalDirectModal(ctx) {
               ts: Date.now(),
             }));
           } catch {}
+          try { sessionStorage.setItem('sfx_pay', String(Date.now())); } catch {}
           window.location.href = window.location.pathname + '?paid=1&via=paypal';
         } catch (e) {
           console.error('[PayPal] capture error :', e);
@@ -10578,10 +10619,23 @@ document.addEventListener('keydown', e => {
 (function handlePostPayment() {
   const params = new URLSearchParams(window.location.search);
   if (params.has('paid')) {
+    history.replaceState({}, '', window.location.pathname);
+    // Preuve qu'un vrai paiement a eu lieu : session Stripe (cs_...),
+    // redirect_status succeeded (PI/3DS), OU marqueur sfx_pay posé dans
+    // cet onglet juste avant le paiement (< 1 h). Un /?paid=1 tapé à la
+    // main ne déclenche AUCUNE fausse confirmation / vidage panier / email.
+    let proof = /^cs_/.test(params.get('session') || '')
+      || params.get('redirect_status') === 'succeeded';
+    if (!proof) {
+      try {
+        const m = Number(sessionStorage.getItem('sfx_pay') || 0);
+        proof = m > 0 && (Date.now() - m) < 3600000;
+      } catch {}
+    }
+    try { sessionStorage.removeItem('sfx_pay'); } catch {}
+    if (!proof) return;            // ?paid=1 non prouvé → on ignore
     let order = null;
     try { order = JSON.parse(localStorage.getItem('safix_pending_order') || 'null'); } catch {}
-    // Nettoie la query string pour éviter de rejouer au refresh
-    history.replaceState({}, '', window.location.pathname);
     if (order) {
       // Envoi de l'email de confirmation (best-effort, ne bloque pas l'UX)
       sendOrderEmail({
