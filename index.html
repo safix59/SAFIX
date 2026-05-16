@@ -5226,6 +5226,18 @@ header { padding-left: max(20px, env(safe-area-inset-left));
 * { scrollbar-width: thin; }
 
 /* End SAFIX PREMIUM v8 ─────────────────────────────────────────────── */
+/* ── Zone 3D : le doigt SCROLLE la page, jamais d'interaction modèle ──
+   Demande explicite owner (capture rouge). Sur tactile : l'iframe 3D ne
+   reçoit AUCUN événement (pas de rotation/interaction au doigt) et toute
+   la zone laisse passer le scroll vertical. Le 3D reste visible + animé.
+   Desktop (souris) inchangé : rotation à la souris conservée. */
+@media (hover:none) and (pointer:coarse) {
+  #heroIphoneStage,
+  #heroIphoneStage .hero-3d-stage,
+  .hero-3d-stage { touch-action: pan-y !important; }
+  #heroAppleViewer { pointer-events: none !important; touch-action: pan-y !important; }
+  .hero-3d-hint { display: none !important; }
+}
 </style>
 </head>
 <body>
@@ -5448,7 +5460,7 @@ header { padding-left: max(20px, env(safe-area-inset-left));
     </div>
   </div>
   <!-- Body scrollable : items + delivery + contact + paiement -->
-  <div class="cart-body" id="cartBody">
+  <div class="cart-body" id="cartBody" data-lenis-prevent>
     <div class="cart-empty" id="cartEmpty">
       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
       <p data-i18n="cart.empty_title">Panier vide</p>
@@ -11056,16 +11068,14 @@ setInterval(refreshDeliveryAvailability, 60000); // ré-évalue chaque minute (c
         });
         function raf(time){ lenis.raf(time); requestAnimationFrame(raf); }
         requestAnimationFrame(raf);
-        // Expose pour debug + permettre stop quand modale ouverte (panier, etc.)
         window.__safixLenis = lenis;
-        // Pause Lenis quand le panier ou une modale est ouverte (overflow:hidden conflit)
-        var bodyObs = new MutationObserver(function(){
-          var bodyLocked = document.body.style.overflow === 'hidden' ||
-                          document.documentElement.style.overflow === 'hidden';
-          if (bodyLocked) lenis.stop(); else lenis.start();
-        });
-        bodyObs.observe(document.body, { attributes:true, attributeFilter:['style','class'] });
-        bodyObs.observe(document.documentElement, { attributes:true, attributeFilter:['style','class'] });
+        // NE PAS appeler lenis.stop() à l'ouverture du panier/modale :
+        // stop() GÈLE la molette partout (y compris dans le panier, malgré
+        // data-lenis-prevent) → panier non scrollable = checkout bloqué.
+        // On garde Lenis actif : data-lenis-prevent laisse le panier
+        // scroller nativement, et body{overflow:hidden} empêche déjà la
+        // page derrière de bouger. (Régression scroll panier corrigée.)
+        lenis.start();
       } catch(_) {}
     };
     s.onerror = function(){ /* fail silently */ };
