@@ -1,7 +1,7 @@
 {
   "name": "SAFIX — Réparation iPhone",
   "short_name": "SAFIX",
-  "description": "Réparation iPhone : tarifs en temps réel, livraison 48h, garantie 6 mois.",
+  "description": "Réparation iPhone : tarifs synchronisés, livraison 48h, pièces sélectionnées.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

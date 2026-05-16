@@ -15,7 +15,7 @@
 <link rel="apple-touch-icon" sizes="512x512" href="images/safix/safix-icon-dark-512.png">
 <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)">
 <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
-<meta name="description" content="SAFIX — Réparation iPhone : tarifs en temps réel, livraison sous 48h, garantie 6 mois.">
+<meta name="description" content="SAFIX — Réparation iPhone : tarifs synchronisés, livraison sous 48h, pièces sélectionnées.">
 <!-- ═══ Référencement strict : indexable mais non-archivable + anti-vol contenu ═══ -->
 <meta name="robots"            content="index, follow, noarchive, nosnippet, noimageindex, max-snippet:120, max-image-preview:none, notranslate">
 <meta name="googlebot"         content="index, follow, noarchive, nosnippet, noimageindex, max-snippet:120, max-image-preview:none, notranslate">
@@ -34,7 +34,9 @@
 <link rel="manifest" href="manifest.json">
 <!-- Open Graph -->
 <meta property="og:title"       content="SAFIX — Réparation iPhone">
-<meta property="og:description" content="Tarifs en temps réel, livraison sous 48h, garantie 6 mois.">
+<meta property="og:description" content="Tarifs synchronisés, livraison sous 48h, pièces sélectionnées.">
+<link rel="canonical" href="https://safix59.fr/">
+<meta property="og:url" content="https://safix59.fr/">
 <meta property="og:type"        content="website">
 <meta property="og:image"       content="images/safix/safix-icon-dark-512.png">
 <!-- ═══════════════════════════════════════════════════════════════════════
@@ -105,28 +107,10 @@
     if (e.metaKey && e.altKey && (K === 'i' || K === 'j' || K === 'c' || K === 'u')) { e.preventDefault(); return false; }
   }, { capture:true });
 
-  // ─── Détection DevTools : timing debugger; (DevTools fermé ≈ instant,
-  //     ouvert ≈ pause). Si pause détectée → wipe la page.
-  //     Sécurité légère, contournable, mais dissuade 95% des copieurs.
-  var devToolsOpen = false;
-  function wipePage(){
-    try {
-      // Vide DOM + stop interactions, message clair pour l'utilisateur
-      document.documentElement.innerHTML =
-        '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui;background:#000;color:#fff;text-align:center;padding:24px">' +
-        '<div><h1 style="font-size:28px;margin:0 0 12px">© SAFIX</h1>' +
-        '<p style="opacity:.7;font-size:14px">Pour des raisons de sécurité, l\'inspection du code est désactivée. Fermez les outils de développement et rechargez la page.</p></div></div>';
-    } catch(_) {}
-  }
-  function checkDevTools(){
-    var t0 = performance.now();
-    // eslint-disable-next-line no-debugger
-    debugger;
-    var dt = performance.now() - t0;
-    if (dt > 100 && !devToolsOpen) { devToolsOpen = true; wipePage(); }
-  }
-  // Lance le check toutes les 1 sec (impact perf négligeable)
-  setInterval(checkDevTools, 1000);
+  // Détection DevTools / wipePage RETIRÉE : faux positifs fréquents
+  // (mobile lent, GC, onglet en fond) détruisaient TOUT le DOM en plein
+  // paiement = commande perdue. + le debugger; chaque seconde = jank.
+  // Trivial à contourner de toute façon. Aucun remplacement.
 
   // ─── Blocage console (rend le copy/paste depuis console+++ pénible) ─
   // Note : on ne désactive PAS console.log car ça casse les libs externes.
@@ -167,7 +151,7 @@
 })();
 </script>
 <!-- Plausible Analytics — RGPD-friendly, sans cookie. À activer en remplaçant DOMAIN. -->
-<script defer data-domain="safix.fr" src="https://plausible.io/js/script.js"></script>
+<script defer data-domain="safix59.fr" src="https://plausible.io/js/script.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
@@ -201,8 +185,8 @@
   --border:        rgba(255,255,255,0.08);
   --border2:       rgba(255,255,255,0.14);
   --text:          #fff;
-  --text2:         rgba(235,235,245,0.55);
-  --text3:         rgba(235,235,245,0.25);
+  --text2:         rgba(235,235,245,0.74);
+  --text3:         rgba(235,235,245,0.5);
   --accent:        #007AFF;
   --accent2:       #0A84FF;
   --accent-rgb:    0,122,255;
@@ -229,8 +213,8 @@
   --border:   rgba(0,0,0,0.08);
   --border2:  rgba(0,0,0,0.15);
   --text:     #1d1d1f;
-  --text2:    rgba(60,60,67,0.6);
-  --text3:    rgba(60,60,67,0.28);
+  --text2:    rgba(60,60,67,0.82);
+  --text3:    rgba(60,60,67,0.55);
   --sh:       0 24px 64px rgba(0,0,0,.12);
   --sh2:      0 0 0 1px rgba(0,0,0,.06), 0 8px 32px rgba(0,0,0,.08);
 }
@@ -249,12 +233,13 @@ html {
    ───────────────────────────────────────────────────────────────────────
    Inputs et textareas restent sélectionnables (UX critique).
    ═══════════════════════════════════════════════════════════════════════ */
+/* Sélection de texte RÉ-AUTORISÉE (le user doit pouvoir copier adresse,
+   prix, mentions légales). La protection drag/save image reste sur les
+   <img> via la règle dédiée plus bas. */
 html, body {
-  -webkit-touch-callout:none;        /* iOS : bloque "Copier le lien / Enregistrer l'image" */
-  -webkit-user-select:none;
-  -moz-user-select:none;
-  -ms-user-select:none;
-  user-select:none;
+  -webkit-user-select:text;
+  -moz-user-select:text;
+  user-select:text;
 }
 input, textarea, [contenteditable="true"], .selectable {
   -webkit-user-select:text;
@@ -978,10 +963,11 @@ header {
 .card-body { padding:11px 13px 13px; }
 .card-model {
   font-size:13px; font-weight:700; letter-spacing:-.2px; margin-bottom:3px;
-  /* Toujours sur une seule ligne, peu importe l'écran */
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
+  /* Texte complet ("iPhone 17 Pro Max") même hors premium-mode */
+  white-space:normal;
+  overflow:visible;
+  text-overflow:clip;
+  line-height:1.2;
 }
 .card-cta {
   font-size:11.5px; font-weight:500;
@@ -989,10 +975,10 @@ header {
   background:linear-gradient(135deg, var(--accent) 0%, #5AC8FA 100%);
   -webkit-background-clip:text; -webkit-text-fill-color:transparent;
   background-clip:text;
-  /* Toujours sur une seule ligne, peu importe l'écran */
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
+  white-space:normal;
+  overflow:visible;
+  text-overflow:clip;
+  line-height:1.25;
 }
 
 /* Mode clair : on garde l'apparence "sombre" sur les cards iPhone (fond foncé, texte blanc) */
@@ -1212,7 +1198,8 @@ header {
 .repair-text { flex:1; min-width:0; }
 .repair-name {
   font-size:14px; font-weight:600; letter-spacing:-.2px; margin-bottom:2px;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  /* Texte complet — pas de "..." (la page détail tourne sans premium-mode) */
+  white-space:normal; overflow:visible; text-overflow:clip; line-height:1.25;
   transition:color .2s;
 }
 .repair-card.selected .repair-name {
@@ -1220,7 +1207,7 @@ header {
   -webkit-background-clip:text; background-clip:text;
   -webkit-text-fill-color:transparent; color:transparent;
 }
-.repair-desc { font-size:11.5px; color:var(--text2); line-height:1.4; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; transition:opacity .2s; }
+.repair-desc { font-size:11.5px; color:var(--text2); line-height:1.4; transition:opacity .2s; }
 .repair-card.selected .repair-desc { opacity:1; }
 .repair-price {
   font-size:15px; font-weight:700;
@@ -5274,7 +5261,7 @@ body.premium-mode .series-label::before {
         <div class="story-scene story-scene-3" data-scene="3">
           <p class="hero-eyebrow" style="color:#30D158; margin-bottom:18px;">Avec SAFIX</p>
           <h2 class="story-title">En 48 h, il <em>revit</em>.</h2>
-          <p class="story-sub">Pièces de qualité contrôlée, livraison incluse.<br>Votre iPhone retrouve son état neuf.</p>
+          <p class="story-sub">Pièces sélectionnées, livraison incluse.<br>Votre iPhone à nouveau fonctionnel.</p>
         </div>
       </div>
     </div>
@@ -5778,8 +5765,8 @@ body.premium-mode .series-label::before {
       <h3>Nos engagements</h3>
       <ul>
         <li><strong>Prix transparents</strong> : tarifs réels du marché, mis à jour quotidiennement.</li>
-        <li><strong>Pièces de qualité contrôlée</strong> : sélectionnées chez nos fournisseurs partenaires, aucune provenance inconnue.</li>
-        <li><strong>Garantie 6 mois</strong> sur toutes nos réparations (hors choc et oxydation).</li>
+        <li><strong>Pièces sélectionnées</strong> chez nos fournisseurs partenaires.</li>
+        <li><strong>Réparation soignée</strong> par un technicien dédié.</li>
         <li>Livraison <strong>en 48 h</strong> ou <strong>J+1 en Express</strong>.</li>
       </ul>
       <h3>Nous contacter</h3>
@@ -5896,13 +5883,8 @@ body.premium-mode .series-label::before {
         <li><strong>Express</strong> — 8 € : J+1 à 15h, prise en compte avant 17h30 du Lun au Ven</li>
       </ul>
       <p>Les commandes passées hors plage de prise en compte sont reportées au prochain jour ouvré.</p>
-      <h3>6. Garantie</h3>
-      <p>Toutes les réparations sont garanties <strong>6 mois</strong> à compter de la livraison, sauf en cas de :</p>
-      <ul>
-        <li>Choc, chute, oxydation</li>
-        <li>Modification logicielle (jailbreak, restauration ratée)</li>
-        <li>Démontage par un tiers</li>
-      </ul>
+      <h3>6. Réparations</h3>
+      <p>Aucune garantie commerciale n'est offerte sur les réparations. Les droits légaux du consommateur prévus par la loi restent applicables.</p>
       <h3>7. Droit de rétractation</h3>
       <p>Conformément à l'article L.221-28 du Code de la consommation, le droit de rétractation ne s'applique pas aux <strong>biens confectionnés selon les spécifications du consommateur ou nettement personnalisés</strong> — ce qui inclut une commande de pièce et une réparation iPhone réalisées sur la base du modèle/des choix du client.</p>
       <p>Cependant, tant que la commande de la pièce n'a pas été passée auprès du fournisseur, le client peut annuler son mandat sans frais sur simple demande.</p>
@@ -6980,7 +6962,7 @@ function renderHome() {
         <div class="card-img-wrap"><img src="${imgPath(model)}" alt="${model}" loading="lazy" decoding="async" onerror="this.style.opacity='.12'"></div>
         <div class="card-body">
           <div class="card-model">${model}</div>
-          <div class="card-cta">Voir les réparations →</div>
+          <div class="card-cta">${currentLang==='en'?'View repairs →':'Voir les réparations →'}</div>
         </div>`;
       applyCardGlow(card, model);
       const img = card.querySelector('.card-img-wrap img');
@@ -10839,13 +10821,8 @@ setInterval(refreshDeliveryAvailability, 60000); // ré-évalue chaque minute (c
 
     // 9.9 Hooks supplémentaires : observe le grid quand il se remplit
     var gridContainer = document.getElementById('gridContainer');
-    if (gridContainer && io) {
-      var gridObs = new MutationObserver(function(){
-        // À chaque ajout de card, on n'ajoute pas reveal (cards ont déjà animation cardReveal CSS)
-        // Mais on peut observer le grid lui-même pour scroll-fade le titre de série si présent
-      });
-      gridObs.observe(gridContainer, { childList:true, subtree:true });
-    }
+    // gridObs (MutationObserver subtree à callback vide) RETIRÉ : pur
+    // surcoût qui se déclenchait à chaque mutation de la grille pour rien.
   }
 
   // ─── 10. Démarrage ─────────────────────────────────────────────────
