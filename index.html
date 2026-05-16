@@ -6240,6 +6240,10 @@ const NO_ICON_IDS = new Set([
   // (vide pour l'instant \u2014 utiliser cette liste si on veut explicitement masquer une ic\u00f4ne)
 ]);
 
+// Seules ces 3 ic\u00f4nes existent en .svg \u2192 on ne tente le .svg que pour
+// elles. Les autres vont direct au .png (fini la salve de 404 .svg).
+const ICON_SVG = new Set(['adaptateur_secteur_usb_c','cable_usb_c','cable_usb_c_lightning']);
+
 function setupIcon(img, id) {
   if (NO_ICON_IDS.has(id)) {
     img.style.display = 'none';
@@ -6250,14 +6254,15 @@ function setupIcon(img, id) {
   const baseId = ICON_ALIASES[id] || id;
   const norm = baseId.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/['']/g,'').replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_-]/g,'').toLowerCase();
   let i = 0;
-  // SVG d'abord (vectoriel, plus net, scalable) puis PNG en fallback
-  const variants = [
-    `Icon/${norm}.svg`,
-    `Icon/${baseId}.svg`,
+  const pngVariants = [
     `Icon/${norm}.png`,
     `Icon/${baseId}.png`,
     `Icon/${norm.replace(/_/g,'-')}.png`,
   ];
+  // SVG (vectoriel, net) uniquement si dispo, sinon PNG direct.
+  const variants = ICON_SVG.has(norm)
+    ? [`Icon/${norm}.svg`, ...pngVariants]
+    : pngVariants;
   img.onerror = () => { if(++i < variants.length) img.src = variants[i]; else img.style.display='none'; };
   img.src = variants[0];
 }
