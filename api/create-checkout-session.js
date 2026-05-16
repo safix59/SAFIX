@@ -54,6 +54,44 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'lineItems vide' });
     }
 
+    // ── ANTI-FRAUDE : prix officiels depuis prices.json ──────────────
+    // Le client envoie repairId/modelKey/colorName. On refuse tout prix
+    // client nettement sous le prix officiel, et on facture le prix
+    // officiel (jamais moins) pour les pièces présentes dans prices.json
+    // — la cible de fraude (écrans/batteries 100-200 €). Services /
+    // livraison (bornés, faibles, hors prices.json) restent inchangés.
+    // Si prices.json indispo → on ne bloque pas la vente (fenêtre courte).
+    let PRICES = null;
+    try {
+      const host  = req.headers['x-forwarded-host'] || req.headers.host;
+      const proto = req.headers['x-forwarded-proto'] || 'https';
+      const base  = (allowOrigin && allowOrigin !== '*') ? allowOrigin : `${proto}://${host}`;
+      const pr = await fetch(`${base}/scraper/prices.json`, { cache: 'no-store' });
+      if (pr.ok) PRICES = (await pr.json()).prices || null;
+    } catch (e) { PRICES = null; }
+
+    function officialUnitEuros(it) {
+      if (!PRICES || !it || !it.repairId || !it.modelKey) return null;
+      const entry = PRICES[it.repairId] && PRICES[it.repairId][it.modelKey];
+      if (!entry) return null;
+      let v = Number(entry.final);
+      if (it.colorName && Array.isArray(entry.colors)) {
+        const cv = entry.colors.find(c => c.color === it.colorName);
+        if (cv && Number.isFinite(Number(cv.final))) v = Number(cv.final);
+      }
+      return Number.isFinite(v) && v > 0 ? v : null;
+    }
+
+    for (const it of lineItems) {
+      const off = officialUnitEuros(it);
+      if (off == null) continue;                 // Service/inconnu → inchangé
+      const client = Number(it.price);
+      if (!Number.isFinite(client) || client < off * 0.7) {
+        return res.status(400).json({ error: 'price_mismatch', item: it.repairId, model: it.modelKey });
+      }
+      it.price = Math.max(client, off);          // jamais sous le prix officiel
+    }
+
     // Construit les line_items au format Stripe (montants en centimes)
     const stripeItems = lineItems.map(it => ({
       quantity: it.qty || 1,
