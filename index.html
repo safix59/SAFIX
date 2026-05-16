@@ -5232,17 +5232,16 @@ header { padding-left: max(20px, env(safe-area-inset-left));
 * { scrollbar-width: thin; }
 
 /* End SAFIX PREMIUM v8 ─────────────────────────────────────────────── */
-/* ── Zone 3D : le doigt SCROLLE la page, jamais d'interaction modèle ──
-   Demande explicite owner (capture rouge). Sur tactile : l'iframe 3D ne
-   reçoit AUCUN événement (pas de rotation/interaction au doigt) et toute
-   la zone laisse passer le scroll vertical. Le 3D reste visible + animé.
-   Desktop (souris) inchangé : rotation à la souris conservée. */
+/* ── Zone 3D sur tactile : le 3D reste INTERACTIF (rotation au doigt) —
+   pointer-events:none RETIRÉ car il rendait le modèle totalement inerte
+   sur iOS (owner: "ne fonctionne plus"). touch-action:pan-y laisse le
+   navigateur scroller la page si le geste est vertical, sans désactiver
+   le 3D. Desktop (souris) inchangé. */
 @media (hover:none) and (pointer:coarse) {
   #heroIphoneStage,
   #heroIphoneStage .hero-3d-stage,
-  .hero-3d-stage { touch-action: pan-y !important; }
-  #heroAppleViewer { pointer-events: none !important; touch-action: pan-y !important; }
-  .hero-3d-hint { display: none !important; }
+  .hero-3d-stage,
+  #heroAppleViewer { touch-action: pan-y !important; }
 }
 </style>
 </head>
