@@ -1243,6 +1243,11 @@ header {
   font-size:10.5px; font-weight:800; line-height:1.15;
   color:var(--red); text-transform:uppercase; letter-spacing:.4px;
   white-space:normal; max-width:88px; text-align:right;
+  /* Annule le dégradé bleu de la base .repair-price (sinon texte bleu) */
+  background:none !important;
+  -webkit-background-clip:border-box !important;
+  background-clip:border-box !important;
+  -webkit-text-fill-color:var(--red) !important;
 }
 /* Bulles couleur (connecteur de charge) — version minimaliste */
 .color-bubble-mini {
@@ -1295,6 +1300,11 @@ header {
   width:32px; height:32px; min-width:32px;
   border-radius:50%; background:rgba(255,59,48,.15);
   color:var(--red); font-size:18px; font-weight:900;
+  /* Annule le clip-texte de la base .repair-price : sinon le fond du
+     rond est rogné sur le glyphe et le "!" est invisible (bleu/transparent) */
+  -webkit-background-clip:border-box !important;
+  background-clip:border-box !important;
+  -webkit-text-fill-color:var(--red) !important;
 }
 
 /* ═══════════════════════════════════════════════════
