@@ -2996,6 +2996,13 @@ body.premium-mode .repair-card.selected .repair-icon {
   background:rgba(var(--accent-rgb),.15);
   border-color:rgba(var(--accent-rgb),.35);
 }
+/* Mode sombre : pas de "case grise" derrière l'icône au repos (demande user).
+   Hover/selected gardent leur feedback accent. */
+[data-theme="dark"] body.premium-mode .repair-icon,
+[data-theme="dark"] .repair-icon {
+  background:transparent;
+  border-color:transparent;
+}
 
 body.premium-mode .repair-text { padding:0; }
 body.premium-mode .repair-name {
