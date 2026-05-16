@@ -7036,7 +7036,7 @@ function renderHome() {
         <div class="card-img-wrap"><img src="${imgPath(model)}" alt="${model}" loading="lazy" decoding="async" onerror="this.style.opacity='.12'"></div>
         <div class="card-body">
           <div class="card-model">${model}</div>
-          <div class="card-cta">${currentLang==='en'?'View repairs →':'Voir les réparations →'}</div>
+          <div class="card-cta">${(window.__lang||'fr')==='en'?'View repairs →':'Voir les réparations →'}</div>
         </div>`;
       applyCardGlow(card, model);
       const img = card.querySelector('.card-img-wrap img');
@@ -9649,6 +9649,7 @@ window.addEventListener('resize', () => {
 
 const LANG_KEY = 'sfx_lang';
 let currentLang = localStorage.getItem(LANG_KEY) || 'fr';
+window.__lang = currentLang;  // miroir TDZ-safe (lu par renderHome avant cette ligne)
 function t(key, vars) {
   let s = (I18N[currentLang] && I18N[currentLang][key]) || (I18N.fr[key] || key);
   if (vars) Object.entries(vars).forEach(([k, v]) => { s = s.replace(new RegExp('\\{' + k + '\\}', 'g'), v); });
@@ -9732,6 +9733,7 @@ function applyI18n() {
 }
 function setLang(lang) {
   currentLang = lang;
+  window.__lang = lang;
   localStorage.setItem(LANG_KEY, lang);
   applyI18n();
 }
