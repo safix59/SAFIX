@@ -5204,7 +5204,7 @@ body.premium-mode .series-label::before {
       <div class="hero-3d-stage" id="heroIphoneStage">
         <iframe
           id="heroAppleViewer"
-          src="viewer/apple-viewer.html?v=6"
+          src="viewer/apple-viewer.html?v=7"
           title="iPhone 17 Pro 3D"
           loading="eager"
           allow="xr-spatial-tracking; accelerometer; gyroscope"
@@ -6742,6 +6742,22 @@ function syncThemeToHeroIframe(t) {
   iframe.addEventListener('load', function(){
     syncThemeToHeroIframe(document.documentElement.getAttribute('data-theme') || 'dark');
   });
+  // Fallback 3D : si le viewer signale un échec, ou ne signale rien en 16s,
+  // ou l'iframe erreur → on affiche le PNG (était du code mort avant).
+  var showFallback = function () {
+    var w = document.getElementById('heroIphoneWrap');
+    if (w) w.classList.add('shown');
+    try { iframe.style.opacity = '0'; } catch (e) {}
+  };
+  var ready3d = false;
+  window.addEventListener('message', function (ev) {
+    var d = ev && ev.data;
+    if (!d || d.type !== 'safix-3d') return;
+    if (d.status === 'ready') { ready3d = true; }
+    else if (d.status === 'failed') { showFallback(); }
+  });
+  iframe.addEventListener('error', showFallback);
+  setTimeout(function () { if (!ready3d) showFallback(); }, 16000);
 })();
 applyTheme(localStorage.getItem(THEME_KEY) || 'dark');
 themeBtn && themeBtn.addEventListener('click', () => {
