@@ -5107,6 +5107,65 @@ body.premium-mode .series-label::before {
 .mandate-dot,
 .cal-day.cal-day-selected { color:#fff !important; }
 
+/* ═══ FILETS DE SÉCURITÉ CROSS-PLATFORM (Firefox/Android/iOS/Win/Linux) ═══ */
+
+/* 1. backdrop-filter non supporté/désactivé (Firefox ESR, vieux WebView,
+   iOS low-power) → fond opaque sinon texte illisible sur header/float-bar */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  header, .float-bar, .nav-overflow-menu, .cart-panel, .gm-modal, .search-input {
+    background: rgba(12,12,14,.94) !important;
+  }
+  [data-theme="light"] header,
+  [data-theme="light"] .float-bar,
+  [data-theme="light"] .nav-overflow-menu,
+  [data-theme="light"] .cart-panel,
+  [data-theme="light"] .gm-modal,
+  [data-theme="light"] .search-input {
+    background: rgba(255,255,255,.96) !important;
+  }
+}
+
+/* 2. background-clip:text non supporté → texte transparent invisible.
+   Fallback : couleur accent visible. */
+@supports not ((background-clip: text) or (-webkit-background-clip: text)) {
+  .hero-eyebrow, .hero-title em, .story-title em, .card-cta,
+  .nav-btn--arrow, .repair-card.selected .repair-name,
+  .repair-card.selected .repair-price span,
+  body.premium-mode .repair-card .repair-price span {
+    -webkit-text-fill-color: var(--accent) !important;
+    color: var(--accent) !important;
+    background: none !important;
+  }
+}
+
+/* 3. iOS/Android : barre d'URL dynamique → 100vh saute. dvh = viewport réel. */
+@supports (height: 100dvh) {
+  .view { min-height: 100dvh; }
+  .scroll-story-pin { height: calc(100dvh - var(--hh)); }
+  .scroll-story-track { height: 300dvh; }
+}
+
+/* 4. Encoche / barre d'accueil (iPhone X+, Android gestes, PWA) */
+header { padding-left: max(0px, env(safe-area-inset-left));
+         padding-right: max(0px, env(safe-area-inset-right)); }
+.float-bar { bottom: calc(28px + env(safe-area-inset-bottom)); }
+@media (max-width:560px){ .float-bar { bottom: calc(14px + env(safe-area-inset-bottom)); } }
+.price-fail-banner { bottom: calc(24px + env(safe-area-inset-bottom)); }
+.cart-panel { padding-bottom: env(safe-area-inset-bottom); }
+
+/* 5. prefers-reduced-motion : kill-switch global (mal des transports) */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* 6. Firefox : scrollbar fine cohérente (les ::-webkit-scrollbar l'ignorent) */
+* { scrollbar-width: thin; }
+
 /* End SAFIX PREMIUM v8 ─────────────────────────────────────────────── */
 </style>
 </head>
