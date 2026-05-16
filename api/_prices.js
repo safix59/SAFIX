@@ -74,8 +74,14 @@ export async function loadPrices() {
         const ageH = Math.round((Date.now() - gen) / 3600000);
         if (ageH > 72) console.warn(`[prices] STALE ${ageH}h (generatedAt=${j.generatedAt}) — cron scraper à vérifier`);
       }
+    } else {
+      console.warn(`[prices] fetch non-ok ${r.status} — scraper/CDN à vérifier (vente non bloquée)`);
     }
-  } catch (e) { /* indispo → null : on ne bloque pas la vente */ }
+  } catch (e) {
+    // Scraper/CDN injoignable : on ne bloque pas la vente, mais on TRACE
+    // (sinon une panne scraper reste totalement invisible).
+    console.warn(`[prices] fetch FAILED (${e && e.message}) — prix injoignables (vente non bloquée)`);
+  }
   return _cache;
 }
 
@@ -137,7 +143,7 @@ export function enforcePrices(PRICES, lineItems) {
 
     const client = Number(it.price);
     if (r.kind === 'service') {
-      it.price = Math.max(Number.isFinite(client) ? client : 0, r.euros);
+      it.price = r.euros;            // service = prix fixe : ni sous-payé ni gonflé par le client
       continue;
     }
     // Pièce : tolérance 30% sous le prix officiel (lag scraper), sinon refus.

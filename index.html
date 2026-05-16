@@ -2276,7 +2276,7 @@ header {
 .cart-input-wrap input {
   width:100%; padding:10px 14px 10px 34px;
   background:transparent; border:none; outline:none;
-  color:var(--text); font-size:13.5px; font-weight:500;
+  color:var(--text); font-size:16px; font-weight:500;
   font-family:inherit;
 }
 .cart-input-wrap input::placeholder { color:var(--text3); }
@@ -4499,7 +4499,7 @@ body.premium-mode .series-block > .iphone-grid {
   font-weight:900;
   letter-spacing:.04em;
   display:flex; gap:.04em;
-  background:linear-gradient(135deg, #fff 30%, rgba(var(--accent-rgb), .9) 100%);
+  background:linear-gradient(135deg, var(--text) 30%, rgba(var(--accent-rgb), .9) 100%);
   -webkit-background-clip:text; background-clip:text;
   -webkit-text-fill-color:transparent;
   margin-bottom:24px;
@@ -5157,6 +5157,7 @@ body.premium-mode .series-label::before {
   .hero-eyebrow, .hero-title em, .story-title em, .card-cta,
   .nav-btn--arrow, .repair-card.selected .repair-name,
   .repair-card.selected .repair-price span,
+  .safix-loader-logo,
   body.premium-mode .repair-card .repair-price span {
     -webkit-text-fill-color: var(--accent) !important;
     color: var(--accent) !important;
@@ -5356,7 +5357,7 @@ header { padding-left: max(20px, env(safe-area-inset-left));
 
   <div class="search-wrap">
     <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-    <input class="search-input" id="searchInput" type="search" placeholder="iPhone 17 Pro" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+    <input class="search-input" id="searchInput" type="search" aria-label="Rechercher un modèle d'iPhone" placeholder="iPhone 17 Pro" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
     <span class="search-caret" aria-hidden="true"></span>
     <div class="search-dropdown" id="searchDropdown"></div>
   </div>
@@ -5413,7 +5414,7 @@ header { padding-left: max(20px, env(safe-area-inset-left));
     </div>
     <div class="cart-hd-right">
       <button class="pdf-btn" id="pdfBtn">↓ PDF</button>
-      <button class="cart-close" id="cartClose">✕</button>
+      <button class="cart-close" id="cartClose" aria-label="Fermer">✕</button>
     </div>
   </div>
   <!-- Body scrollable : items + delivery + contact + paiement -->
@@ -7548,15 +7549,19 @@ function toggleRepair(card, name, price, modelKey, meta) {
   syncCart();
 }
 
-function changeQty(name, modelKey, delta) {
-  const idx = cart.findIndex(c => c.name === name && c.modelKey === modelKey);
+function changeQty(name, modelKey, delta, repairId) {
+  // repairId d'abord (robuste EN/couleur/doublon de nom), repli sur le nom.
+  let idx = repairId ? cart.findIndex(c => c.repairId === repairId && c.modelKey === modelKey) : -1;
+  if (idx === -1) idx = cart.findIndex(c => c.name === name && c.modelKey === modelKey);
   if (idx === -1) return;
   const newQty = (cart[idx].qty || 1) + delta;
   if (newQty <= 0) {
     // qty 0 → on retire l'item du panier ET on déselectionne la carte si visible
     const item = cart[idx];
     cart.splice(idx, 1);
-    const card = document.querySelector(`.repair-card[data-repair-id="${item.repairId}"]`);
+    const card = item.repairId
+      ? document.querySelector(`.repair-card[data-repair-id="${item.repairId}"]`)
+      : document.querySelector(`.repair-card[data-name="${String(item.name || '').replace(/"/g, '')}"]`);
     if (card) card.classList.remove('selected');
     showToast('🗑️', currentLang === 'en' ? 'Item removed' : 'Article retiré');
   } else if (newQty > MAX_QTY_PER_ITEM) {
@@ -7648,14 +7653,18 @@ function openColorPicker(model, repair, card, opts) {
   openModal('colorPickerOverlay');
 }
 
-function removeItem(name, modelKey) {
-  const idx = cart.findIndex(c => c.name === name && c.modelKey === modelKey);
+function removeItem(name, modelKey, repairId) {
+  // repairId d'abord (robuste EN/couleur/doublon de nom), repli sur le nom.
+  let idx = repairId ? cart.findIndex(c => c.repairId === repairId && c.modelKey === modelKey) : -1;
+  if (idx === -1) idx = cart.findIndex(c => c.name === name && c.modelKey === modelKey);
   const removed = idx > -1 ? cart[idx] : null;
   if (idx > -1) cart.splice(idx, 1);
-  // Désélection par repairId : data-name est la clé brute FR, alors que le
-  // nom stocké est traduit/coloré → un match par nom ratait en EN/couleur.
+  // Désélection : par repairId si présent, sinon repli data-name (panier
+  // legacy sans repairId — évite un sélecteur [data-repair-id="undefined"]).
   if (removed) {
-    const card = document.querySelector(`.repair-card[data-repair-id="${removed.repairId}"]`);
+    const card = removed.repairId
+      ? document.querySelector(`.repair-card[data-repair-id="${removed.repairId}"]`)
+      : document.querySelector(`.repair-card[data-name="${String(removed.name || '').replace(/"/g, '')}"]`);
     if (card) card.classList.remove('selected');
   }
   syncCart();
@@ -7777,9 +7786,9 @@ function syncCart() {
         </div>
         <span class="cart-row-price">${lineTotal} €</span>
         <button class="cart-row-rm" aria-label="${t('cart.remove')}">✕</button>`;
-      row.querySelector('[data-act="dec"]').addEventListener('click', () => changeQty(item.name, item.modelKey, -1));
-      row.querySelector('[data-act="inc"]').addEventListener('click', () => changeQty(item.name, item.modelKey, +1));
-      row.querySelector('.cart-row-rm').addEventListener('click', () => removeItem(item.name, item.modelKey));
+      row.querySelector('[data-act="dec"]').addEventListener('click', () => changeQty(item.name, item.modelKey, -1, item.repairId));
+      row.querySelector('[data-act="inc"]').addEventListener('click', () => changeQty(item.name, item.modelKey, +1, item.repairId));
+      row.querySelector('.cart-row-rm').addEventListener('click', () => removeItem(item.name, item.modelKey, item.repairId));
       rowsHost.appendChild(row);
     });
     refreshCheckoutState();
@@ -10606,9 +10615,17 @@ document.querySelectorAll('[data-close]').forEach(b => {
 
 /* ═══ ESC ferme toutes les modales ═══ */
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') {
-    ['qrShareOverlay', 'snapOverlay'].forEach(id => closeModal(id));
+  if (e.key !== 'Escape') return;
+  // Ferme la modale ouverte (cart prioritaire, puis n'importe quel overlay).
+  const cartO = document.getElementById('cartOverlay');
+  if (cartO && cartO.classList.contains('open') && typeof closeCart === 'function') { closeCart(); return; }
+  const openOv = document.querySelector('.gm-overlay.open, #compareOverlay.open');
+  if (openOv) {
+    if (openOv.id && typeof closeModal === 'function') closeModal(openOv.id);
+    else openOv.classList.remove('open');
+    return;
   }
+  ['qrShareOverlay', 'snapOverlay'].forEach(id => closeModal(id));
 });
 
 /* ═══ Retour Stripe : ?paid=1 (succès) / ?cancel=1 (annulé) ═══
