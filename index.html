@@ -7286,9 +7286,11 @@ searchInput.addEventListener('keydown', (e) => {
     document.body.appendChild(probe);
     const w = probe.getBoundingClientRect().width;
     document.body.removeChild(probe);
-    // Position caret = paddingLeft input + texte width
-    // input padding-left = 46px (de la CSS) + offset wrap padding 24px (.search-wrap padding)
-    const wrapPad = 24; // padding-left de .search-wrap
+    // Position caret = padding réel de .search-wrap (24px desktop / 16px
+    // mobile via @media) + padding input. Avant : 24 codé en dur → curseur
+    // 8px trop à droite du texte sur tout téléphone (bug visible owner).
+    const wrap = input.closest('.search-wrap');
+    const wrapPad = wrap ? (parseFloat(getComputedStyle(wrap).paddingLeft) || 24) : 24;
     const inputPad = 46; // padding-left de .search-input
     caret.style.setProperty('--caret-x', `${wrapPad + inputPad + w}px`);
   }
