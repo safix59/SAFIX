@@ -7380,7 +7380,7 @@ function renderDetail(model) {
       const noLink = price === '?' && cat.category !== 'Services';
       const unavail = price === '?' && !noLink;
       const blocked = oos || unavail || noLink;
-      const inCart  = cart.some(c => c.name === repair.name && c.modelKey === model);
+      const inCart  = cart.some(c => c.repairId === repair.id && c.modelKey === model);
       if (!blocked && cat.category === 'Réparations') available++;
 
       // Réparation Express n'est activable que si une vraie réparation iPhone est au panier
@@ -7507,11 +7507,11 @@ function toggleRepair(card, name, price, modelKey, meta) {
     cart.push(item);
     showToast('✓', currentLang === 'en' ? `${name} added` : `${name} ajouté`);
   } else {
-    // Match d'abord par nom + modèle ; si pas trouvé essai avec repairId
-    let idx = cart.findIndex(c => c.name === name && c.modelKey === modelKey);
-    if (idx === -1 && meta && meta.repairId) {
-      idx = cart.findIndex(c => c.repairId === meta.repairId && c.modelKey === modelKey);
-    }
+    // Match d'abord par repairId + modèle (robuste EN/couleur), repli sur le nom.
+    let idx = (meta && meta.repairId)
+      ? cart.findIndex(c => c.repairId === meta.repairId && c.modelKey === modelKey)
+      : -1;
+    if (idx === -1) idx = cart.findIndex(c => c.name === name && c.modelKey === modelKey);
     if (idx > -1) cart.splice(idx, 1);
   }
   syncCart();
@@ -7619,8 +7619,14 @@ function openColorPicker(model, repair, card, opts) {
 
 function removeItem(name, modelKey) {
   const idx = cart.findIndex(c => c.name === name && c.modelKey === modelKey);
+  const removed = idx > -1 ? cart[idx] : null;
   if (idx > -1) cart.splice(idx, 1);
-  document.querySelectorAll('.repair-card').forEach(c => { if (c.dataset.name === name) c.classList.remove('selected'); });
+  // Désélection par repairId : data-name est la clé brute FR, alors que le
+  // nom stocké est traduit/coloré → un match par nom ratait en EN/couleur.
+  if (removed) {
+    const card = document.querySelector(`.repair-card[data-repair-id="${removed.repairId}"]`);
+    if (card) card.classList.remove('selected');
+  }
   syncCart();
 }
 
