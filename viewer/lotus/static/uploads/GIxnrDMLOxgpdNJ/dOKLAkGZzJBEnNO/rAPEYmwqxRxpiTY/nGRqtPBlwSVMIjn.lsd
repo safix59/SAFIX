@@ -1,0 +1,264 @@
+[
+  {
+    "@states": [
+      "Blue"
+    ],
+    "bCVQLiJgWvOyIsX": {
+      "positionY": -0.03
+    },
+    "fNUVTVJSuKCPyCk": {
+      "positionY": 0.0
+    },
+    "nSmEHnzXDmvmgTy": {
+      "map": "PyfwnBiwNieZKAw",
+      "colorB": 1.0,
+      "colorG": 0.98,
+      "colorR": 1.0,
+      "metalness": 0.98,
+      "roughness": 0.5
+    },
+    "vXbOrtDfSZOxrnw": {
+      "roughness": 0.8,
+      "colorB": 1.0,
+      "colorG": 1.0,
+      "colorR": 1.0,
+      "normalScaleX": 1.0,
+      "normalScaleY": 1.0,
+      "map": "hqiPwiXEFOCPuoo"
+    },
+    "nMamqgjONGIzYTV": {
+      "colorB": 1.0,
+      "colorG": 1.0,
+      "colorR": 1.0,
+      "normalScaleX": 1.0,
+      "normalScaleY": 1.0,
+      "roughness": 0.7,
+      "metalness": 0.8,
+      "map": "hqiPwiXEFOCPuoo"
+    }
+  },
+  {
+    "@states": [
+      "Blue+back"
+    ],
+    "vXbOrtDfSZOxrnw": {
+      "roughness": 0.95
+    }
+  },
+  {
+    "@states": [
+      "Blue+frontBottom",
+      "Blue+backBottom"
+    ],
+    "nSmEHnzXDmvmgTy": {
+      "map": "aZhKqWVrUeIgpqK"
+    }
+  },
+  {
+    "@states": [
+      "Blue+PT_backBottom"
+    ],
+    "bCVQLiJgWvOyIsX": {
+      "positionY": -0.03
+    },
+    "fNUVTVJSuKCPyCk": {
+      "positionY": -0.04
+    }
+  },
+  {
+    "@states": [
+      "Orange"
+    ],
+    "bCVQLiJgWvOyIsX": {
+      "positionY": -0.03
+    },
+    "fNUVTVJSuKCPyCk": {
+      "positionY": 0.0
+    },
+    "nSmEHnzXDmvmgTy": {
+      "map": "DLeQksNtzCFWMKB",
+      "colorB": 1.0,
+      "colorG": 1.0,
+      "colorR": 1.0,
+      "normalScaleX": 1.0,
+      "normalScaleY": 1.0,
+      "specularColorB": 1.0,
+      "specularColorG": 1.0,
+      "specularColorR": 1.0,
+      "metalness": 0.2,
+      "roughness": 0.5
+    },
+    "vXbOrtDfSZOxrnw": {
+      "colorB": 1.0,
+      "colorG": 1.0,
+      "colorR": 1.0,
+      "roughness": 0.95,
+      "normalScaleX": 1.0,
+      "normalScaleY": 1.0,
+      "metalness": 1.0,
+      "map": "HnYCucRVXCDoFIX"
+    },
+    "nMamqgjONGIzYTV": {
+      "colorB": 1.0,
+      "colorG": 1.0,
+      "colorR": 1.0,
+      "specularColorR": 1.0,
+      "specularColorG": 1.0,
+      "specularColorB": 1.0,
+      "normalScaleX": 1.0,
+      "normalScaleY": 1.0,
+      "roughness": 0.7,
+      "metalness": 0.8,
+      "map": "HnYCucRVXCDoFIX"
+    }
+  },
+  {
+    "@states": [
+      "Orange+back"
+    ],
+    "nSmEHnzXDmvmgTy": {
+      "colorB": 0.9,
+      "colorG": 1.0,
+      "colorR": 0.94
+    }
+  },
+  {
+    "@states": [
+      "Orange+backLeft",
+      "Orange+backRight",
+      "Orange+PT_backLeft"
+    ],
+    "nSmEHnzXDmvmgTy": {
+      "colorB": 1.0,
+      "colorG": 0.94,
+      "colorR": 1.0
+    }
+  },
+  {
+    "@states": [
+      "Orange+left",
+      "Orange+right"
+    ],
+    "nMamqgjONGIzYTV": {
+      "colorB": 0.9,
+      "colorG": 0.75,
+      "colorR": 1.0
+    }
+  },
+  {
+    "@states": [
+      "Orange+frontBottom",
+      "Orange+backBottom"
+    ],
+    "nMamqgjONGIzYTV": {
+      "colorB": 0.9,
+      "colorG": 0.75,
+      "colorR": 1.0
+    },
+    "nSmEHnzXDmvmgTy": {
+      "map": "jrGXtXxAbIfHeSi",
+      "colorB": 0.9,
+      "colorG": 0.98,
+      "colorR": 1.0
+    }
+  },
+  {
+    "@states": [
+      "Orange+PT_backBottom"
+    ],
+    "bCVQLiJgWvOyIsX": {
+      "positionY": -0.03
+    },
+    "fNUVTVJSuKCPyCk": {
+      "positionY": -0.04
+    },
+    "vXbOrtDfSZOxrnw": {
+      "colorB": 0.999,
+      "colorG": 0.93,
+      "colorR": 0.999
+    },
+    "nMamqgjONGIzYTV": {
+      "colorB": 0.999,
+      "colorG": 0.93,
+      "colorR": 0.999
+    },
+    "nSmEHnzXDmvmgTy": {
+      "map": "DLeQksNtzCFWMKB",
+      "colorB": 1.0,
+      "colorG": 0.94,
+      "colorR": 1.0
+    }
+  },
+  {
+    "@states": [
+      "Silver"
+    ],
+    "bCVQLiJgWvOyIsX": {
+      "positionY": -0.03
+    },
+    "fNUVTVJSuKCPyCk": {
+      "positionY": 0.0
+    },
+    "nSmEHnzXDmvmgTy": {
+      "map": "dCkduaxVTXJjoGW",
+      "colorB": 0.97,
+      "colorG": 1.0,
+      "colorR": 1.0,
+      "specularColorB": 1.0,
+      "specularColorG": 1.0,
+      "specularColorR": 1.0,
+      "metalness": 0.2,
+      "roughness": 0.5
+    },
+    "vXbOrtDfSZOxrnw": {
+      "map": "kkoUMPXJEryDrzY",
+      "colorB": 1.0,
+      "colorG": 1.0,
+      "colorR": 1.0,
+      "roughness": 0.95,
+      "normalScaleX": 1.0,
+      "normalScaleY": 1.0
+    },
+    "nMamqgjONGIzYTV": {
+      "colorB": 1.0,
+      "colorG": 1.0,
+      "colorR": 1.0,
+      "normalScaleX": 1.0,
+      "normalScaleY": 1.0,
+      "roughness": 0.7,
+      "metalness": 0.8,
+      "map": "kkoUMPXJEryDrzY"
+    }
+  },
+  {
+    "@states": [
+      "Silver+back"
+    ],
+    "vXbOrtDfSZOxrnw": {
+      "roughness": 0.95,
+      "colorB": 1.0,
+      "colorG": 1.0,
+      "colorR": 1.0
+    }
+  },
+  {
+    "@states": [
+      "Silver+frontBottom",
+      "Silver+backBottom"
+    ],
+    "nSmEHnzXDmvmgTy": {
+      "map": "zLmhJwCopZTCckh"
+    }
+  },
+  {
+    "@states": [
+      "Silver+PT_backBottom"
+    ],
+    "bCVQLiJgWvOyIsX": {
+      "positionY": -0.03
+    },
+    "fNUVTVJSuKCPyCk": {
+      "positionY": -0.04
+    }
+  }
+]

@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>SAFIX — iPhone 17 Pro</title>
+  <style>
+    :root { color-scheme: light; }
+    html, body {
+      margin: 0; padding: 0; height: 100%; width: 100%;
+      background: transparent !important; overflow: hidden; color: #fff;
+      font-family: -apple-system, "SF Pro Display", "Inter", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    html { background-color: transparent !important; }
+    body { background-color: transparent !important; }
+    /* Outer wrapper that holds the viewer canvas */
+    #viewer-3d {
+      position: fixed; inset: 0;
+      width: 100vw; height: 100vh;
+      touch-action: none; /* essential for Lotus pointer events on touch */
+    }
+    /* This is the div Lotus inserts its canvas into */
+    .product-viewer-enhanced-container {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+    }
+    .product-viewer-enhanced-container canvas {
+      width: 100% !important; height: 100% !important; display: block;
+    }
+    /* Loader */
+    .loader {
+      position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%);
+      width: 220px; height: 2px; background: rgba(255,255,255,.12); overflow: hidden;
+      border-radius: 2px; opacity: 1; transition: opacity .4s ease;
+      pointer-events: none;
+    }
+    .loader.hidden { opacity: 0; }
+    .loader::after {
+      content: ""; display: block; height: 100%; width: 100%;
+      background: linear-gradient(90deg, transparent, #fff, transparent);
+      transform: translateX(-100%); animation: shimmer 1.6s infinite ease-in-out;
+    }
+    @keyframes shimmer { 100% { transform: translateX(100%); } }
+    .loader-status {
+      position: absolute; left: 0; right: 0; top: 14px;
+      text-align: center; font-size: 12px; font-weight: 500;
+      color: rgba(255,255,255,.65); letter-spacing: .03em;
+    }
+    /* Color picker — Apple-style : pill frosted glass + ring outside on active */
+    .color-swatches {
+      position: fixed;
+      top: 14px; right: 14px;
+      display: flex; align-items: center; gap: 14px;
+      padding: 10px 16px;
+      margin: 0;
+      list-style: none;
+      /* Mode clair */
+      background: rgba(0, 0, 0, 0.09);
+      -webkit-backdrop-filter: saturate(200%) blur(30px);
+              backdrop-filter: saturate(200%) blur(30px);
+      border: 0.5px solid rgba(255, 255, 255, 0.10);
+      border-radius: 999px;
+      z-index: 50;
+    }
+    /* Mode sombre */
+    [data-theme="dark"] .color-swatches {
+      background: rgba(58, 58, 64, 0.28);
+      border-color: rgba(255, 255, 255, 0.12);
+    }
+    .swatch {
+      position: relative;
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: var(--c);
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      transition: transform .18s ease;
+      box-shadow: inset 0 0 0 .5px rgba(255,255,255,.10), 0 1px 2px rgba(0,0,0,.20);
+    }
+    /* Ring autour de la pastille active (gap réduit entre dot et ring) */
+    .swatch::before {
+      content: '';
+      position: absolute;
+      inset: -3px;
+      border-radius: 50%;
+      border: 1.5px solid transparent;
+      transition: border-color .18s ease;
+      pointer-events: none;
+    }
+    .swatch:hover { transform: scale(1.08); }
+    .swatch.active::before {
+      border-color: rgba(255, 255, 255, 0.95);
+    }
+    .swatch.active:hover { transform: none; }
+    /* Hint discret */
+    .hint { display: none; }   /* texte retiré — le hint sera dans la page parente */
+  </style>
+</head>
+<body>
+  <!-- Force WebGL contexts to alpha:true AND override clearColor alpha=0 -->
+  <script>
+    (function(){
+      const origGetContext = HTMLCanvasElement.prototype.getContext;
+      HTMLCanvasElement.prototype.getContext = function(type, attrs) {
+        if (type === 'webgl' || type === 'webgl2' || type === 'experimental-webgl') {
+          attrs = Object.assign({}, attrs || {}, {
+            alpha: true,
+            premultipliedAlpha: true,
+            antialias: true
+          });
+        }
+        const ctx = origGetContext.call(this, type, attrs);
+        if (ctx && (type === 'webgl' || type === 'webgl2' || type === 'experimental-webgl')) {
+          // Force any clearColor call to use alpha = 0 (fully transparent)
+          const origClearColor = ctx.clearColor.bind(ctx);
+          ctx.clearColor = function(r, g, b, a) {
+            return origClearColor(r, g, b, 0);
+          };
+        }
+        return ctx;
+      };
+    })();
+  </script>
+  <!-- Header retiré pour intégration dans le site SAFIX (le titre est déjà dans le hero) -->
+
+  <!-- The 3D viewer root. Apple uses .product-viewer-enhanced -->
+  <div id="viewer-3d"
+       class="product-viewer-enhanced"
+       data-rt-library-path="lotus/libs/lotus.min.js"
+       data-rt-scenes-path="lotus/static"
+       data-rt-scenes='{"large":"iPhone17Pro_ROW_L","medium":"iPhone17Pro_ROW_M","small":"iPhone17Pro_ROW_S"}'
+       data-rt-initial-states='{"global":"Orange","angles":"back","mode":"pt"}'>
+    <div class="product-viewer-enhanced-container"></div>
+  </div>
+
+  <div class="loader" id="loader">
+    <div class="loader-status" id="loaderStatus">Chargement du modèle…</div>
+  </div>
+  <div class="hint" id="hint">Glisser pour faire tourner • Pincer pour zoomer</div>
+
+  <nav class="color-swatches" aria-label="Choix de la couleur">
+    <button class="swatch active" data-color="Orange" style="--c:#C36841" aria-label="Cosmic Orange" title="Cosmic Orange"></button>
+    <button class="swatch"        data-color="Blue"   style="--c:#2A3550" aria-label="Deep Blue" title="Deep Blue"></button>
+    <button class="swatch"        data-color="Silver" style="--c:#DDDDDA" aria-label="Silver" title="Silver"></button>
+  </nav>
+
+  <script src="lotus/libs/lotus.min.js"></script>
+  <script>
+  (async function bootApple() {
+    'use strict';
+    const log = (...a) => console.log('[SAFIX-Viewer]', ...a);
+    const err = (...a) => console.error('[SAFIX-Viewer]', ...a);
+
+    const root = document.getElementById('viewer-3d');
+    const canvasContainer = root.querySelector('.product-viewer-enhanced-container');
+    const loader = document.getElementById('loader');
+    const loaderStatus = document.getElementById('loaderStatus');
+    const hint = document.getElementById('hint');
+    const colorLabel = document.getElementById('colorLabel');
+    const swatches = Array.from(document.querySelectorAll('.swatch'));
+
+    const COLOR_LABELS = { Blue: 'Deep Blue', Orange: 'Cosmic Orange', Silver: 'Silver' };
+    const DATA = root.dataset;
+
+    // === Lotus availability sanity check ===
+    if (typeof window.Lotus === 'undefined') {
+      err('window.Lotus undefined. lotus.min.js failed to load.');
+      loaderStatus.textContent = 'Erreur : moteur 3D introuvable';
+      return;
+    }
+    log('Lotus loaded. Keys:', Object.keys(window.Lotus));
+
+    // === Feature detect + UA stubs (Apple passes these in) ===
+    const FeatureDetect = {
+      // Mirror Apple's minimal interface (l in their code)
+      isMobile: () => /iPhone|iPad|iPod|Android/i.test(navigator.userAgent),
+      touchAvailable: () => 'ontouchstart' in window || (navigator.maxTouchPoints > 0),
+      isIOS: () => /iPhone|iPad|iPod/i.test(navigator.userAgent),
+      isMac: () => /Macintosh/i.test(navigator.userAgent),
+      isSafari: () => /^((?!chrome|android).)*safari/i.test(navigator.userAgent),
+      isChrome: () => /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor),
+      isFirefox: () => /Firefox/.test(navigator.userAgent),
+      isEdge: () => /Edg/.test(navigator.userAgent),
+      isWebKit: () => /WebKit/.test(navigator.userAgent),
+      pixelRatio: () => window.devicePixelRatio || 1,
+      // Lotus needs WebGL2 detection
+      supportsWebGL2: () => {
+        try {
+          const c = document.createElement('canvas');
+          return !!c.getContext('webgl2');
+        } catch (e) { return false; }
+      },
+    };
+    const UserAgent = {
+      browser: { name: navigator.userAgent, version: '' },
+      os: { name: navigator.platform, version: '' },
+    };
+
+    // === Path resolution ===
+    const SCENES = JSON.parse(DATA.rtScenes);
+    const STATES = {};
+    const DEFAULT_PATH = DATA.rtScenesPath; // "lotus/static"
+
+    // Pick scene based on screen and KTX support
+    function pickSceneName() {
+      const w = window.outerWidth || window.innerWidth;
+      let base = SCENES.large;
+      if (FeatureDetect.touchAvailable()) {
+        base = w <= 884 ? SCENES.small : SCENES.medium;
+      }
+      // Texture format
+      let hasASTC = false;
+      try {
+        const c = document.createElement('canvas');
+        const gl = c.getContext('webgl2');
+        if (gl) hasASTC = !!gl.getExtension('WEBGL_compressed_texture_astc');
+      } catch (e) {}
+      const ext = hasASTC ? '_ktx' : '_avif';
+      const override = new URLSearchParams(location.search).get('scene');
+      const finalName = override || (base + ext);
+      log('Scene picked:', finalName, '(touch:', FeatureDetect.touchAvailable(), 'astc:', hasASTC, ')');
+      return finalName;
+    }
+
+    const sceneName = pickSceneName();
+    const sceneURL = `${DEFAULT_PATH}/scenes/${sceneName}.lsd`;
+    log('Scene URL:', sceneURL);
+
+    // === Initialize Lotus ===
+    try {
+      const L = window.Lotus.instance();
+      L.settings.initialize({ FeatureDetect, UserAgent });
+      L.settings.gltfTextureTasks = true;
+      L.initialize({ paths: { assets: DEFAULT_PATH } });
+      log('Lotus initialize ok. Ready =', L.ready);
+
+      // Non-fatal Lotus events. Lotus dispatches "error" with internal metadata even
+      // when nothing user-visible is broken (Apple uses this to trigger their HD-image
+      // fallback for unsupported clients). We log details for debugging but don't act.
+      L.addEventListener('error', (e) => {
+        const detail = {
+          message: e?.message,
+          type: e?.type,
+          causeForBase: e?.causeForBase,
+          failedToLoad: e?.failedToLoad,
+        };
+        log('Lotus internal event (non-fatal):', detail);
+      });
+      L.addEventListener('unsupported', (e) => {
+        err('Lotus unsupported:', e?.message || e);
+        loaderStatus.textContent = 'Navigateur non supporté (WebGL2 requis)';
+      });
+
+      // === Create the scene ===
+      // Pass the canvas-host element. Lotus creates the WebGL canvas inside it.
+      const scene = await L.createScene({
+        element: canvasContainer,
+        url: sceneURL,
+      });
+      window.__scene = scene; // for debugging
+      window.__lotus = L;
+
+      log('Scene created:', scene);
+      log('Scene keys:', scene ? Object.keys(scene) : 'NO SCENE');
+
+      if (!scene) {
+        loaderStatus.textContent = 'Erreur : impossible de créer la scène';
+        return;
+      }
+
+      // Apply initial states from data-rt-initial-states (mirrors Apple's PT_backLeft 3/4-back start)
+      const INITIAL_STATES = JSON.parse(DATA.rtInitialStates || '{}');
+      function applyInitialStates() {
+        try {
+          if (!scene || !scene.states) return false;
+          for (const [k, v] of Object.entries(INITIAL_STATES)) {
+            scene.states.set(k, v);
+          }
+          return true;
+        } catch (e) { err('applyInitialStates failed:', e); return false; }
+      }
+
+      // Loader progress (MobX reaction would be best but we poll)
+      let lastP = 0;
+      let initialStatesApplied = false;
+      const progressTimer = setInterval(() => {
+        try {
+          const p = scene.loader ? scene.loader.progress : 0;
+          if (p !== lastP) {
+            lastP = p;
+            loaderStatus.textContent = `Chargement… ${Math.round(p)}%`;
+          }
+          if (scene.rendered || p >= 100) {
+            clearInterval(progressTimer);
+            loader.classList.add('hidden');
+            setTimeout(() => { hint.classList.add('hidden'); }, 5000);
+            log('Scene rendered. Applying initial states:', INITIAL_STATES);
+            if (!initialStatesApplied) {
+              applyInitialStates();
+              initialStatesApplied = true;
+            }
+            L.tryRequestAnimationFrame && L.tryRequestAnimationFrame();
+          }
+        } catch (e) {}
+      }, 100);
+
+      // Trigger initial animation frame
+      L.tryRequestAnimationFrame && L.tryRequestAnimationFrame();
+
+      // === Color switching ===
+      function applyColor(colorValue) {
+        try {
+          if (!scene || !scene.states) {
+            log('Scene.states not yet ready, retrying…');
+            setTimeout(() => applyColor(colorValue), 200);
+            return;
+          }
+          scene.states.set('global', colorValue);
+          L.tryRequestAnimationFrame && L.tryRequestAnimationFrame();
+          log('Color applied:', colorValue);
+        } catch (e) {
+          err('applyColor failed:', e);
+        }
+      }
+      window.__applyColor = applyColor;
+
+      // === First user interaction switches from preset-tour to interactive camera ===
+      let hasInteracted = false;
+      function switchToInteractive() {
+        if (hasInteracted) return;
+        hasInteracted = true;
+        // Stop any running preview animation
+        if (previewTimer) clearTimeout(previewTimer);
+        try {
+          scene.states.set('mode', 'ic');
+          L.tryRequestAnimationFrame && L.tryRequestAnimationFrame();
+          log('Switched to interactive camera mode (user took control)');
+          if (hint) hint.classList.add('hidden');
+        } catch (e) { err('mode switch failed:', e); }
+      }
+      ['pointerdown', 'touchstart', 'wheel'].forEach(ev => {
+        root.addEventListener(ev, switchToInteractive, { passive: true, once: false });
+      });
+
+      // === Auto-preview animation : pivot droit → gauche → retour dos ===
+      // S'exécute après que la scène soit rendue. Stoppé dès interaction user.
+      let previewTimer = null;
+      function setAngle(name) {
+        try {
+          if (scene && scene.states) scene.states.set('angles', name);
+          L.tryRequestAnimationFrame && L.tryRequestAnimationFrame();
+        } catch (e) {}
+      }
+      function runPreviewAnimation() {
+        if (hasInteracted) return;
+        log('Preview animation start');
+        // Sequence : (déjà au dos par défaut) → backRight (3/4 droit) → backLeft (3/4 gauche) → back
+        previewTimer = setTimeout(() => {
+          if (hasInteracted) return;
+          setAngle('backRight');
+          previewTimer = setTimeout(() => {
+            if (hasInteracted) return;
+            setAngle('backLeft');
+            previewTimer = setTimeout(() => {
+              if (hasInteracted) return;
+              setAngle('back');
+            }, 1800);
+          }, 1800);
+        }, 1400);
+      }
+      // Lance la preview une fois la scène stable (après 1.2s)
+      setTimeout(runPreviewAnimation, 1200);
+
+      // Hook swatches
+      swatches.forEach(btn => {
+        btn.addEventListener('click', () => {
+          swatches.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          const color = btn.dataset.color;
+          if (colorLabel) colorLabel.textContent = COLOR_LABELS[color] || color;
+          applyColor(color);
+        });
+      });
+
+      log('Boot complete.');
+    } catch (e) {
+      err('Boot failed:', e);
+      loaderStatus.textContent = 'Erreur : ' + (e.message || e);
+    }
+  })();
+  </script>
+</body>
+</html>

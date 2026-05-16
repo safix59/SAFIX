@@ -1,0 +1,32 @@
+[
+  {
+    "@states": [
+      "back",
+      "backLeft",
+      "left",
+      "frontLeft",
+      "front",
+      "frontRight",
+      "frontTop",
+      "backTop",
+      "backBottom",
+      "right",
+      "backRight",
+      "frontBottom"
+    ],
+    "mVkyjxXKQfxGUkm:CameraMixer": {
+      "mix": 0.0
+    }
+  },
+  {
+    "@states": [
+      "PT_backBottom",
+      "PT_frontBottom",
+      "PT_backLeft",
+      "PT_backLeftWide"
+    ],
+    "mVkyjxXKQfxGUkm:CameraMixer": {
+      "mix": 1.0
+    }
+  }
+]

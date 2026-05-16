@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>iPhone 17 Pro Deep Blue — Avant / Après</title>
+<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:100%; height:100%; background:#0a0a0a; color:#fff; font-family:-apple-system,"Inter",system-ui,sans-serif; overflow:hidden; }
+  .grid {
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:1px;
+    width:100vw; height:100vh;
+    background:rgba(255,255,255,.08);
+  }
+  .panel {
+    position:relative;
+    background:#0a0a0a;
+    display:flex;
+    flex-direction:column;
+  }
+  .panel-header {
+    padding:14px 20px;
+    border-bottom:1px solid rgba(255,255,255,.08);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    z-index:5;
+  }
+  .panel-title {
+    font-weight:700; font-size:14px;
+    letter-spacing:.06em;
+  }
+  .panel-tag {
+    font-size:10px; padding:3px 8px; border-radius:6px;
+    letter-spacing:.1em; text-transform:uppercase;
+  }
+  .tag-before { background:rgba(255,80,80,.18); color:#ff8888; border:1px solid rgba(255,80,80,.4); }
+  .tag-after  { background:rgba(80,200,120,.18); color:#88e8a0; border:1px solid rgba(80,200,120,.4); }
+  model-viewer { flex:1; width:100%; background:transparent; --progress-bar-color:#007aff; --progress-bar-height:2px; }
+  .info {
+    position:absolute; bottom:14px; left:14px; right:14px;
+    padding:10px 14px;
+    background:rgba(0,0,0,.55);
+    backdrop-filter:blur(14px);
+    border:1px solid rgba(255,255,255,.08);
+    border-radius:10px;
+    font-size:11px; line-height:1.5;
+    color:rgba(255,255,255,.78);
+    z-index:5;
+  }
+  .info b { color:#fff; }
+  .info .diff { color:#ff9988; }
+  .info .clean { color:#88e8a0; }
+  .controls {
+    position:fixed; top:14px; left:50%; transform:translateX(-50%);
+    display:flex; gap:6px;
+    padding:6px;
+    background:rgba(20,20,22,.7);
+    backdrop-filter:blur(18px);
+    border:1px solid rgba(255,255,255,.1);
+    border-radius:14px;
+    z-index:50;
+  }
+  .ctrl-btn {
+    padding:8px 14px; background:transparent; border:none; border-radius:9px;
+    font-family:inherit; font-size:12px; font-weight:600;
+    color:rgba(255,255,255,.7); cursor:pointer;
+    transition:background .2s, color .2s;
+  }
+  .ctrl-btn:hover { background:rgba(255,255,255,.08); color:#fff; }
+  .ctrl-btn.active { background:rgba(0,122,255,.25); color:#fff; }
+</style>
+</head>
+<body>
+
+<div class="controls">
+  <button class="ctrl-btn active" data-orbit="180deg 130deg 40m">Vue mmWave (top edge)</button>
+  <button class="ctrl-btn" data-orbit="-25deg 170deg 50m">Dos plein</button>
+  <button class="ctrl-btn" data-orbit="-25deg 10deg 50m">Face écran</button>
+  <button class="ctrl-btn" data-orbit="90deg 90deg 50m">Côté droit</button>
+</div>
+
+<div class="grid">
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">AVANT — version US (Apple original)</div>
+      <div class="panel-tag tag-before">Avec fenêtre mmWave</div>
+    </div>
+    <model-viewer id="v1"
+      src="iphone17pro-apple-deep-blue.glb"
+      camera-controls touch-action="pan-y"
+      auto-rotate auto-rotate-delay="0"
+      rotation-per-second="6deg"
+      exposure="1.3"
+      shadow-intensity="0.8"
+      environment-image="neutral"
+      field-of-view="22deg"
+      min-camera-orbit="auto auto 20m"
+      max-camera-orbit="auto auto 120m"
+      camera-orbit="180deg 130deg 40m"
+      interaction-prompt="none"
+    ></model-viewer>
+    <div class="info">
+      <b>US</b> : avec <span class="diff">fenêtre mmWave</span> visible sur le rim haut (slot dark)
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">APRÈS — version EU (sans mmWave)</div>
+      <div class="panel-tag tag-after">Frame continu, tout le reste intact</div>
+    </div>
+    <model-viewer id="v2"
+      src="iphone17pro-apple-deep-blue-eu.glb"
+      camera-controls touch-action="pan-y"
+      auto-rotate auto-rotate-delay="0"
+      rotation-per-second="6deg"
+      exposure="1.3"
+      shadow-intensity="0.8"
+      environment-image="neutral"
+      field-of-view="22deg"
+      min-camera-orbit="auto auto 20m"
+      max-camera-orbit="auto auto 120m"
+      camera-orbit="180deg 130deg 40m"
+      interaction-prompt="none"
+    ></model-viewer>
+    <div class="info">
+      <b>EU</b> : <span class="clean">fenêtre mmWave supprimée du rim</span> — frame titanium continu
+    </div>
+  </div>
+</div>
+
+<script>
+  // Synchronise les caméras des 2 viewers
+  const v1 = document.getElementById('v1');
+  const v2 = document.getElementById('v2');
+  let syncing = false;
+  function syncFrom(src, dst) {
+    src.addEventListener('camera-change', () => {
+      if (syncing) return;
+      syncing = true;
+      const o = src.getCameraOrbit();
+      dst.cameraOrbit = `${o.theta * 180 / Math.PI}deg ${o.phi * 180 / Math.PI}deg ${o.radius}m`;
+      setTimeout(() => { syncing = false; }, 30);
+    });
+  }
+  syncFrom(v1, v2);
+  syncFrom(v2, v1);
+
+  // Boutons d'angle — synchronisé sur les 2
+  document.querySelectorAll('.ctrl-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.ctrl-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const o = btn.dataset.orbit;
+      v1.cameraOrbit = o;
+      v2.cameraOrbit = o;
+      // Arrête l'auto-rotate quand l'user clique un angle
+      v1.autoRotate = false;
+      v2.autoRotate = false;
+    });
+  });
+</script>
+
+</body>
+</html>

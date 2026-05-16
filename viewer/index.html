@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GLB Viewer — iPhone 17 Pro</title>
+<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body {
+    width:100%; height:100%;
+    background:#000;  /* Pur noir comme apple.com */
+    color:#fff;
+    font-family:-apple-system, "Inter", system-ui, sans-serif;
+    overflow:hidden;
+  }
+  .viewer-wrap {
+    position:relative;
+    width:100vw;
+    height:100vh;
+    display:flex;
+    flex-direction:column;
+  }
+  header.top {
+    position:absolute;
+    top:0; left:0; right:0;
+    padding:18px 24px;
+    z-index:10;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    background:linear-gradient(180deg, rgba(0,0,0,.5), transparent);
+    pointer-events:none;
+  }
+  .brand {
+    font-weight:700;
+    letter-spacing:.18em;
+    font-size:13px;
+    color:rgba(255,255,255,.85);
+  }
+  .info {
+    font-size:11px;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    color:rgba(255,255,255,.45);
+  }
+  model-viewer {
+    width:100%;
+    height:100%;
+    background:transparent;
+    --poster-color:#0a0a0a;
+    --progress-bar-color:#007aff;
+    --progress-bar-height:2px;
+  }
+  /* Halo retiré — Apple présente sur fond noir pur, pas d'effet bleu */
+  .halo { display:none; }
+  /* Hint UX bas */
+  .hint {
+    position:absolute;
+    bottom:32px; left:50%;
+    transform:translateX(-50%);
+    padding:10px 22px;
+    background:rgba(255,255,255,.04);
+    backdrop-filter:blur(14px);
+    border:1px solid rgba(255,255,255,.10);
+    border-radius:999px;
+    font-size:11px;
+    letter-spacing:.22em;
+    text-transform:uppercase;
+    color:rgba(255,255,255,.65);
+    z-index:10;
+    pointer-events:none;
+  }
+  /* Tools panel */
+  .tools {
+    position:absolute;
+    top:60px; right:24px;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    z-index:10;
+  }
+  .tool-btn {
+    padding:9px 14px;
+    background:rgba(255,255,255,.06);
+    border:1px solid rgba(255,255,255,.10);
+    border-radius:8px;
+    font-size:11px;
+    letter-spacing:.05em;
+    color:rgba(255,255,255,.85);
+    cursor:pointer;
+    transition:background .2s, border-color .2s;
+  }
+  .tool-btn:hover {
+    background:rgba(0,122,255,.15);
+    border-color:rgba(0,122,255,.4);
+  }
+  .tool-btn.active {
+    background:rgba(0,122,255,.25);
+    border-color:rgba(0,122,255,.6);
+  }
+  /* Barre d'angles Apple-like — bas centre */
+  .angle-bar {
+    position:absolute;
+    bottom:80px; left:50%;
+    transform:translateX(-50%);
+    display:flex; gap:6px;
+    padding:6px;
+    background:rgba(20,20,22,.55);
+    backdrop-filter:blur(18px);
+    -webkit-backdrop-filter:blur(18px);
+    border:1px solid rgba(255,255,255,.08);
+    border-radius:14px;
+    z-index:10;
+    box-shadow:0 10px 32px rgba(0,0,0,.4);
+  }
+  .angle-btn {
+    padding:8px 14px;
+    background:transparent;
+    border:none;
+    border-radius:9px;
+    font-family:inherit;
+    font-size:12px;
+    font-weight:600;
+    letter-spacing:.02em;
+    color:rgba(255,255,255,.7);
+    cursor:pointer;
+    transition:background .2s, color .2s, transform .15s;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .angle-btn:hover { background:rgba(255,255,255,.08); color:#fff; }
+  .angle-btn.active {
+    background:rgba(0,122,255,.22);
+    color:#fff;
+    box-shadow:inset 0 0 0 1px rgba(0,122,255,.5);
+  }
+  .angle-btn:active { transform:scale(.95); }
+  /* Sélecteur de couleur iPhone — 3 pastilles + label */
+  .color-bar {
+    position:absolute;
+    bottom:140px; left:50%;
+    transform:translateX(-50%);
+    display:flex; align-items:center; gap:14px;
+    padding:10px 18px;
+    background:rgba(20,20,22,.55);
+    backdrop-filter:blur(18px);
+    -webkit-backdrop-filter:blur(18px);
+    border:1px solid rgba(255,255,255,.08);
+    border-radius:50px;
+    z-index:10;
+    box-shadow:0 10px 32px rgba(0,0,0,.4);
+  }
+  .color-swatch {
+    width:24px; height:24px;
+    border-radius:50%;
+    background:var(--swatch);
+    border:1.5px solid rgba(255,255,255,.15);
+    cursor:pointer;
+    transition:transform .2s, box-shadow .2s, border-color .2s;
+    padding:0;
+    position:relative;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .color-swatch:hover { transform:scale(1.1); }
+  .color-swatch.active {
+    border-color:rgba(255,255,255,.85);
+    box-shadow:0 0 0 3px rgba(0,122,255,.4), 0 4px 12px rgba(0,0,0,.4);
+  }
+  .color-swatch:active { transform:scale(.95); }
+  .color-label {
+    font-size:12px; font-weight:600;
+    color:rgba(255,255,255,.85);
+    letter-spacing:.02em;
+    margin-left:4px;
+    min-width:100px;
+  }
+</style>
+</head>
+<body>
+
+<div class="viewer-wrap">
+  <header class="top">
+    <div class="brand">SAFIX — GLB VIEWER</div>
+    <div class="info">iPhone 17 Pro · 2.3 MB · glTF 2.0</div>
+  </header>
+
+  <div class="halo"></div>
+
+  <model-viewer
+    id="viewer"
+    src="iphone17pro-apple-fr-blue.glb"
+    alt="iPhone 17 Pro 3D"
+    camera-controls
+    touch-action="pan-y"
+    interaction-prompt="none"
+    disable-zoom
+    exposure="0.85"
+    shadow-intensity="0"
+    environment-image="neutral"
+    tone-mapping="neutral"
+    field-of-view="22deg"
+    interpolation-decay="80"
+    min-camera-orbit="auto 0deg 50m"
+    max-camera-orbit="auto 180deg 50m"
+    orbit-sensitivity="1"
+    camera-orbit="-25deg 90deg 50m"
+    camera-target="0m 0m 0m"
+  ></model-viewer>
+
+  <div class="tools">
+    <button class="tool-btn" id="btnReset">↺ Reset</button>
+    <button class="tool-btn" id="btnAR">📱 Voir en AR</button>
+    <button class="tool-btn" id="btnEnv">💡 Environnement</button>
+  </div>
+
+  <!-- Sélecteur de couleur Apple — 3 variantes officielles iPhone 17 Pro -->
+  <div class="color-bar" id="colorBar">
+    <button class="color-swatch active" data-src="iphone17pro-apple-fr-blue.glb" data-label="Deep Blue" style="--swatch:#2A3550" title="Deep Blue"></button>
+    <button class="color-swatch" data-src="iphone17pro-apple-fr-orange.glb" data-label="Cosmic Orange" style="--swatch:#C36841" title="Cosmic Orange"></button>
+    <button class="color-swatch" data-src="iphone17pro-apple-fr-silver.glb" data-label="Silver" style="--swatch:#DDDDDA" title="Silver"></button>
+    <span class="color-label" id="colorLabel">Deep Blue</span>
+  </div>
+
+  <!-- Barre d'angles façon Apple : snap aux vues clés -->
+  <div class="angle-bar" id="angleBar">
+    <button class="angle-btn" data-orbit="-25deg 170deg 50m">Dos ¾</button>
+    <button class="angle-btn" data-orbit="0deg 170deg 50m">Dos</button>
+    <button class="angle-btn" data-orbit="90deg 90deg 50m">Droite</button>
+    <button class="angle-btn" data-orbit="180deg 10deg 50m">Face</button>
+    <button class="angle-btn" data-orbit="-90deg 90deg 50m">Gauche</button>
+  </div>
+
+  <div class="hint">Cliquer-glisser · Molette pour zoomer · Clic sur les vues pour les angles Apple</div>
+</div>
+
+<script>
+  const viewer = document.getElementById('viewer');
+  const btnReset = document.getElementById('btnReset');
+  const btnAR = document.getElementById('btnAR');
+  const btnEnv = document.getElementById('btnEnv');
+
+  btnReset.addEventListener('click', () => {
+    viewer.cameraOrbit = '-20deg 80deg 80m';
+    viewer.cameraTarget = '0m 0m 0m';
+  });
+
+  btnAR.addEventListener('click', () => {
+    if (viewer.canActivateAR) viewer.activateAR();
+    else alert("AR non disponible sur ce navigateur (essaie sur iPhone Safari)");
+  });
+
+  let envs = ['neutral', 'legacy', '', 'https://modelviewer.dev/shared-assets/environments/aircraft_workshop_01_1k.hdr'];
+  let envIdx = 0;
+  btnEnv.addEventListener('click', () => {
+    envIdx = (envIdx + 1) % envs.length;
+    viewer.environmentImage = envs[envIdx];
+    const labels = ['Neutre', 'Legacy', 'Aucun', 'Studio HDR'];
+    btnEnv.textContent = '💡 ' + labels[envIdx];
+  });
+
+  // ═══════════════════════════════════════════════════════
+  // Apple-style camera : limites d'angles + résistance élastique + snap
+  // Paramètres extraits du scene_L.lsd officiel d'apple.com/iphone-17-pro :
+  //   InteractiveCamera {
+  //     rotationLimit:        [-40°, 220°]        (azimuth)
+  //     polarAngleLimit:      [40°, 140°]         (polar, restreint pour pas flipper)
+  //     rotationFalloff:      [0, 180°]           (résistance à partir d'ici)
+  //     rotationFalloffStrength: 2                 (puissance de la résistance)
+  //     lerpDrag:             0.1                  (smooth drag)
+  //     lerpSnap:             0.095                (smooth snap)
+  //     damp:                 [0.22, 0.25]         (damping X/Y)
+  //     throw:                [0.25, 0.25]         (inertie après release)
+  //   }
+  // ═══════════════════════════════════════════════════════
+  const APPLE_AZIMUTH_MIN = -40;
+  const APPLE_AZIMUTH_MAX = 220;
+  const APPLE_POLAR_MIN   = 40;
+  const APPLE_POLAR_MAX   = 140;
+  const SNAP_THRESHOLD_DEG = 22;
+  const SNAP_ANIM_MS       = 600;
+
+  // Vues prédéfinies (azimuth, polar, distance) — mêmes que les boutons HTML
+  const APPLE_VIEWS = [
+    { name: 'dos34',  az: -20, pol: 80, dist: 80 },
+    { name: 'dos',    az: 0,   pol: 80, dist: 80 },
+    { name: 'droite', az: 90,  pol: 80, dist: 80 },
+    { name: 'face',   az: 180, pol: 80, dist: 80 },
+    { name: 'gauche', az: -90, pol: 80, dist: 80 },
+  ];
+
+  function parseOrbit(str) {
+    // "azd° pold° distm" → {az, pol, dist}
+    const m = str.match(/(-?\d+(?:\.\d+)?)\s*(?:deg|rad)?\s+(-?\d+(?:\.\d+)?)\s*(?:deg|rad)?\s+(-?\d+(?:\.\d+)?)\s*m/);
+    if (!m) return null;
+    return { az: parseFloat(m[1]), pol: parseFloat(m[2]), dist: parseFloat(m[3]) };
+  }
+
+  function angularDistance(a1, a2) {
+    // normalise les écarts d'azimuth (-180..180)
+    let d = ((a1 - a2 + 540) % 360) - 180;
+    return Math.abs(d);
+  }
+
+  function findNearestView(currentOrbit) {
+    const cur = parseOrbit(currentOrbit);
+    if (!cur) return null;
+    let best = null, bestDist = Infinity;
+    for (const v of APPLE_VIEWS) {
+      const dAz = angularDistance(cur.az, v.az);
+      const dPol = Math.abs(cur.pol - v.pol);
+      const totalDist = Math.sqrt(dAz*dAz + dPol*dPol);
+      if (totalDist < bestDist) { bestDist = totalDist; best = v; }
+    }
+    return { view: best, dist: bestDist };
+  }
+
+  function snapToView(v) {
+    viewer.cameraOrbit = `${v.az}deg ${v.pol}deg ${v.dist}m`;
+    // Highlight le bouton correspondant
+    document.querySelectorAll('.angle-btn').forEach(b => {
+      const o = parseOrbit(b.dataset.orbit);
+      b.classList.toggle('active',
+        o && Math.abs(o.az - v.az) < .5 && Math.abs(o.pol - v.pol) < .5
+      );
+    });
+  }
+
+  // Clic bouton → snap immédiat
+  document.querySelectorAll('.angle-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const v = parseOrbit(btn.dataset.orbit);
+      if (v) snapToView(v);
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════
+  // Sélecteur de couleur iPhone — switch entre Blue / Orange / Silver
+  // Préserve le camera orbit courant pendant le swap pour expérience fluide
+  // ═══════════════════════════════════════════════════════
+  const colorLabel = document.getElementById('colorLabel');
+  document.querySelectorAll('.color-swatch').forEach(sw => {
+    sw.addEventListener('click', () => {
+      if (sw.classList.contains('active')) return;  // déjà sélectionnée
+      const newSrc = sw.dataset.src;
+      const label  = sw.dataset.label;
+      // Mémorise le cameraOrbit actuel pour éviter le reset au load
+      const currentOrbit = viewer.cameraOrbit;
+      // Change le src — model-viewer recharge le modèle
+      viewer.src = newSrc;
+      // Highlight la pastille active
+      document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+      sw.classList.add('active');
+      colorLabel.textContent = label;
+      // Restaure le cameraOrbit après le load
+      viewer.addEventListener('load', () => {
+        viewer.cameraOrbit = currentOrbit;
+      }, { once: true });
+    });
+  });
+
+  // Snap automatique à la fin du drag
+  let snapTimer = null;
+  let userInteracting = false;
+  viewer.addEventListener('pointerdown', () => { userInteracting = true; if (snapTimer) clearTimeout(snapTimer); });
+  viewer.addEventListener('pointerup',   () => { userInteracting = false; scheduleSnap(); });
+  viewer.addEventListener('pointercancel', () => { userInteracting = false; scheduleSnap(); });
+  viewer.addEventListener('wheel', () => { /* zoom ne déclenche pas de snap */ });
+
+  function scheduleSnap() {
+    if (snapTimer) clearTimeout(snapTimer);
+    // Petit délai pour laisser l'inertie se calmer
+    snapTimer = setTimeout(() => {
+      if (userInteracting) return;
+      const orbit = viewer.getCameraOrbit ? viewer.getCameraOrbit() : null;
+      let currentStr;
+      if (orbit) {
+        currentStr = `${orbit.theta * 180 / Math.PI}deg ${orbit.phi * 180 / Math.PI}deg ${orbit.radius}m`;
+      } else {
+        currentStr = viewer.cameraOrbit;
+      }
+      const near = findNearestView(currentStr);
+      if (near && near.dist < SNAP_THRESHOLD_DEG) {
+        snapToView(near.view);
+      } else {
+        // pas de snap, juste désactive les boutons
+        document.querySelectorAll('.angle-btn').forEach(b => b.classList.remove('active'));
+      }
+    }, 350);
+  }
+
+  // Au load, marque la vue initiale comme active
+  viewer.addEventListener('load', () => {
+    setTimeout(() => {
+      const orbit = viewer.getCameraOrbit ? viewer.getCameraOrbit() : null;
+      if (orbit) {
+        const currentStr = `${orbit.theta * 180 / Math.PI}deg ${orbit.phi * 180 / Math.PI}deg ${orbit.radius}m`;
+        const near = findNearestView(currentStr);
+        if (near && near.dist < SNAP_THRESHOLD_DEG) {
+          document.querySelectorAll('.angle-btn').forEach(b => {
+            const o = parseOrbit(b.dataset.orbit);
+            b.classList.toggle('active',
+              o && Math.abs(o.az - near.view.az) < .5 && Math.abs(o.pol - near.view.pol) < .5
+            );
+          });
+        }
+      }
+    }, 400);
+  }, { once: true });
+
+  // ════════════════════════════════════════════════════
+  // PALETTE COSMIC ORANGE Apple iPhone 17 Pro — match photo officielle
+  // Référence : photo produit Apple.com (burnt orange chaud saturé)
+  // Hex approximatif : #E0712D (body) → linéaire sRGB
+  // ════════════════════════════════════════════════════
+  // ════════════════════════════════════════════════════
+  // PALETTE iPhone 17 Pro DEEP BLUE — match photo Apple officielle
+  // Bleu profond titane saturé. Anneaux caméra plus sombres (Apple).
+  // ════════════════════════════════════════════════════
+  // Apple iPhone 17 Pro Deep Blue — approche titane anodisé
+  // baseColorFactor en LINÉAIRE (model-viewer / glTF 2.0)
+  // Sample Apple #202432 = sRGB(32,36,50) → la couleur visible finale visée
+  // Comme on garde un peu de métallique (anodisé), on relève légèrement la base
+  // pour que l'ensemble (diffuse + spéculaire teinté) atteigne la teinte cible.
+  // Photo Apple sample : body dominant #1F222F (RGB 31,34,47)
+  // → baseColor calibré pour produire exactement cette teinte en final
+  const DEEP_BLUE      = [0.038, 0.048, 0.078, 1.0];
+  const DEEP_BLUE_DARK = [0.020, 0.025, 0.045, 1.0];  // camera bump fond #0E0F15
+  const BLACK_OPT      = [0.005, 0.005, 0.008, 1.0];
+
+  const MAT_MAP = {
+    // Ancien modèle Ranguel (iphone17pro.glb)
+    'frame':            DEEP_BLUE,
+    'aluminum':         DEEP_BLUE,
+    'metal screw':      DEEP_BLUE,
+    'plastic antena':   DEEP_BLUE,
+    'tint back glass':  DEEP_BLUE,
+    'frosted glass':    DEEP_BLUE,
+    'camera filter':    DEEP_BLUE_DARK,
+    'sapphire miror':   BLACK_OPT,
+    'glass':            BLACK_OPT,
+    'lens':             BLACK_OPT,
+    'mirror filter':    BLACK_OPT,
+    // Nouveau modèle (iphone17promax-alt.glb)
+    'backsheild':       DEEP_BLUE,   // dos
+    'bodyline':         DEEP_BLUE,   // frame titane
+    'steel':            DEEP_BLUE,
+    'default':          DEEP_BLUE,
+    'sensor_flash':     DEEP_BLUE_DARK,
+    'sound filter':     BLACK_OPT,
+    'charge chip':      BLACK_OPT,
+    'black':            BLACK_OPT,
+  };
+
+  let currentColor = 'cosmic-orange';
+
+  function applyMaterialColors() {
+    if (!viewer.model || !viewer.model.materials) return;
+    viewer.model.materials.forEach(mat => {
+      const name = (mat.name || '').toLowerCase().trim();
+      const targetColor = MAT_MAP[name];
+      if (targetColor && mat.pbrMetallicRoughness) {
+        // Si le modèle a une texture baseColor bakée (ex: Cosmic Orange du modèle alt),
+        // on la supprime pour que notre Deep Blue baseColorFactor soit pur
+        const tex = mat.pbrMetallicRoughness.baseColorTexture;
+        if (tex && tex.texture) {
+          try { tex.setTexture(null); } catch(e) {}
+        }
+        mat.pbrMetallicRoughness.setBaseColorFactor(targetColor);
+        // Titane anodisé Apple : légèrement métallique, roughness moyenne
+        // → reflets subtils sur les arêtes (highlight), couleur dominante = baseColor teintée
+        if (name === 'frame' || name === 'aluminum' || name === 'metal screw' || name === 'bodyline' || name === 'steel') {
+          mat.pbrMetallicRoughness.setMetallicFactor(0.55);
+          mat.pbrMetallicRoughness.setRoughnessFactor(0.42);
+        } else if (name === 'plastic antena' || name === 'tint back glass' || name === 'frosted glass' || name === 'backsheild' || name === 'default') {
+          mat.pbrMetallicRoughness.setMetallicFactor(0.25);
+          mat.pbrMetallicRoughness.setRoughnessFactor(0.55);
+        } else if (name === 'camera filter' || name === 'sensor_flash') {
+          mat.pbrMetallicRoughness.setMetallicFactor(0.65);
+          mat.pbrMetallicRoughness.setRoughnessFactor(0.38);
+        } else if (name === 'sapphire miror' || name === 'glass' || name === 'lens' || name === 'mirror filter' || name === 'black') {
+          mat.pbrMetallicRoughness.setMetallicFactor(0.10);
+          mat.pbrMetallicRoughness.setRoughnessFactor(0.05);
+        }
+        console.log('[Viewer] ✓ Repeint', name, '→ baseColor linéaire', targetColor.slice(0,3).map(c => c.toFixed(3)).join(','));
+      }
+    });
+  }
+
+  // Active AR sur mobile si dispo
+  viewer.addEventListener('load', () => {
+    console.log('[Viewer] Modèle chargé ✓ (couleurs natives du GLB, pas de repaint)');
+    if (viewer.model && viewer.model.materials) {
+      console.log('[Viewer] Materials:', viewer.model.materials.map(m => m.name));
+    }
+    if (viewer.canActivateAR) {
+      btnAR.style.display = '';
+    } else {
+      btnAR.style.opacity = '.5';
+      btnAR.title = "AR non disponible sur ce navigateur";
+    }
+  });
+</script>
+
+</body>
+</html>

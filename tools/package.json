@@ -1,0 +1,9 @@
+{
+  "name": "safix-glb-tools",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "@gltf-transform/core": "^4.0.0",
+    "@gltf-transform/functions": "^4.0.0"
+  }
+}
