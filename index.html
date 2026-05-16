@@ -5318,7 +5318,7 @@ header { padding-left: max(20px, env(safe-area-inset-left));
       <div class="hero-3d-stage" id="heroIphoneStage">
         <iframe
           id="heroAppleViewer"
-          src="viewer/apple-viewer.html?v=7"
+          src="viewer/apple-viewer.html?v=8"
           title="iPhone 17 Pro 3D"
           loading="eager"
           allow="xr-spatial-tracking; accelerometer; gyroscope"
@@ -7002,8 +7002,10 @@ function switchViews(to) {
   } else {
     detail.classList.add('gone');
     home.classList.remove('gone');
-    home.classList.add('entering');
-    home.addEventListener('animationend', () => home.classList.remove('entering'), { once: true });
+    // PAS de .entering au retour accueil : slideUp applique un transform sur
+    // #viewHome → casse le position:sticky du scroll-story pendant 0.5s
+    // (= bug d'affichage au retour). L'accueil réapparaît net, sans glitch.
+    home.classList.remove('entering');
   }
 }
 
@@ -8071,13 +8073,14 @@ document.getElementById('heroCtaBtn')?.addEventListener('click', () => {
   const startY     = window.scrollY;
   const distance   = targetTop - startY;
   // Durée totale plus longue pour la story (3 scènes à lire)
-  const duration   = Math.min(3400, Math.max(1600, Math.abs(distance) * 1.05)); // ms : 1.6-3.4s, fluide
+  const duration   = Math.min(6000, Math.max(2600, Math.abs(distance) * 1.7)); // ms : 2.6-6s, posé
   const startTime  = performance.now();
 
-  // Vraie courbe cubique ease-in-out : vitesse continue (aucune rupture)
-  // → descente lissée, sans à-coups perçus comme des baisses de FPS.
-  const easeInOutCubic = (t) =>
-    t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  // easeInOutSine : vitesse de pointe nettement plus basse qu'une cubique
+  // (≈1.57·d/T au lieu de 1.9). Combiné à la durée allongée → descente
+  // posée et naturelle, on a le temps de LIRE les 3 scènes de la story
+  // au lieu de les zapper. (nom conservé pour ne pas toucher l'appel.)
+  const easeInOutCubic = (t) => -(Math.cos(Math.PI * t) - 1) / 2;
 
   let cancelled = false;
   const cancel = () => { cancelled = true; };
