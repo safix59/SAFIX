@@ -64,8 +64,16 @@ export async function loadPrices() {
   try {
     const r = await fetch(PRICES_URL, { cache: 'no-store' });
     if (r.ok) {
-      _cache = (await r.json()).prices || null;
+      const j = await r.json();
+      _cache = j.prices || null;
       _cacheAt = Date.now();
+      // Signal SOFT (jamais bloquant) : prices.json périmé = scraper en
+      // panne. Visible dans les logs Vercel pour réagir sans couper la vente.
+      const gen = Date.parse(j.generatedAt || '');
+      if (Number.isFinite(gen)) {
+        const ageH = Math.round((Date.now() - gen) / 3600000);
+        if (ageH > 72) console.warn(`[prices] STALE ${ageH}h (generatedAt=${j.generatedAt}) — cron scraper à vérifier`);
+      }
     }
   } catch (e) { /* indispo → null : on ne bloque pas la vente */ }
   return _cache;
