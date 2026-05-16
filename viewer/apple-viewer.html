@@ -148,6 +148,29 @@
     <button class="swatch"        data-color="Silver" style="--c:#DDDDDA" aria-label="Silver" title="Silver"></button>
   </nav>
 
+  <!-- SUPERSAMPLING : Lotus dimensionne son canvas WebGL via
+       window.devicePixelRatio. Dans le hero le stage fait ~480px → canvas
+       trop petit (960px) → flou au zoom alors que le viewer plein écran rend
+       à 3360px. On augmente le DPR effectif (plafonné) AVANT le chargement
+       de Lotus pour rendre à plus haute résolution interne.
+       Plafonné plus bas sur tactile/mobile : un framebuffer 4K trop grand
+       sur vieux iPhone = risque de perte de contexte WebGL (cf. revue 3D). -->
+  <script>
+    (function () {
+      try {
+        var real = window.devicePixelRatio || 1;
+        var touch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+        // desktop : ~net comme le plein écran ; mobile : plus net mais bridé.
+        var target = touch ? Math.min(real * 1.5, 3.5) : Math.min(real * 3, 6);
+        if (target > real) {
+          Object.defineProperty(window, 'devicePixelRatio', {
+            configurable: true,
+            get: function () { return target; }
+          });
+        }
+      } catch (e) { /* si non redéfinissable, on garde le DPR natif */ }
+    })();
+  </script>
   <script src="lotus/libs/lotus.min.js"></script>
   <script>
   (async function bootApple() {
