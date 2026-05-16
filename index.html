@@ -2764,6 +2764,10 @@ textarea:focus-visible,
   outline-offset:2px;
   border-radius:6px;
 }
+/* Champs du panier : le .cart-input-wrap fournit déjà un focus visible
+   (bordure accent + halo). On supprime l'outline générique en plus, qui
+   créait une DOUBLE ligne bleue bizarre sur le champ téléphone (owner). */
+.cart-input-wrap input:focus-visible { outline:none; }
 /* Désactive l'outline sur souris (focus visuel suffit) — UX Apple */
 button:focus:not(:focus-visible),
 a:focus:not(:focus-visible),
@@ -5677,7 +5681,7 @@ header { padding-left: max(20px, env(safe-area-inset-left));
         <span class="payment-card-check"></span>
       </button>
       <div class="payment-note" data-i18n="payment.note">
-        <strong>Paiement sécurisé Stripe.</strong> Apple Pay et Google Pay s'affichent automatiquement si votre appareil les supporte.
+        <strong>Paiement sécurisé Stripe.</strong>
       </div>
     </div>
 
@@ -8090,6 +8094,16 @@ document.getElementById('heroCtaBtn')?.addEventListener('click', () => {
     return;
   }
 
+  // TACTILE (iOS/Android) : le scroll custom rAF (window.scrollTo par
+  // frame) se bat avec le scroll natif/momentum iOS → ça "zappe", aucune
+  // cohérence (signalé owner). On laisse l'OS animer : smooth natif =
+  // cohérent. Le scroll custom premium reste pour desktop (souris).
+  if (window.matchMedia('(hover:none) and (pointer:coarse)').matches) {
+    try { window.scrollTo({ top: targetTop, behavior: 'smooth' }); }
+    catch (e) { window.scrollTo(0, targetTop); }
+    return;
+  }
+
   // Scroll custom avec easing custom "fast-slow-fast" :
   //  - rapide sur le hero (le user n'a rien à lire en haut)
   //  - lent au milieu (story scenes — temps de lecture)
@@ -8097,7 +8111,7 @@ document.getElementById('heroCtaBtn')?.addEventListener('click', () => {
   const startY     = window.scrollY;
   const distance   = targetTop - startY;
   // Durée totale plus longue pour la story (3 scènes à lire)
-  const duration   = Math.min(9000, Math.max(3000, Math.abs(distance) * 2.0)); // ms : 3-9s (story 300dvh lisible)
+  const duration   = Math.min(11000, Math.max(3800, Math.abs(distance) * 2.6)); // ms : ~30% plus lent (owner: desktop un peu trop rapide), reste fluide
   const startTime  = performance.now();
 
   // Profil de vitesse TRAPÉZOÏDAL : court ease-in (16%, départ perceptible
@@ -9464,7 +9478,7 @@ const I18N = {
     'payment.title':'Paiement',
     'payment.or':'ou',
     'payment.card':'Carte bancaire',
-    'payment.note':'<strong>Paiement sécurisé Stripe.</strong> Apple Pay et Google Pay s\'affichent automatiquement si votre appareil les supporte.',
+    'payment.note':'<strong>Paiement sécurisé Stripe.</strong>',
     'recents':'Récemment consultés',
     'qr.title':'Partager SAFIX', 'qr.sub':'Faites-nous découvrir autour de vous ❤️', 'qr.copy':'Copier le lien',
     'share.btn':'Partager',
@@ -9563,7 +9577,7 @@ const I18N = {
     'payment.title':'Payment',
     'payment.or':'or',
     'payment.card':'Credit / debit card',
-    'payment.note':'<strong>Secure Stripe payment.</strong> Apple Pay and Google Pay show up automatically if your device supports them.',
+    'payment.note':'<strong>Secure Stripe payment.</strong>',
     'recents':'Recently viewed',
     'qr.title':'Share SAFIX', 'qr.sub':'Help others discover us ❤️', 'qr.copy':'Copy link',
     'share.btn':'Share',
