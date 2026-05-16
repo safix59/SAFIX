@@ -2054,6 +2054,11 @@ header {
   to   { opacity:1; transform:none; }
 }
 .appointment-cal[hidden] { display:none; }
+/* Dans le panier (drawer qui scrolle + footer total/CTA collant), le
+   calendrier s'ouvrait VERS LE BAS → grille coupée derrière le footer
+   (G3, capture). On l'ouvre vers le HAUT dans ce contexte (il y a la
+   place au-dessus, le bloc RDV est en bas du formulaire). */
+.cart-panel .appointment-cal { top:auto; bottom:calc(100% + 8px); }
 .appointment-cal-head {
   display:flex; align-items:center; justify-content:space-between;
   padding:0 2px 8px;
@@ -2102,7 +2107,7 @@ header {
   background:var(--surface2); transform:scale(1.06);
 }
 .cal-day:disabled, .cal-day.cal-day-out {
-  color:var(--text3); cursor:not-allowed; opacity:.35;
+  color:var(--text3); cursor:not-allowed;
 }
 .cal-day.cal-day-out { visibility:hidden; }
 .cal-day.cal-day-today:not(.cal-day-selected) {
