@@ -7164,7 +7164,9 @@ function renderSearchResults(matches, q) {
   if (!matches.length) {
     const empty = document.createElement('div');
     empty.className = 'search-empty';
-    empty.textContent = q ? `Aucun modèle ne correspond à "${q}"` : 'Tapez le nom d\'un modèle';
+    empty.textContent = currentLang === 'en'
+      ? (q ? `No model matches "${q}"` : 'Type a model name')
+      : (q ? `Aucun modèle ne correspond à "${q}"` : 'Tapez le nom d\'un modèle');
     searchDrop.appendChild(empty);
     return;
   }
@@ -7257,7 +7259,7 @@ searchInput.addEventListener('keydown', (e) => {
   const caret = document.querySelector('.search-caret');
   if (!input || !caret) return;
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    input.setAttribute('placeholder', 'Rechercher un modèle…');
+    input.setAttribute('placeholder', currentLang === 'en' ? 'Search a model…' : 'Rechercher un modèle…');
     return;
   }
   const examples = [
@@ -7340,7 +7342,7 @@ searchInput.addEventListener('keydown', (e) => {
     stopped = true;
     if (timeoutId) clearTimeout(timeoutId);
     caret.classList.remove('typing');
-    input.setAttribute('placeholder', 'Rechercher un modèle…');
+    input.setAttribute('placeholder', currentLang === 'en' ? 'Search a model…' : 'Rechercher un modèle…');
   }
   function pauseAnim() {
     paused = true;
@@ -8013,7 +8015,9 @@ function syncFloatBar(sum) {
   if (cart.length && activeModel) {
     const totalQty = cart.reduce((s, i) => s + (i.qty || 1), 0);
     document.getElementById('floatModel').textContent = activeModel;
-    document.getElementById('floatCount').textContent = `${totalQty} réparation${totalQty>1?'s':''}`;
+    document.getElementById('floatCount').textContent = currentLang === 'en'
+      ? `${totalQty} item${totalQty>1?'s':''}`
+      : `${totalQty} réparation${totalQty>1?'s':''}`;
     animateCounter(floatTotal, 0, sum, 250);
     // Si le footer est visible, on garde la bar masquée pour ne pas cacher les liens légaux
     if (!footerVisible) bar.classList.add('show');
