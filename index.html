@@ -2054,11 +2054,10 @@ header {
   to   { opacity:1; transform:none; }
 }
 .appointment-cal[hidden] { display:none; }
-/* Dans le panier (drawer qui scrolle + footer total/CTA collant), le
-   calendrier s'ouvrait VERS LE BAS → grille coupée derrière le footer
-   (G3, capture). On l'ouvre vers le HAUT dans ce contexte (il y a la
-   place au-dessus, le bloc RDV est en bas du formulaire). */
-.cart-panel .appointment-cal { top:auto; bottom:calc(100% + 8px); }
+/* NOTE : tentative d'ouverture vers le HAUT dans le panier RETIRÉE — elle
+   bloquait le scroll du panier (interaction avec le lock .cal-focused
+   pointer-events:none). Calendrier rouvre vers le bas (comportement
+   d'origine, stable). La lisibilité G3 est gérée par le fix opacity. */
 .appointment-cal-head {
   display:flex; align-items:center; justify-content:space-between;
   padding:0 2px 8px;
