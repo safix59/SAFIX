@@ -8073,14 +8073,21 @@ document.getElementById('heroCtaBtn')?.addEventListener('click', () => {
   const startY     = window.scrollY;
   const distance   = targetTop - startY;
   // Durée totale plus longue pour la story (3 scènes à lire)
-  const duration   = Math.min(6000, Math.max(2600, Math.abs(distance) * 1.7)); // ms : 2.6-6s, posé
+  const duration   = Math.min(9000, Math.max(3000, Math.abs(distance) * 2.0)); // ms : 3-9s (story 300dvh lisible)
   const startTime  = performance.now();
 
-  // easeInOutSine : vitesse de pointe nettement plus basse qu'une cubique
-  // (≈1.57·d/T au lieu de 1.9). Combiné à la durée allongée → descente
-  // posée et naturelle, on a le temps de LIRE les 3 scènes de la story
-  // au lieu de les zapper. (nom conservé pour ne pas toucher l'appel.)
-  const easeInOutCubic = (t) => -(Math.cos(Math.PI * t) - 1) / 2;
+  // Profil de vitesse TRAPÉZOÏDAL : court ease-in (16%, départ perceptible
+  // → on sent que ça réagit), longue phase à VITESSE CONSTANTE (les 3
+  // scènes défilent au même rythme lisible, aucune ne "flashe"), puis
+  // ease-out doux (18%, arrêt sans à-coup). p(0)=0, p(1)=1, monotone.
+  // (nom conservé pour ne pas toucher l'appel step().)
+  const easeInOutCubic = (t) => {
+    const a = 0.16, d = 0.18, v = 1 / (1 - (a + d) / 2);
+    if (t < a)     return v * t * t / (2 * a);
+    if (t < 1 - d) return v * (a / 2 + (t - a));
+    const s = t - (1 - d);
+    return v * (a / 2 + (1 - a - d) + (s - s * s / (2 * d)));
+  };
 
   let cancelled = false;
   const cancel = () => { cancelled = true; };
@@ -8820,6 +8827,11 @@ function buildOrderContextFromDOM() {
 
 document.getElementById('checkoutBtn')?.addEventListener('click', async () => {
   if (!cart.length) return;
+  // Anti double-soumission : un 2e tap (mobile/4G lente) créait une 2e
+  // session Stripe + écrasait safix_pending_order. Filet 12 s.
+  const cobBtn = document.getElementById('checkoutBtn');
+  if (cobBtn && cobBtn.dataset.busy === '1') return;
+  const clrBusy = () => { if (cobBtn) { delete cobBtn.dataset.busy; cobBtn.style.opacity = ''; cobBtn.style.pointerEvents = ''; } };
 
   // ═══ Validation : marque TOUS les champs manquants en rouge persistant
   const { ok, firstMissing } = validateCheckoutForm();
@@ -8883,9 +8895,15 @@ document.getElementById('checkoutBtn')?.addEventListener('click', async () => {
       paymentMethod: selectedPayment || 'card',  // 'applepay' | 'paypal' | 'card'
       cart:          JSON.stringify(cartCompact),
     };
+    if (cobBtn) {
+      cobBtn.dataset.busy = '1'; cobBtn.style.opacity = '.6'; cobBtn.style.pointerEvents = 'none';
+      setTimeout(clrBusy, 12000);   // filet : jamais bloqué définitivement
+    }
+    showToast('⏳', (window.__lang || 'fr') === 'en' ? 'Processing…' : 'Traitement…');
     const stripeResp = await payWithStripe({ email, total: totalNow, lineItems, delivery: deliveryLine, paymentFees, orderMeta });
     if (stripeResp.redirected) return;          // navigation vers Stripe → on stoppe ici
     if (!stripeResp.paid) {
+      clrBusy();
       showToast('⚠️', paymentErrMsg(stripeResp.reason));
       if (stripeResp.reason === 'out_of_stock' || stripeResp.reason === 'price_mismatch') syncCart();
       return;
