@@ -6717,8 +6717,8 @@ const sunSVG  = `<circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.
 
 function applyTheme(t) {
   document.documentElement.setAttribute('data-theme', t);
-  themeIcon.innerHTML = t==='dark' ? moonSVG : sunSVG;
-  localStorage.setItem(THEME_KEY, t);
+  if (themeIcon) themeIcon.innerHTML = t==='dark' ? moonSVG : sunSVG;   // null-guard : sinon throw → tout le script meurt
+  try { localStorage.setItem(THEME_KEY, t); } catch {}
   // Propage le thème à l'iframe du viewer 3D (pour adapter le style de la pill swatches)
   syncThemeToHeroIframe(t);
   // Notifie les composants qui doivent réagir au changement de thème
@@ -6744,7 +6744,7 @@ function syncThemeToHeroIframe(t) {
   });
 })();
 applyTheme(localStorage.getItem(THEME_KEY) || 'dark');
-themeBtn.addEventListener('click', () => {
+themeBtn && themeBtn.addEventListener('click', () => {
   applyTheme(document.documentElement.getAttribute('data-theme')==='dark' ? 'light' : 'dark');
 });
 
@@ -6804,15 +6804,14 @@ function navigate(to, model, cardEl) {
     switchViews('detail');
     renderDetail(model);
     // Sur le detail iPhone : on cache le logo et on affiche le nom du modèle
-    document.getElementById('navTitle').textContent = model;
-    document.getElementById('navTitle').style.display = '';
-    document.getElementById('navLogo').style.display  = 'none';
-    document.getElementById('backBtn').classList.add('show');
-    document.getElementById('compareHeaderBtn').style.display = '';
+    const _nt=document.getElementById('navTitle'); if(_nt){ _nt.textContent=model; _nt.style.display=''; }
+    const _nl=document.getElementById('navLogo'); if(_nl) _nl.style.display='none';
+    document.getElementById('backBtn')?.classList.add('show');
+    const _ch=document.getElementById('compareHeaderBtn'); if(_ch) _ch.style.display='';
 
   } else {
     activeModel = null;
-    document.getElementById('compareHeaderBtn').style.display = 'none';
+    { const _ch=document.getElementById('compareHeaderBtn'); if(_ch) _ch.style.display='none'; }
 
     // Retour accueil → on réactive premium-mode (catalogue premium que Sami aime)
     document.body.classList.add('premium-mode');
@@ -6823,11 +6822,11 @@ function navigate(to, model, cardEl) {
     storedCardRect = null;
 
     // Retour home : on remet le logo et on cache le titre texte
-    document.getElementById('navTitle').style.display = 'none';
-    document.getElementById('navLogo').style.display  = '';
-    document.getElementById('backBtn').classList.remove('show');
-    document.getElementById('detailBg').style.cssText = '';
-    document.getElementById('phoneGlow').style.background = '';
+    { const _nt=document.getElementById('navTitle'); if(_nt) _nt.style.display='none'; }
+    { const _nl=document.getElementById('navLogo'); if(_nl) _nl.style.display=''; }
+    document.getElementById('backBtn')?.classList.remove('show');
+    { const _db=document.getElementById('detailBg'); if(_db) _db.style.cssText=''; }
+    { const _pg=document.getElementById('phoneGlow'); if(_pg) _pg.style.background=''; }
     document.documentElement.style.setProperty('--dynamic', '0,122,255');
   }
   window.scrollTo({ top: 0, behavior: 'instant' });
@@ -7592,6 +7591,10 @@ function syncCart() {
   const contactBlk = document.getElementById('contactBlock');
   const payBlk     = document.getElementById('paymentBlock');
   const mandateBlk = document.getElementById('mandateBlock');
+
+  // null-guard : si un élément cart a été retiré du markup, on ne lève
+  // pas d'exception (qui casserait toggleRepair / le polling prix).
+  if (!badge || !subtitle || !btn || !totalEl || !rowsHost) return;
 
   const totalQty = cart.reduce((s, i) => s + (i.qty || 1), 0);
   if (cart.length) { badge.textContent = totalQty; badge.classList.add('show'); }
