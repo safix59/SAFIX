@@ -6780,6 +6780,11 @@ function addHistory(model) {
 function renderRecents() {
   const wrap  = document.getElementById('recentsWrap');
   const strip = document.getElementById('recentsStrip');
+  // #recentsStrip a été retiré du markup (intégration premium) mais cette
+  // fonction y accédait encore → strip.innerHTML sur null = exception qui
+  // interrompait navigate('home') → home incomplète au bouton Retour pour
+  // tout visiteur AYANT un historique. Garde null-safe.
+  if (!wrap || !strip) return;
   const hist  = getHistory();
   if (!hist.length) { wrap.classList.add('gone'); return; }
   wrap.classList.remove('gone');
