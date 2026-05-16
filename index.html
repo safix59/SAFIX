@@ -8825,6 +8825,82 @@ function buildOrderContextFromDOM() {
   };
 }
 
+// Modale de confirmation post-commande — extraite en fonction pour être
+// appelée AUSSI au retour ?paid=1 (paiement carte/Stripe Checkout). Avant :
+// uniquement le chemin synchrone → les payeurs carte (défaut) ne voyaient
+// qu'un toast 2s. Inclut le récap RDV (le client doit pouvoir vérifier).
+function showCheckoutSuccess(d) {
+  d = d || {};
+  const items = Array.isArray(d.cart) ? d.cart : [];
+  const model = d.model || 'votre iPhone';
+  const email = d.email || '';
+  const total = d.total;
+  const en = (window.__lang || 'fr') === 'en';
+  const lines = items.map(i => {
+    const q = i.qty || 1;
+    return q > 1
+      ? `<li>${escHtml(i.name)} <span style="color:var(--text2);font-size:.9em">×${q}</span> — <strong>${i.price * q} €</strong></li>`
+      : `<li>${escHtml(i.name)} — <strong>${i.price} €</strong></li>`;
+  }).join('');
+  const dc = Number(d.deliveryCost) || 0;
+  const delivLabel = d.deliveryMode === 'express'
+    ? `<li>${t('delivery.exp_name')} — <strong>${dc} €</strong></li>`
+    : (d.deliveryMode === 'standard' ? `<li>${t('delivery.std_name')} — <strong>${dc} €</strong></li>` : '');
+  let apptLabel = '';
+  if (d.apptDate || d.apptSlot) {
+    const addr = d.apptAddress === 'other'
+      ? (en ? 'Address to arrange' : 'Adresse à convenir')
+      : '48 Bd Alexandre III, 59140 Dunkerque';
+    apptLabel = `<li style="border-top:1px solid var(--border);margin-top:6px;padding-top:8px">`
+      + `${en ? 'Appointment' : 'Rendez-vous'} : <strong>${escHtml(String(d.apptDate || ''))}${d.apptSlot ? ' · ' + escHtml(String(d.apptSlot)) : ''}</strong>`
+      + `<br><span style="color:var(--text2)">${escHtml(addr)}</span></li>`;
+  }
+  let modal = document.getElementById('checkoutSuccessOverlay');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'checkoutSuccessOverlay';
+    modal.className = 'gm-overlay';
+    modal.innerHTML = `
+      <div class="gm-modal" style="max-width:440px">
+        <button class="gm-close" id="csClose" aria-label="Fermer">✕</button>
+        <div class="gm-icon" style="background:rgba(48,209,88,.15);color:var(--green)">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div class="gm-title" id="csTitle"></div>
+        <div class="gm-sub" id="csSub"></div>
+        <ul id="csLines" style="text-align:left; list-style:none; padding:14px 16px; background:var(--surface); border-radius:14px; font-size:13px; line-height:1.7; margin-bottom:12px"></ul>
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:0 4px 14px; font-size:15px">
+          <span style="color:var(--text2)" id="csTotalLabel"></span>
+          <strong id="csTotal" style="color:var(--accent); font-size:20px"></strong>
+        </div>
+        <div style="border-top:1px solid var(--border); padding-top:18px">
+          <div style="font-size:13px; color:var(--text2); margin-bottom:10px" id="csShareLabel"></div>
+          <div class="gm-qrwrap" style="width:170px; height:170px; padding:12px"><div id="csQrCanvas"></div></div>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.querySelector('#csClose').addEventListener('click', () => closeModal('checkoutSuccessOverlay'));
+    modal.addEventListener('click', e => { if (e.target === modal) closeModal('checkoutSuccessOverlay'); });
+  }
+  modal.querySelector('#csTitle').textContent = t('checkout.success', { model });
+  modal.querySelector('#csSub').textContent = t('checkout.contact', { email });
+  modal.querySelector('#csLines').innerHTML = lines + delivLabel + apptLabel;
+  modal.querySelector('#csTotalLabel').textContent = t('cart.total');
+  modal.querySelector('#csTotal').textContent = (total != null ? total : '') + ' €';
+  modal.querySelector('#csShareLabel').textContent = t('checkout.share');
+  const qrwrap = modal.querySelector('#csQrCanvas');
+  qrwrap.innerHTML = '';
+  const url = window.location.origin + window.location.pathname;
+  if (typeof QRCode !== 'undefined') {
+    new QRCode(qrwrap, { text: url, width: 146, height: 146, correctLevel: QRCode.CorrectLevel.H });
+  } else {
+    const img = document.createElement('img');
+    img.src = `https://api.qrserver.com/v1/create-qr-code/?size=146x146&data=${encodeURIComponent(url)}`;
+    qrwrap.appendChild(img);
+  }
+  openModal('checkoutSuccessOverlay');
+}
+
 document.getElementById('checkoutBtn')?.addEventListener('click', async () => {
   if (!cart.length) return;
   // Anti double-soumission : un 2e tap (mobile/4G lente) créait une 2e
@@ -8923,63 +8999,12 @@ document.getElementById('checkoutBtn')?.addEventListener('click', async () => {
     apptAddress: appointmentAddress,
   });
 
-  const model = activeModel || 'votre iPhone';
-  const total = totalNow;
-  const lines = cart.map(i => {
-    const q = i.qty || 1;
-    return q > 1
-      ? `<li>${escHtml(i.name)} <span style="color:var(--text2);font-size:.9em">×${q}</span> — <strong>${i.price * q} €</strong></li>`
-      : `<li>${escHtml(i.name)} — <strong>${i.price} €</strong></li>`;
-  }).join('');
-  const delivLabel = selectedDelivery === 'express'
-    ? `<li>${t('delivery.exp_name')} — <strong>${deliv} €</strong></li>`
-    : (selectedDelivery === 'standard' ? `<li>${t('delivery.std_name')} — <strong>${deliv} €</strong></li>` : '');
-  // Construit (et ouvre) la modale post-checkout
-  let modal = document.getElementById('checkoutSuccessOverlay');
-  if (!modal) {
-    modal = document.createElement('div');
-    modal.id = 'checkoutSuccessOverlay';
-    modal.className = 'gm-overlay';
-    modal.innerHTML = `
-      <div class="gm-modal" style="max-width:440px">
-        <button class="gm-close" id="csClose" aria-label="Fermer">✕</button>
-        <div class="gm-icon" style="background:rgba(48,209,88,.15);color:var(--green)">
-          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        </div>
-        <div class="gm-title" id="csTitle"></div>
-        <div class="gm-sub" id="csSub"></div>
-        <ul id="csLines" style="text-align:left; list-style:none; padding:14px 16px; background:var(--surface); border-radius:14px; font-size:13px; line-height:1.7; margin-bottom:12px"></ul>
-        <div style="display:flex; justify-content:space-between; align-items:center; padding:0 4px 14px; font-size:15px">
-          <span style="color:var(--text2)" id="csTotalLabel"></span>
-          <strong id="csTotal" style="color:var(--accent); font-size:20px"></strong>
-        </div>
-        <div style="border-top:1px solid var(--border); padding-top:18px">
-          <div style="font-size:13px; color:var(--text2); margin-bottom:10px" id="csShareLabel"></div>
-          <div class="gm-qrwrap" style="width:170px; height:170px; padding:12px"><div id="csQrCanvas"></div></div>
-        </div>
-      </div>`;
-    document.body.appendChild(modal);
-    modal.querySelector('#csClose').addEventListener('click', () => closeModal('checkoutSuccessOverlay'));
-    modal.addEventListener('click', e => { if (e.target === modal) closeModal('checkoutSuccessOverlay'); });
-  }
-  modal.querySelector('#csTitle').textContent = t('checkout.success', { model });
-  modal.querySelector('#csSub').textContent = t('checkout.contact', { email });
-  modal.querySelector('#csLines').innerHTML = lines + delivLabel;
-  modal.querySelector('#csTotalLabel').textContent = t('cart.total');
-  modal.querySelector('#csTotal').textContent = total + ' €';
-  modal.querySelector('#csShareLabel').textContent = t('checkout.share');
-  // Génère le QR de partage post-commande
-  const qrwrap = modal.querySelector('#csQrCanvas');
-  qrwrap.innerHTML = '';
-  const url = window.location.origin + window.location.pathname;
-  if (typeof QRCode !== 'undefined') {
-    new QRCode(qrwrap, { text: url, width: 146, height: 146, correctLevel: QRCode.CorrectLevel.H });
-  } else {
-    const img = document.createElement('img');
-    img.src = `https://api.qrserver.com/v1/create-qr-code/?size=146x146&data=${encodeURIComponent(url)}`;
-    qrwrap.appendChild(img);
-  }
-  openModal('checkoutSuccessOverlay');
+  showCheckoutSuccess({
+    cart, total: totalNow, model: activeModel || 'votre iPhone', email,
+    deliveryMode: selectedDelivery, deliveryCost: deliv,
+    apptDate: appointmentDate, apptSlot: appointmentSlot, apptAddress: appointmentAddress,
+  });
+  clrBusy();
 });
 
 /* ═══════════════════════════════════════════════════
@@ -10701,7 +10726,7 @@ document.addEventListener('keydown', e => {
     let order = null;
     try { order = JSON.parse(localStorage.getItem('safix_pending_order') || 'null'); } catch {}
     if (order) {
-      // Envoi de l'email de confirmation (best-effort, ne bloque pas l'UX)
+      // Email best-effort (ne bloque pas l'UX)
       sendOrderEmail({
         email: order.email, phone: order.phone, snap: order.snap,
         model: order.model, cart: order.cart,
@@ -10710,14 +10735,22 @@ document.addEventListener('keydown', e => {
         apptDate: order.appointmentDate, apptSlot: order.appointmentSlot,
         apptAddress: order.appointmentAddress,
       });
-      // Vide le panier maintenant que la commande est passée
+      // Vraie confirmation : la MÊME modale que le chemin synchrone (avant,
+      // les payeurs carte n'avaient qu'un toast 2s → commande "perdue").
+      showCheckoutSuccess({
+        cart: order.cart || [], total: order.total, model: order.model, email: order.email,
+        deliveryMode: order.deliveryMode, deliveryCost: order.deliveryCost,
+        apptDate: order.appointmentDate, apptSlot: order.appointmentSlot, apptAddress: order.appointmentAddress,
+      });
       cart = [];
       try { localStorage.removeItem('safix_pending_order'); } catch {}
       try { localStorage.removeItem('safix_cart'); } catch {}
       syncCart();
+    } else {
+      // Preuve de paiement mais panier perdu : message honnête, sans
+      // prétendre qu'un email a été envoyé (on n'en sait rien ici).
+      showToast('✓', (window.__lang || 'fr') === 'en' ? 'Payment received' : 'Paiement reçu');
     }
-    // Toast de confirmation immédiat
-    showToast('✓', currentLang === 'en' ? 'Payment received — confirmation sent' : 'Paiement reçu — confirmation envoyée');
   } else if (params.has('cancel')) {
     history.replaceState({}, '', window.location.pathname);
     showToast('⚠️', currentLang === 'en' ? 'Payment cancelled' : 'Paiement annulé');
