@@ -18,7 +18,9 @@
     #viewer-3d {
       position: fixed; inset: 0;
       width: 100vw; height: 100vh;
-      touch-action: none; /* essential for Lotus pointer events on touch */
+      /* pan-y : le swipe vertical fait défiler la page parente (iOS) ;
+         le drag horizontal reste capté par Lotus pour tourner le modèle. */
+      touch-action: pan-y;
     }
     /* This is the div Lotus inserts its canvas into */
     .product-viewer-enhanced-container {

@@ -2748,8 +2748,8 @@ input:focus:not(:focus-visible) {
   .repair-grid { grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px; }
   .detail-name { font-size:clamp(24px, 5vw, 32px); }
   .cart-panel { width:min(420px, 100vw); }
-  .float-bar { left:16px; right:16px; transform:translateX(0) translateY(100px); width:auto; }
-  .float-bar.show { transform:translateX(0) translateY(0); }
+  .float-bar { left:50%; right:auto; transform:translateX(-50%) translateY(100px); width:auto; max-width:calc(100vw - 24px); }
+  .float-bar.show { transform:translateX(-50%) translateY(0); }
   .compare-grid { grid-template-columns:1fr; gap:14px; }
 }
 /* — Mobile (≤ 560 px) — pleine largeur, hiérarchie simplifiée — */
@@ -2787,7 +2787,8 @@ input:focus:not(:focus-visible) {
   .gm-modal { padding:24px 16px 16px; max-width:calc(100vw - 24px); }
   .gm-modal-body { font-size:13px; max-height:55vh; }
   .gm-title { font-size:18px; }
-  .float-bar { bottom:14px; left:10px; right:10px; padding:10px 14px; }
+  .float-bar { bottom:14px; left:50%; right:auto; transform:translateX(-50%) translateY(100px); padding:9px 9px 9px 16px; gap:12px; max-width:calc(100vw - 20px); }
+  .float-bar.show { transform:translateX(-50%) translateY(0); }
   .total-amt { font-size:22px; }
   .checkout-btn { padding:14px; font-size:14px; }
 }
@@ -3545,7 +3546,7 @@ html.lenis body { height:auto; }
 }
 /* Mobile uniquement : on adapte pour la lisibilité */
 @media (max-width:734px) { .story-sub { font-size:16px; max-width:440px; } }
-@media (max-width:480px) { .story-sub { font-size:15px; max-width:300px; } }
+@media (max-width:480px) { .story-sub { font-size:clamp(11px, 3.5vw, 15px); max-width:94vw; } }
 
 /* iPhone fissure SVG centré : MASQUÉ (demande utilisateur) */
 .story-iphone-visual {
@@ -4771,7 +4772,11 @@ body.premium-mode .iphone-card:hover .card-shine { opacity:1; }
 .hero-3d-stage {
   position:relative;
   pointer-events:auto;
+  /* Laisse passer le scroll vertical de la page sur iOS (sinon le 3D
+     capte tout le toucher autour de l'iPhone). Rotation = drag horizontal. */
+  touch-action:pan-y;
 }
+.hero-3d-stage iframe, #heroAppleViewer { touch-action:pan-y; }
 #heroCanvas {
   cursor:grab;
   touch-action:none;
@@ -7879,23 +7884,13 @@ document.getElementById('heroCtaBtn')?.addEventListener('click', () => {
   const startY     = window.scrollY;
   const distance   = targetTop - startY;
   // Durée totale plus longue pour la story (3 scènes à lire)
-  const duration   = Math.min(11000, Math.max(8000, Math.abs(distance) * 2.8)); // ms : 8-11s
+  const duration   = Math.min(3400, Math.max(1600, Math.abs(distance) * 1.05)); // ms : 1.6-3.4s, fluide
   const startTime  = performance.now();
 
-  // Estimation : hero occupe ~25% de la distance à scroller, story ~75%
-  // On utilise un easing PIECEWISE LINEAR :
-  //   - 0-10% temps → 0-25% distance (rapide, hero qui descend, 2.5×)
-  //   - 10-85% temps → 25-80% distance (lent UNIFORME, 3 scènes story, 0.73×)
-  //   - 85-100% temps → 80-100% distance (rapide arrivée catalogue, 1.33×)
-  const easeInOutCubic = (t) => {
-    if (t < 0.10) {
-      return (0.25 / 0.10) * t;                            // 0 → 0.25
-    } else if (t < 0.85) {
-      return 0.25 + ((0.80 - 0.25) / 0.75) * (t - 0.10);   // 0.25 → 0.80
-    } else {
-      return 0.80 + ((1.0 - 0.80) / 0.15) * (t - 0.85);    // 0.80 → 1.0
-    }
-  };
+  // Vraie courbe cubique ease-in-out : vitesse continue (aucune rupture)
+  // → descente lissée, sans à-coups perçus comme des baisses de FPS.
+  const easeInOutCubic = (t) =>
+    t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
   let cancelled = false;
   const cancel = () => { cancelled = true; };
