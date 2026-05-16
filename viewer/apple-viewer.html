@@ -207,13 +207,15 @@
 
     // Pick scene based on screen and KTX support
     function pickSceneName() {
-      // Le propriétaire veut le 3D IDENTIQUE au local sur TOUS les appareils
-      // (mobile inclus) → on force la scène LARGE (haute fidélité) au lieu
-      // de dégrader en small/medium au toucher. PAS de supersampling /
-      // override de devicePixelRatio : c'est CELA (pas la scène L) qui
-      // bloquait le chargement à 1% en prod. Loader robuste + fallback PNG
-      // conservés comme filet de sécurité.
+      // CONTRAINTE DURE iOS : forcer LARGE sur mobile fait CRASHER Safari au
+      // zoom (dépassement mémoire WebContent → "problème récurrent"). On
+      // RESTAURE le tiering connu stable. La haute fidélité mobile ne se
+      // débloque pas en poussant la scène — c'est un plafond navigateur.
+      const w = window.outerWidth || window.innerWidth;
       let base = SCENES.large;
+      if (FeatureDetect.touchAvailable()) {
+        base = w <= 884 ? SCENES.small : SCENES.medium;
+      }
       // Texture format
       let hasASTC = false;
       try {
