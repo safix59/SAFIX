@@ -41,6 +41,51 @@ function norm(s) {
     .toLowerCase();
 }
 
+// Porté À L'IDENTIQUE du front (index.html) : le client soumet le nom de
+// couleur APPLE, prices.json stocke le nom UTOPYA. Sans ce matcher flou le
+// serveur ne trouvait jamais la couleur → facturait le prix de BASE au lieu
+// du prix de la couleur choisie (écart silencieux, cf. revue A12).
+function strNorm(s) { return (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
+function utopyaMatchesApple(utopyaName, appleName) {
+  const u = strNorm(utopyaName), a = strNorm(appleName);
+  if (u === a) return true;
+  if (u.includes(a) || a.includes(u)) return true;
+  const specials = {
+    'gris sideral':['noir','gris','space gray','space grey'],
+    'argent':['blanc','silver'],
+    'or':['or','gold'],
+    'or rose':['rose','rose gold'],
+    'noir de jais':['jais','jet'],
+    '(product)red':['rouge','red'],
+    'minuit':['noir','midnight'],
+    'lumiere stellaire':['blanc','stellaire','starlight'],
+    'noir sideral':['noir','space black'],
+    'violet intense':['violet','deep purple'],
+    'graphite':['noir','gris','graphite'],
+    'titane noir':['noir','black titanium','titane'],
+    'titane blanc':['blanc','white titanium','titane'],
+    'titane bleu':['bleu','blue titanium','titane'],
+    'titane naturel':['naturel','natural','titane'],
+    'titane sable':['sable','desert','titane'],
+    'bleu pacifique':['bleu','pacifique','pacific'],
+    'bleu alpin':['bleu','alpin','alpine'],
+    'vert alpin':['vert','alpin','alpine'],
+    'sarcelle':['teal','sarcelle','vert'],
+    'outremer':['outremer','ultramarine','bleu'],
+    'lavande':['lavende','violet','lavender'],
+    'sauge':['vert','sage','sauge'],
+    'brume':['gris','blanc','mist'],
+    'bleu ciel':['bleu','sky'],
+    'or clair':['or','light gold'],
+    'blanc nuage':['blanc','cloud'],
+    'orange cosmique':['orange','cosmic'],
+    'bleu intense':['bleu','deep blue'],
+    'rose pastel':['rose','pastel pink'],
+  };
+  const list = specials[a] || [];
+  return list.some(k => u.includes(strNorm(k)));
+}
+
 // Index normalisé construit une seule fois par objet PRICES (WeakMap →
 // libéré quand le cache est remplacé). { repairIdNorm -> {
 //   id: repairIdRéel, models: Map<modelNorm, entry> } }
@@ -112,7 +157,8 @@ function resolve(PRICES, it) {
   let v = Number(entry.final);
   if (it && it.colorName && Array.isArray(entry.colors)) {
     const want = norm(it.colorName);
-    const cv = entry.colors.find(c => norm(c && c.color) === want);
+    let cv = entry.colors.find(c => norm(c && c.color) === want);
+    if (!cv) cv = entry.colors.find(c => c && utopyaMatchesApple(c.color, it.colorName));
     if (cv) {
       if (cv.outOfStock === true) return { oos: true };
       if (Number.isFinite(Number(cv.final))) v = Number(cv.final);
