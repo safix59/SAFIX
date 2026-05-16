@@ -51,6 +51,32 @@
      S'exécute UNIQUEMENT en production (localhost/127.0.0.1 → désactivé)
      ═══════════════════════════════════════════════════════════════════════ -->
 <script>
+// ─── Beacon erreurs JS prod (enregistré AVANT tout le reste pour capter
+// même un crash au boot, ex. ReferenceError TDZ). Envoie vers /api/clientlog.
+(function safixErrBeacon(){
+  var h = location.hostname;
+  if (h==='localhost'||h==='127.0.0.1'||h==='0.0.0.0'||h.endsWith('.local')) return;
+  var sent = 0;
+  function beacon(d){
+    if (sent >= 8) return;            // anti-flood : 8 erreurs max / page
+    sent++;
+    try {
+      d.ua = navigator.userAgent; d.url = location.href;
+      fetch('/api/clientlog', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(d), keepalive:true }).catch(function(){});
+    } catch(e){}
+  }
+  window.addEventListener('error', function(e){
+    beacon({ t:'error', msg:String((e&&e.message)||'?'),
+      src:(e&&e.filename)||'', line:(e&&e.lineno)||0, col:(e&&e.colno)||0,
+      stack:String((e&&e.error&&e.error.stack)||'').slice(0,1200) });
+  });
+  window.addEventListener('unhandledrejection', function(e){
+    var r = e && e.reason;
+    beacon({ t:'reject', msg:String((r&&r.message)||r||'?'),
+      stack:String((r&&r.stack)||'').slice(0,1200) });
+  });
+})();
 (function safixProtect(){
   'use strict';
   // Désactivé en local pour permettre le développement
@@ -6954,8 +6980,8 @@ function zoomClose(toRect, cb) {
   }));
 }
 
-document.getElementById('backBtn').addEventListener('click', () => navigate('home'));
-document.getElementById('navLogo').addEventListener('click', e => {
+document.getElementById('backBtn')?.addEventListener('click', () => navigate('home'));
+document.getElementById('navLogo')?.addEventListener('click', e => {
   e.preventDefault();
   navigate('home');
 });
@@ -7463,7 +7489,7 @@ function addRipple(card, e) {
 /* ═══════════════════════════════════════════════════
    COMPARE HEADER BUTTON
 ═══════════════════════════════════════════════════ */
-document.getElementById('compareHeaderBtn').addEventListener('click', openCompare);
+document.getElementById('compareHeaderBtn')?.addEventListener('click', openCompare);
 
 /* ═══════════════════════════════════════════════════
    CART LOGIC
@@ -7937,7 +7963,7 @@ if (footerEl && 'IntersectionObserver' in window) {
   obs.observe(footerEl);
 }
 
-document.getElementById('floatBtn').addEventListener('click', openCart);
+document.getElementById('floatBtn')?.addEventListener('click', openCart);
 
 /* ═══════════════════════════════════════════════════
    CART PANEL
@@ -7945,9 +7971,9 @@ document.getElementById('floatBtn').addEventListener('click', openCart);
 function openCart()  { document.getElementById('cartOverlay').classList.add('open'); document.getElementById('cartPanel').classList.add('open'); document.body.style.overflow='hidden'; }
 function closeCart() { document.getElementById('cartOverlay').classList.remove('open'); document.getElementById('cartPanel').classList.remove('open'); document.body.style.overflow=''; }
 
-document.getElementById('cartBtn').addEventListener('click', openCart);
-document.getElementById('cartClose').addEventListener('click', closeCart);
-document.getElementById('cartOverlay').addEventListener('click', closeCart);
+document.getElementById('cartBtn')?.addEventListener('click', openCart);
+document.getElementById('cartClose')?.addEventListener('click', closeCart);
+document.getElementById('cartOverlay')?.addEventListener('click', closeCart);
 
 // Bouton hero "Choisir mon modèle" → scroll lent vers la barre de recherche
 // (l'utilisateur perçoit la story "Notre promesse / Tout s'arrête / En 48h il revit"
@@ -8002,7 +8028,7 @@ document.getElementById('heroCtaBtn')?.addEventListener('click', () => {
 /* ═══════════════════════════════════════════════════
    PDF EXPORT
 ═══════════════════════════════════════════════════ */
-document.getElementById('pdfBtn').addEventListener('click', () => {
+document.getElementById('pdfBtn')?.addEventListener('click', () => {
   if (!cart.length) { showToast('⚠️', t('cart.empty_title')); return; }
   if (!window.jspdf) { showToast('⏳', currentLang === 'en' ? 'Loading PDF…' : 'Chargement PDF…'); return; }
 
@@ -8702,7 +8728,7 @@ function buildOrderContextFromDOM() {
   };
 }
 
-document.getElementById('checkoutBtn').addEventListener('click', async () => {
+document.getElementById('checkoutBtn')?.addEventListener('click', async () => {
   if (!cart.length) return;
 
   // ═══ Validation : marque TOUS les champs manquants en rouge persistant
@@ -8960,10 +8986,10 @@ function renderCompareTable() {
 }
 
 document.getElementById('compareBtn')?.addEventListener('click', openCompare);
-document.getElementById('compareClose').addEventListener('click', () => document.getElementById('compareOverlay').classList.remove('open'));
-document.getElementById('compareOverlay').addEventListener('click', e => { if (e.target === e.currentTarget) e.currentTarget.classList.remove('open'); });
-document.getElementById('compareSlotA').addEventListener('click', e => { e.stopPropagation(); toggleCompareDropdown('A'); });
-document.getElementById('compareSlotB').addEventListener('click', e => { e.stopPropagation(); toggleCompareDropdown('B'); });
+document.getElementById('compareClose')?.addEventListener('click', () => document.getElementById('compareOverlay')?.classList.remove('open'));
+document.getElementById('compareOverlay')?.addEventListener('click', e => { if (e.target === e.currentTarget) e.currentTarget.classList.remove('open'); });
+document.getElementById('compareSlotA')?.addEventListener('click', e => { e.stopPropagation(); toggleCompareDropdown('A'); });
+document.getElementById('compareSlotB')?.addEventListener('click', e => { e.stopPropagation(); toggleCompareDropdown('B'); });
 // Click ailleurs dans le modal → ferme les dropdowns
 document.querySelector('.compare-modal').addEventListener('click', e => {
   if (!e.target.closest('.compare-slot-wrap')) closeAllCompareDropdowns();
