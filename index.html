@@ -4077,15 +4077,16 @@ body.premium-mode .repair-card.out-of-stock:hover {
   box-shadow: none !important;
 }
 body.premium-mode .repair-card.out-of-stock .repair-price {
-  background: rgba(255,59,48, .1);
+  /* Comme l'archive : texte rouge gras simple, pas de pastille rose */
+  background: none !important;
   color: var(--red) !important;
-  padding: 4px 10px;
-  border-radius: 8px;
-  font-size: 11px !important;
-  font-weight: 700 !important;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-  line-height: 1.2 !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  font-size: 10.5px !important;
+  font-weight: 800 !important;
+  letter-spacing: .4px !important;
+  text-transform: uppercase !important;
+  line-height: 1.15 !important;
 }
 body.premium-mode .repair-card.out-of-stock .repair-price span {
   -webkit-text-fill-color: var(--red);
@@ -4100,8 +4101,20 @@ body.premium-mode .repair-card.no-link:hover {
   transform: none !important;
 }
 body.premium-mode .repair-card.no-link .repair-price {
+  /* Comme l'archive : pastille ronde rouge (le "point" rouge) */
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  border-radius: 50% !important;
+  background: rgba(255,59,48,.15) !important;
   color: var(--red) !important;
-  font-size: 24px !important;
+  font-size: 18px !important;
+  font-weight: 900 !important;
+  padding: 0 !important;
+  gap: 0 !important;
 }
 body.premium-mode .repair-card.unavailable .repair-price {
   color: var(--text3) !important;
