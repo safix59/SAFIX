@@ -8094,24 +8094,17 @@ document.getElementById('heroCtaBtn')?.addEventListener('click', () => {
     return;
   }
 
-  // TACTILE (iOS/Android) : le scroll custom rAF (window.scrollTo par
-  // frame) se bat avec le scroll natif/momentum iOS → ça "zappe", aucune
-  // cohérence (signalé owner). On laisse l'OS animer : smooth natif =
-  // cohérent. Le scroll custom premium reste pour desktop (souris).
-  if (window.matchMedia('(hover:none) and (pointer:coarse)').matches) {
-    try { window.scrollTo({ top: targetTop, behavior: 'smooth' }); }
-    catch (e) { window.scrollTo(0, targetTop); }
-    return;
-  }
-
-  // Scroll custom avec easing custom "fast-slow-fast" :
-  //  - rapide sur le hero (le user n'a rien à lire en haut)
-  //  - lent au milieu (story scenes — temps de lecture)
-  //  - rapide à l'arrivée (descente vers le catalogue)
+  // Scroll contrôlé pour TOUS les appareils (desktop + iOS/Android).
+  // Le natif "smooth" iOS est cohérent MAIS trop rapide → on ne peut pas
+  // lire les 3 scènes "NOTRE PROMESSE" (texte fait pour être LU par un
+  // humain — owner). On garde donc un scroll piloté, NETTEMENT plus lent,
+  // à vitesse constante au milieu. Filet : un swipe/molette/touche de
+  // l'utilisateur annule l'auto-scroll (il reprend la main quand il veut).
   const startY     = window.scrollY;
   const distance   = targetTop - startY;
-  // Durée totale plus longue pour la story (3 scènes à lire)
-  const duration   = Math.min(11000, Math.max(3800, Math.abs(distance) * 2.6)); // ms : ~30% plus lent (owner: desktop un peu trop rapide), reste fluide
+  // Durée allongée pour laisser le temps de LIRE la story (owner :
+  // "encore un peu trop vite par rapport au texte").
+  const duration   = Math.min(14000, Math.max(5200, Math.abs(distance) * 3.4)); // ms : lecture confortable des 3 scènes
   const startTime  = performance.now();
 
   // Profil de vitesse TRAPÉZOÏDAL : court ease-in (16%, départ perceptible
