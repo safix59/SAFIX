@@ -90,7 +90,7 @@ export default async function handler(req, res) {
     const itemsTotal = items.reduce(
       (s, it) => s + Number(it.unit_amount.value) * Number(it.quantity), 0
     );
-    const shippingTotal = (req.body.delivery && req.body.delivery.price) || 0;
+    const shippingTotal = Math.max(0, Number(req.body.delivery && req.body.delivery.price) || 0);
     const grandTotal = itemsTotal + Number(shippingTotal);
 
     const orderPayload = {

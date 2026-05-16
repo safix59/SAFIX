@@ -54,8 +54,10 @@ export default async function handler(req, res) {
     // Montant recalculé serveur depuis les prix validés (plus de confiance
     // aveugle au `total` client). Livraison/frais bornés inchangés.
     const itemsEuros = lineItems.reduce((s, it) => s + Number(it.price) * (it.qty || 1), 0);
-    const delivEuros = Number(delivery && delivery.price) || 0;
-    const feeEuros   = Number(paymentFees) || 0;
+    // Plancher 0 : un montant négatif (livraison/frais trafiqués) réduirait
+    // frauduleusement le total recalculé serveur.
+    const delivEuros = Math.max(0, Number(delivery && delivery.price) || 0);
+    const feeEuros   = Math.max(0, Number(paymentFees) || 0);
     const amountCents = Math.round((itemsEuros + delivEuros + feeEuros) * 100);
     if (!Number.isFinite(amountCents) || amountCents < 100) {
       return res.status(400).json({ error: 'Montant invalide' });
