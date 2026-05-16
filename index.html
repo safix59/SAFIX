@@ -5172,8 +5172,10 @@ body.premium-mode .series-label::before {
 }
 
 /* 4. Encoche / barre d'accueil (iPhone X+, Android gestes, PWA) */
-header { padding-left: max(0px, env(safe-area-inset-left));
-         padding-right: max(0px, env(safe-area-inset-right)); }
+/* Inset notch ADDITIF : ne descend jamais sous la gouttière de base 20px
+   (un plancher 0px supprimait la marge header sur desktop = régression). */
+header { padding-left: max(20px, env(safe-area-inset-left));
+         padding-right: max(20px, env(safe-area-inset-right)); }
 .float-bar { bottom: calc(28px + env(safe-area-inset-bottom)); }
 @media (max-width:560px){ .float-bar { bottom: calc(14px + env(safe-area-inset-bottom)); } }
 .price-fail-banner { bottom: calc(24px + env(safe-area-inset-bottom)); }
