@@ -5,6 +5,9 @@
   "rewrites": [
     { "source": "/api/:path*", "destination": "/api/:path*" }
   ],
+  "crons": [
+    { "path": "/api/keepalive", "schedule": "0 6 * * *" }
+  ],
   "headers": [
     {
       "source": "/(.*)",
