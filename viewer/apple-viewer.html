@@ -170,6 +170,7 @@
     if (typeof window.Lotus === 'undefined') {
       err('window.Lotus undefined. lotus.min.js failed to load.');
       loaderStatus.textContent = 'Erreur : moteur 3D introuvable';
+      try { parent.postMessage({ type: 'safix-3d', status: 'failed' }, '*'); } catch (e) {}
       return;
     }
     log('Lotus loaded. Keys:', Object.keys(window.Lotus));
