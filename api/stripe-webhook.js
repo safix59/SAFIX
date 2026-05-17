@@ -26,6 +26,10 @@ async function readRawBody(req) {
   });
 }
 
+// Échappe toute valeur contrôlée par le client avant interpolation HTML (anti-injection e-mail)
+const esc = (s) => String(s == null ? '' : s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
 // ─── Templates HTML (mail propre) ────────────────────────────────────────
 function buildShopEmailHtml({ session, lineItems }) {
   const customer = session.customer_details || {};
@@ -48,7 +52,7 @@ function buildShopEmailHtml({ session, lineItems }) {
   const itemsRows = lineItems.map(it => {
     const lt = (it.unit_amount * it.qty / 100).toFixed(2);
     return `<tr>
-      <td style="padding:11px 14px;border-bottom:1px solid #eee;">${it.name}</td>
+      <td style="padding:11px 14px;border-bottom:1px solid #eee;">${esc(it.name)}</td>
       <td style="padding:11px 14px;border-bottom:1px solid #eee;text-align:center;color:#86868b;">×${it.qty}</td>
       <td style="padding:11px 14px;border-bottom:1px solid #eee;text-align:right;font-variant-numeric:tabular-nums;font-weight:600;">${lt} €</td>
     </tr>`;
@@ -58,7 +62,7 @@ function buildShopEmailHtml({ session, lineItems }) {
   const piUrl     = `https://dashboard.stripe.com/${session.livemode ? '' : 'test/'}payments/${session.payment_intent}`;
 
   return `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>SAFIX 🔔 ${total} € · ${meta.model || 'Commande'}</title></head>
+<html><head><meta charset="utf-8"><title>SAFIX 🔔 ${total} € · ${esc(meta.model) || 'Commande'}</title></head>
 <body style="margin:0;padding:0;background:#f5f5f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1d1d1f;-webkit-font-smoothing:antialiased;">
   <div style="max-width:640px;margin:0 auto;padding:24px;">
 
@@ -66,7 +70,7 @@ function buildShopEmailHtml({ session, lineItems }) {
     <div style="background:linear-gradient(135deg,#0066ff,#5b21b6);border-radius:18px;padding:28px 24px;text-align:center;color:#fff;margin-bottom:18px;box-shadow:0 8px 24px rgba(0,102,255,.25);">
       <div style="font-size:12px;letter-spacing:2.5px;opacity:.9;text-transform:uppercase;font-weight:700;">🔔 NOUVELLE COMMANDE SAFIX</div>
       <div style="font-size:42px;font-weight:800;margin-top:10px;letter-spacing:-1.5px;line-height:1;">${total} €</div>
-      <div style="font-size:13px;opacity:.85;margin-top:8px;">${meta.model || 'iPhone'} · ${dt}</div>
+      <div style="font-size:13px;opacity:.85;margin-top:8px;">${esc(meta.model) || 'iPhone'} · ${dt}</div>
     </div>
 
     <!-- ACTIONS RAPIDES -->
@@ -88,11 +92,11 @@ function buildShopEmailHtml({ session, lineItems }) {
     <div style="background:#fff;border-radius:14px;padding:18px 20px;margin-bottom:14px;">
       <div style="font-size:11px;color:#86868b;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;margin-bottom:12px;">👤 CLIENT</div>
       <table style="width:100%;font-size:14px;border-collapse:collapse;">
-        <tr><td style="padding:6px 0;color:#86868b;width:130px;">Email</td><td style="padding:6px 0;font-weight:600;"><a href="mailto:${customer.email || ''}" style="color:#0066ff;text-decoration:none;">${customer.email || session.customer_email || '—'}</a></td></tr>
-        <tr><td style="padding:6px 0;color:#86868b;">Téléphone</td><td style="padding:6px 0;font-weight:600;"><a href="tel:${customer.phone || ''}" style="color:#0066ff;text-decoration:none;">${customer.phone || meta.phone || '—'}</a></td></tr>
-        <tr><td style="padding:6px 0;color:#86868b;">Snapchat</td><td style="padding:6px 0;font-weight:600;">${meta.snap || '—'}</td></tr>
-        <tr><td style="padding:6px 0;color:#86868b;vertical-align:top;">Adresse facturation</td><td style="padding:6px 0;font-weight:600;font-size:13px;">${customer.address ? Object.values(customer.address).filter(Boolean).join(', ') : '—'}</td></tr>
-        <tr><td style="padding:6px 0;color:#86868b;">Modèle iPhone</td><td style="padding:6px 0;font-weight:700;color:#0066ff;">${meta.model || '—'}</td></tr>
+        <tr><td style="padding:6px 0;color:#86868b;width:130px;">Email</td><td style="padding:6px 0;font-weight:600;"><a href="mailto:${esc(customer.email || '')}" style="color:#0066ff;text-decoration:none;">${esc(customer.email || session.customer_email || '—')}</a></td></tr>
+        <tr><td style="padding:6px 0;color:#86868b;">Téléphone</td><td style="padding:6px 0;font-weight:600;"><a href="tel:${esc(customer.phone || '')}" style="color:#0066ff;text-decoration:none;">${esc(customer.phone || meta.phone || '—')}</a></td></tr>
+        <tr><td style="padding:6px 0;color:#86868b;">Snapchat</td><td style="padding:6px 0;font-weight:600;">${esc(meta.snap) || '—'}</td></tr>
+        <tr><td style="padding:6px 0;color:#86868b;vertical-align:top;">Adresse facturation</td><td style="padding:6px 0;font-weight:600;font-size:13px;">${esc(customer.address ? Object.values(customer.address).filter(Boolean).join(', ') : '—')}</td></tr>
+        <tr><td style="padding:6px 0;color:#86868b;">Modèle iPhone</td><td style="padding:6px 0;font-weight:700;color:#0066ff;">${esc(meta.model) || '—'}</td></tr>
       </table>
     </div>
 
@@ -123,7 +127,7 @@ function buildShopEmailHtml({ session, lineItems }) {
         Session ID : <a href="${stripeUrl}" style="color:#0066ff;text-decoration:none;font-family:Menlo,Consolas,monospace;font-size:11.5px;">${session.id}</a><br>
         Payment Intent : <a href="${piUrl}" style="color:#0066ff;text-decoration:none;font-family:Menlo,Consolas,monospace;font-size:11.5px;">${session.payment_intent || '—'}</a><br>
         Mode : ${session.livemode ? '<strong style="color:#34c759;">LIVE 💰</strong>' : '<span style="color:#ff9500;">TEST</span>'}<br>
-        Locale client : ${meta.lang || 'fr'}
+        Locale client : ${esc(meta.lang) || 'fr'}
       </div>
     </div>
 
@@ -163,7 +167,7 @@ function buildClientEmailHtml({ session, lineItems }) {
   const itemsRows = lineItems.map(it => {
     const lt = (it.unit_amount * it.qty / 100).toFixed(2);
     return `<tr>
-      <td style="padding:12px 14px;border-bottom:1px solid #eee;color:#1d1d1f;">${it.name}</td>
+      <td style="padding:12px 14px;border-bottom:1px solid #eee;color:#1d1d1f;">${esc(it.name)}</td>
       <td style="padding:12px 14px;border-bottom:1px solid #eee;text-align:center;color:#86868b;font-variant-numeric:tabular-nums;">×${it.qty}</td>
       <td style="padding:12px 14px;border-bottom:1px solid #eee;text-align:right;font-variant-numeric:tabular-nums;font-weight:600;">${lt} €</td>
     </tr>`;
@@ -221,7 +225,7 @@ function buildClientEmailHtml({ session, lineItems }) {
     </ol>`;
   }
 
-  const modelLine = meta.model ? `<div style="font-size:14px;color:#86868b;margin-top:6px;">Modèle : <strong style="color:#1d1d1f;">${meta.model}</strong></div>` : '';
+  const modelLine = meta.model ? `<div style="font-size:14px;color:#86868b;margin-top:6px;">Modèle : <strong style="color:#1d1d1f;">${esc(meta.model)}</strong></div>` : '';
 
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>SAFIX — Commande confirmée</title></head>
