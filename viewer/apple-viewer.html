@@ -302,8 +302,6 @@
         loader.classList.add('hidden');
         setTimeout(() => { hint && hint.classList.add('hidden'); }, 5000);
         if (ok && !initialStatesApplied) { applyInitialStates(); initialStatesApplied = true; }
-        // Retourne le modèle AVANT la 1re frame visible (face au départ).
-        if (ok) { try { flipModelOnce(); } catch (e) {} }
         // Lotus force touch-action:none sur son canvas → empêchait le
         // scroll vertical de la page sur mobile. On rétablit pan-y.
         try {
@@ -344,9 +342,6 @@
             return;
           }
           scene.states.set('global', colorValue);
-          // Sûreté : si une variante couleur vient d'apparaître, la
-          // retourner aussi (idempotent → ne retourne jamais 2× la même).
-          try { if (typeof flipModelOnce === 'function') flipModelOnce(); } catch (e) {}
           L.tryRequestAnimationFrame && L.tryRequestAnimationFrame();
           log('Color applied:', colorValue);
         } catch (e) {
@@ -378,32 +373,31 @@
         try { (tl.restart || tl.play).call(tl); L.tryRequestAnimationFrame && L.tryRequestAnimationFrame(); return true; }
         catch (e) { err('timeline play failed:', e); return false; }
       }
-      // Demande owner : garder l'animation d'Apple SANS RETOUCHE et juste
-      // RETOURNER le téléphone (face au départ, dos quand ça tourne).
-      // L'intro n'anime QUE la caméra (theta 0 → -π) ; le modèle est
-      // statique. On tourne donc le modèle de 180° autour de Y une fois :
-      // theta 0 montre alors la FACE, theta -π le DOS. Animation Apple
-      // intacte, ~4 s, finit sur le dos. On retourne TOUS les groupes
-      // porteurs de mesh (modèle + variantes couleur), centrés en (0,0,0),
-      // sans toucher caméras/lumières. Idempotent (flag userData).
-      function flipModelOnce() {
-        try {
-          let n = 0;
-          (scene.children || []).forEach((c) => {
-            const isCam = /Camera/.test((c.constructor && c.constructor.name) || '') || /camera/i.test(c.type || '');
-            const isLight = /light/i.test(c.type || '');
-            if (isCam || isLight || (c.userData && c.userData.__sfxFlip)) return;
-            let hasMesh = false;
-            c.traverse((o) => { if (o.isMesh || o.isSkinnedMesh) hasMesh = true; });
-            if (!hasMesh) return;
-            c.rotation.y += Math.PI;
-            c.updateMatrix && c.updateMatrix();
-            c.userData = c.userData || {}; c.userData.__sfxFlip = true;
-            n++;
-          });
-          if (n) { L.tryRequestAnimationFrame && L.tryRequestAnimationFrame(); log('Model flipped 180° (' + n + ' group(s)) → face first, back at end'); }
-          return n;
-        } catch (e) { err('flipModelOnce failed:', e); return 0; }
+      // L'intro d'Apple va du DOS (progress 0, theta 0, pose [0,0,+35] =
+      // dos PILE) vers la FACE (progress 1, theta -π). Demande owner :
+      // finir sur LE VRAI dos, pas le preset 3/4. On REJOUE donc le
+      // timeline d'Apple À L'ENVERS (scrub progress 1 → 0) : la caméra
+      // revient EXACTEMENT sur le dos, via les keyframes EXACTS d'Apple,
+      // en mode 'ic'. Annulable instantanément si l'utilisateur attrape
+      // le modèle.
+      let reverseRAF = 0;
+      function reverseToBack(tl) {
+        if (!tl || hasInteracted || typeof tl.progress !== 'function') return;
+        try { tl.pause && tl.pause(); } catch (e) {}
+        try { scene.states.set('mode', 'ic'); } catch (e) {}
+        const DUR = 3000;
+        const t0 = performance.now();
+        const easeInOut = (x) => x < 0.5 ? 4*x*x*x : 1 - Math.pow(-2*x+2,3)/2;
+        function frame(now) {
+          if (hasInteracted) return;             // l'utilisateur a pris la main
+          const k = Math.min(1, (now - t0) / DUR);
+          try { tl.progress(1 - easeInOut(k)); } catch (e) {}   // 1 → 0
+          L.tryRequestAnimationFrame && L.tryRequestAnimationFrame();
+          if (k < 1) reverseRAF = requestAnimationFrame(frame);
+          else { try { tl.progress(0); } catch (e) {} log('Intro reversed → resting on the real back'); }
+        }
+        cancelAnimationFrame(reverseRAF);
+        reverseRAF = requestAnimationFrame(frame);
       }
 
       // === L'utilisateur prend la main quand il MANIPULE le modèle =====
@@ -419,6 +413,7 @@
       function switchToInteractive() {
         if (hasInteracted) return;
         hasInteracted = true;
+        try { cancelAnimationFrame(reverseRAF); } catch (e) {}   // stoppe le retour-arrière en cours
         try { activeIntro && activeIntro.pause && activeIntro.pause(); } catch (e) {}
         try {
           scene.states.set('mode', 'ic');
@@ -464,15 +459,15 @@
         }
         introStarted = true;
         activeIntro = tl;
-        flipModelOnce();   // face au départ, dos à la fin (modèle retourné)
         // Config RÉELLE d'Apple (ProductTourPreview = mode 'ic') : le
         // timeline "intro" anime l'InteractiveCamera, caméra affichée en ic.
         try { scene.states.set('mode', 'ic'); } catch (e) {}
         if (playTL(tl)) {
           log('Apple intro timeline play');
-          // Animation d'Apple SANS RETOUCHE (~4 s, theta 0→-π). Modèle
-          // retourné → démarre FACE, finit DOS. intro-done à la fin.
-          setTimeout(() => { try { parent.postMessage({ type:'safix-3d', status:'intro-done' }, '*'); } catch (e) {} }, 4250);
+          // Forward ~4 s (keyframes Apple t=0→4) PUIS retour-arrière ~3 s
+          // jusqu'au VRAI dos. intro-done envoyé quand TOUT est terminé.
+          setTimeout(() => reverseToBack(activeIntro), 4250);
+          setTimeout(() => { try { parent.postMessage({ type:'safix-3d', status:'intro-done' }, '*'); } catch (e) {} }, 7500);
         }
       }
       // Démarrée par finishViewer() dès que le viewer est prêt (juste
@@ -492,10 +487,12 @@
             if (!tl) return;
             hasInteracted = false;
             introStarted = true;
-            flipModelOnce();   // idempotent (déjà retourné au 1er passage)
             try { scene.states.set('mode', 'ic'); } catch (_) {}   // config réelle d'Apple
             activeIntro = tl;
-            if (playTL(tl)) setTimeout(() => { try { parent.postMessage({ type:'safix-3d', status:'intro-done' }, '*'); } catch(_){} }, 4250);
+            if (playTL(tl)) {
+              setTimeout(() => reverseToBack(tl), 4250);
+              setTimeout(() => { try { parent.postMessage({ type:'safix-3d', status:'intro-done' }, '*'); } catch(_){} }, 7500);
+            }
           } else if (d.cmd === 'hint') {
             playTL(getTL('hint'));
           }
