@@ -4436,15 +4436,11 @@ body.premium-mode .card-cta {
 /* MOBILE uniquement : le titre rétréci pour que "iPhone 17 Pro Max"
    tienne sur une ligne dans la carte 158px (le souci était SUR TÉLÉPHONE).
    Desktop garde la règle d'origine ci-dessus. */
-@media (max-width: 560px) {
-  body.premium-mode .card-model {
-    font-size: 11px !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-  }
-  .card-body { padding: 11px 9px 13px; }
-}
+/* (Bloc d'ajustements titres/CTA @560 RETIRÉ : c'était un malentendu —
+   le "2 lignes" concernait la story "Notre promesse", pas les cartes.
+   Le portrait reprend donc exactement les règles du paysage, jugé
+   correct par l'owner : card-model 13.5px wrap normal, CTA 11.5px
+   1 ligne, padding d'origine, carte 158px.) */
 
 /* Hover premium : halo plus contenu, ne s'étale pas trop */
 body.premium-mode .iphone-card:hover {
@@ -4498,9 +4494,11 @@ body.premium-mode .series-block > .iphone-grid {
 @media (max-width:640px) {
   body.premium-mode #gridContainer::before { font-size: 36px; padding: 8px 20px 8px; }
   body.premium-mode #gridContainer::after { content: none !important; display: none !important; }
-  body.premium-mode .series-label { font-size: 14px !important; padding: 0 20px 10px !important; } /* ≤640px : cartes shrink à 132px → label shrink */
-  body.premium-mode .iphone-card { width: 132px !important; min-width: 132px !important; max-width: 132px !important; border-radius: 16px !important; }
-  body.premium-mode .card-img-wrap { height: 132px !important; }
+  body.premium-mode .series-label { font-size: 14px !important; padding: 0 20px 10px !important; }
+  /* Portrait = MÊME rendu que le paysage (jugé correct par l'owner) :
+     plus de shrink à 132px → cartes 158px + image 128px comme en paysage. */
+  body.premium-mode .iphone-card { width: 158px !important; min-width: 158px !important; max-width: 158px !important; }
+  body.premium-mode .card-img-wrap { height: 158px !important; }
   body.premium-mode .iphone-grid { padding: 20px 16px 36px !important; gap: 14px !important; }
   body.premium-mode .iphone-grid::before,
   body.premium-mode .iphone-grid::after { flex-basis: 8px; }
@@ -5412,7 +5410,7 @@ header { padding-left: max(20px, env(safe-area-inset-left));
 
         <div class="story-scene story-scene-1" data-scene="1">
           <p class="hero-eyebrow" style="color:var(--accent); margin-bottom:18px;">Notre promesse</p>
-          <h2 class="story-title">Un iPhone, c'est <em>précieux</em>.</h2>
+          <h2 class="story-title">Un iPhone,<br>c'est <em>précieux</em>.</h2>
           <p class="story-sub">Photos. Messages. Souvenirs. Travail. Famille.<br>Tout est là, dans votre poche.</p>
         </div>
 
