@@ -302,8 +302,6 @@
         loader.classList.add('hidden');
         setTimeout(() => { hint && hint.classList.add('hidden'); }, 5000);
         if (ok && !initialStatesApplied) { applyInitialStates(); initialStatesApplied = true; }
-        // Retourne le modèle (rigide) AVANT la 1re frame visible.
-        if (ok) { try { flipModelOnce(); } catch (e) {} }
         // Lotus force touch-action:none sur son canvas → empêchait le
         // scroll vertical de la page sur mobile. On rétablit pan-y.
         try {
@@ -344,9 +342,6 @@
             return;
           }
           scene.states.set('global', colorValue);
-          // Sûreté : si une variante couleur vient d'apparaître, la
-          // retourner aussi (idempotent → jamais 2× la même pièce).
-          try { if (typeof flipModelOnce === 'function') flipModelOnce(); } catch (e) {}
           L.tryRequestAnimationFrame && L.tryRequestAnimationFrame();
           log('Color applied:', colorValue);
         } catch (e) {
@@ -377,48 +372,6 @@
         if (!tl) return false;
         try { (tl.restart || tl.play).call(tl); L.tryRequestAnimationFrame && L.tryRequestAnimationFrame(); return true; }
         catch (e) { err('timeline play failed:', e); return false; }
-      }
-      // Demande owner : garder l'intro d'Apple LA PLUS SIMPLE (sans
-      // retouche, ~4 s) et juste RETOURNER l'iPhone (face au départ,
-      // dos quand ça tourne) — SANS le déformer.
-      //
-      // L'échec précédent : chaque groupe tournait sur SON propre centre
-      // → sur la scène MOBILE (structure différente de la desktop) les
-      // pièces se désalignaient = iPhone déformé.
-      //
-      // Solution robuste : rotation RIGIDE de 180° autour de l'axe
-      // vertical du modèle (l'origine, là où la caméra regarde),
-      // appliquée IDENTIQUEMENT à chaque pièce — orientation rotée de π
-      // ET position mise en miroir (x,z)->(-x,-z). Une rotation rigide
-      // PRÉSERVE la forme : impossible de déformer, quelle que soit la
-      // structure de la scène (1 ou N groupes, centrés ou décalés).
-      // Idempotent (flag userData). Caméras / lumières non touchées.
-      function flipModelOnce() {
-        try {
-          const Y = (scene.up && scene.up.clone) ? scene.up.clone() : null; // (0,1,0)
-          let n = 0;
-          (scene.children || []).forEach((c) => {
-            const isCam = /Camera/.test((c.constructor && c.constructor.name) || '') || /camera/i.test(c.type || '');
-            const isLight = /light/i.test(c.type || '');
-            if (isCam || isLight || (c.userData && c.userData.__sfxFlip)) return;
-            let hasMesh = false;
-            c.traverse((o) => { if (o.isMesh || o.isSkinnedMesh) hasMesh = true; });
-            if (!hasMesh) return;
-            // orientation : +180° autour de l'axe Y MONDE (gère un éventuel
-            // pré-tilt sans le casser) ; sinon repli sur rotation.y.
-            if (Y && typeof c.rotateOnWorldAxis === 'function') c.rotateOnWorldAxis(Y, Math.PI);
-            else c.rotation.y += Math.PI;
-            // position : miroir par l'origine dans le plan XZ (= orbite de
-            // 180° autour de l'axe vertical du modèle). Y inchangé.
-            c.position.x = -c.position.x;
-            c.position.z = -c.position.z;
-            c.updateMatrix && c.updateMatrix();
-            c.userData = c.userData || {}; c.userData.__sfxFlip = true;
-            n++;
-          });
-          if (n) { L.tryRequestAnimationFrame && L.tryRequestAnimationFrame(); log('Model flipped 180° rigide (' + n + ' groupe(s)) → face au départ, dos à la fin'); }
-          return n;
-        } catch (e) { err('flipModelOnce failed:', e); return 0; }
       }
 
       // === L'utilisateur prend la main quand il MANIPULE le modèle =====
@@ -479,15 +432,12 @@
         }
         introStarted = true;
         activeIntro = tl;
-        flipModelOnce();   // iPhone retourné (rigide) → face au départ, dos à la fin
         // Config RÉELLE d'Apple (ProductTourPreview = mode 'ic') : le
         // timeline "intro" anime l'InteractiveCamera, caméra affichée en ic.
         try { scene.states.set('mode', 'ic'); } catch (e) {}
         if (playTL(tl)) {
           log('Apple intro timeline play');
-          // Intro Apple LA PLUS SIMPLE, SANS retouche (~4 s, theta 0→-π).
-          // Modèle retourné → démarre FACE, finit DOS. Rien d'autre.
-          setTimeout(() => { try { parent.postMessage({ type:'safix-3d', status:'intro-done' }, '*'); } catch (e) {} }, 4250);
+          setTimeout(() => { try { parent.postMessage({ type:'safix-3d', status:'intro-done' }, '*'); } catch (e) {} }, 4200);
         }
       }
       // Démarrée par finishViewer() dès que le viewer est prêt (juste
@@ -507,12 +457,9 @@
             if (!tl) return;
             hasInteracted = false;
             introStarted = true;
-            flipModelOnce();   // idempotent (déjà retourné au 1er passage)
             try { scene.states.set('mode', 'ic'); } catch (_) {}   // config réelle d'Apple
             activeIntro = tl;
-            if (playTL(tl)) {
-              setTimeout(() => { try { parent.postMessage({ type:'safix-3d', status:'intro-done' }, '*'); } catch(_){} }, 4250);
-            }
+            if (playTL(tl)) setTimeout(() => { try { parent.postMessage({ type:'safix-3d', status:'intro-done' }, '*'); } catch(_){} }, 4200);
           } else if (d.cmd === 'hint') {
             playTL(getTL('hint'));
           }
