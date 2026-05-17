@@ -4957,8 +4957,9 @@ body.premium-mode .iphone-card:hover .card-shine { opacity:1; }
   z-index:6;
   color:#fff;                   /* main blanche, opacité gérée plus bas */
   opacity:0;                    /* invisible tant que .show absent */
-  /* Ombre douce et diffuse (lisible sur tout fond, façon Apple) */
-  filter:drop-shadow(0 2px 9px rgba(0,0,0,.38));
+  /* PAS de filter ici : un filtre sur ce conteneur fixe rognerait la
+     flèche quand la main glisse (la fameuse « délimitation »).
+     L'ombre est portée par .swipe-hand → elle suit le mouvement. */
 }
 .hero-3d-swipe.show {
   animation:swipeAppear .7s cubic-bezier(.4,0,.2,1) forwards;
@@ -4981,26 +4982,30 @@ body.premium-mode .iphone-card:hover .card-shine { opacity:1; }
   transform-origin:center;
   transform:translateX(-8px);   /* position initiale (repos) */
   will-change:transform;
+  /* Ombre douce PORTÉE PAR LA MAIN : sa région de filtre suit
+     l'élément en mouvement → la flèche n'est JAMAIS coupée. */
+  filter:drop-shadow(0 2px 9px rgba(0,0,0,.38));
 }
 .hero-3d-swipe.show .swipe-hand {
-  /* 2 allers-retours soignés, puis un laps de temps, en boucle. */
-  animation:swipeGesture 5s cubic-bezier(.45,0,.22,1) .25s infinite both;
+  /* 2 glissements à la rythmique NATURELLE puis une vraie pause, en
+     boucle. Easing défini PAR SEGMENT (accélère puis ralentit comme
+     un vrai doigt) → mouvement organique, jamais mécanique. */
+  animation:swipeGesture 7s linear .25s infinite both;
 }
 @keyframes swipeGesture {
-  /* ── 1er glissement ── */
-  0%   { transform:translateX(-8px); }   /* repos */
-  3%   { transform:translateX(-8px); }
-  11%  { transform:translateX(14px); }   /* va à droite */
-  15%  { transform:translateX(14px); }   /* petit temps à droite */
-  24%  { transform:translateX(-8px); }   /* revient */
-  28%  { transform:translateX(-8px); }   /* mini-pose entre les deux */
-  /* ── 2e glissement ── */
-  31%  { transform:translateX(-8px); }
-  39%  { transform:translateX(14px); }   /* va à droite */
-  43%  { transform:translateX(14px); }   /* petit temps à droite */
-  52%  { transform:translateX(-8px); }   /* revient */
-  /* ── laps de temps (pause) avant de recommencer ── */
-  56%  { transform:translateX(-8px); }
+  /* ── glissement 1 ── */
+  0%   { transform:translateX(-8px); }
+  2%   { transform:translateX(-8px); animation-timing-function:cubic-bezier(.42,0,.58,1); }
+  10%  { transform:translateX(14px); animation-timing-function:ease; }       /* arrivé : petit temps */
+  14%  { transform:translateX(14px); animation-timing-function:cubic-bezier(.42,0,.58,1); }
+  21%  { transform:translateX(-8px); animation-timing-function:ease; }       /* revenu : respiration */
+  /* ── glissement 2 ── */
+  28%  { transform:translateX(-8px); animation-timing-function:cubic-bezier(.42,0,.58,1); }
+  36%  { transform:translateX(14px); animation-timing-function:ease; }       /* arrivé : petit temps */
+  40%  { transform:translateX(14px); animation-timing-function:cubic-bezier(.42,0,.58,1); }
+  47%  { transform:translateX(-8px); }                                       /* revenu */
+  /* ── pause plus longue avant de recommencer (~3,5 s) ── */
+  50%  { transform:translateX(-8px); }
   100% { transform:translateX(-8px); }
 }
 @media (max-width:899px) { .hero-3d-swipe svg { width:46px; } }
