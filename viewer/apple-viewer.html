@@ -373,19 +373,31 @@
         try { (tl.restart || tl.play).call(tl); L.tryRequestAnimationFrame && L.tryRequestAnimationFrame(); return true; }
         catch (e) { err('timeline play failed:', e); return false; }
       }
-      // L'intro d'Apple se termine côté FACE (theta=-π). Demande owner :
-      // finir sur LE DOS de l'iPhone. En mode 'ic' l'état 'angles' est
-      // ignoré ; on passe donc en 'pt' puis angles:'back' → le CameraMixer
-      // d'Apple ramène doucement la caméra sur le dos (transition native,
-      // pas un saut). Ignoré si l'utilisateur a déjà pris la main.
-      function settleToBack() {
-        if (hasInteracted) return;
-        try {
-          scene.states.set('mode', 'pt');
-          scene.states.set('angles', 'back');
+      // L'intro d'Apple va du DOS (progress 0, theta 0, pose [0,0,+35] =
+      // dos PILE) vers la FACE (progress 1, theta -π). Demande owner :
+      // finir sur LE VRAI dos, pas le preset 3/4. On REJOUE donc le
+      // timeline d'Apple À L'ENVERS (scrub progress 1 → 0) : la caméra
+      // revient EXACTEMENT sur le dos, via les keyframes EXACTS d'Apple,
+      // en mode 'ic'. Annulable instantanément si l'utilisateur attrape
+      // le modèle.
+      let reverseRAF = 0;
+      function reverseToBack(tl) {
+        if (!tl || hasInteracted || typeof tl.progress !== 'function') return;
+        try { tl.pause && tl.pause(); } catch (e) {}
+        try { scene.states.set('mode', 'ic'); } catch (e) {}
+        const DUR = 3000;
+        const t0 = performance.now();
+        const easeInOut = (x) => x < 0.5 ? 4*x*x*x : 1 - Math.pow(-2*x+2,3)/2;
+        function frame(now) {
+          if (hasInteracted) return;             // l'utilisateur a pris la main
+          const k = Math.min(1, (now - t0) / DUR);
+          try { tl.progress(1 - easeInOut(k)); } catch (e) {}   // 1 → 0
           L.tryRequestAnimationFrame && L.tryRequestAnimationFrame();
-          log('Intro finished → settle on the back');
-        } catch (e) { err('settleToBack failed:', e); }
+          if (k < 1) reverseRAF = requestAnimationFrame(frame);
+          else { try { tl.progress(0); } catch (e) {} log('Intro reversed → resting on the real back'); }
+        }
+        cancelAnimationFrame(reverseRAF);
+        reverseRAF = requestAnimationFrame(frame);
       }
 
       // === L'utilisateur prend la main quand il MANIPULE le modèle =====
@@ -401,6 +413,7 @@
       function switchToInteractive() {
         if (hasInteracted) return;
         hasInteracted = true;
+        try { cancelAnimationFrame(reverseRAF); } catch (e) {}   // stoppe le retour-arrière en cours
         try { activeIntro && activeIntro.pause && activeIntro.pause(); } catch (e) {}
         try {
           scene.states.set('mode', 'ic');
@@ -451,11 +464,10 @@
         try { scene.states.set('mode', 'ic'); } catch (e) {}
         if (playTL(tl)) {
           log('Apple intro timeline play');
-          // Intro ~4 s (keyframes Apple t=0→4) → à la fin : sur le dos.
-          setTimeout(() => {
-            settleToBack();
-            try { parent.postMessage({ type:'safix-3d', status:'intro-done' }, '*'); } catch (e) {}
-          }, 4250);
+          // Forward ~4 s (keyframes Apple t=0→4) PUIS retour-arrière ~3 s
+          // jusqu'au VRAI dos. intro-done envoyé quand TOUT est terminé.
+          setTimeout(() => reverseToBack(activeIntro), 4250);
+          setTimeout(() => { try { parent.postMessage({ type:'safix-3d', status:'intro-done' }, '*'); } catch (e) {} }, 7500);
         }
       }
       // Démarrée par finishViewer() dès que le viewer est prêt (juste
@@ -477,7 +489,10 @@
             introStarted = true;
             try { scene.states.set('mode', 'ic'); } catch (_) {}   // config réelle d'Apple
             activeIntro = tl;
-            if (playTL(tl)) setTimeout(() => { settleToBack(); try { parent.postMessage({ type:'safix-3d', status:'intro-done' }, '*'); } catch(_){} }, 4250);
+            if (playTL(tl)) {
+              setTimeout(() => reverseToBack(tl), 4250);
+              setTimeout(() => { try { parent.postMessage({ type:'safix-3d', status:'intro-done' }, '*'); } catch(_){} }, 7500);
+            }
           } else if (d.cmd === 'hint') {
             playTL(getTL('hint'));
           }
