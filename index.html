@@ -2,7 +2,7 @@
 <html lang="fr" data-theme="dark">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>SAFIX — Réparation iPhone</title>
 <!-- Favicon SVG (vectoriel) en priorité — net à toutes les tailles -->
 <link rel="icon" type="image/svg+xml" href="images/safix/safix-favicon.svg">
@@ -102,6 +102,51 @@
     beacon({ t:'reject', msg:String((r&&r.message)||r||'?'),
       stack:String((r&&r.stack)||'').slice(0,1200) });
   });
+})();
+(function safixNoZoom(){
+  'use strict';
+  // Bloque le ZOOM utilisateur de la PAGE (pinch, double-tap, ctrl+molette,
+  // ctrl/⌘ +/-/0) tout en gardant le responsive (resize fenêtre = OK,
+  // c'est du layout, pas du zoom). Demande owner : "le zoom de la page
+  // bloqué". Ne touche PAS au scroll 1 doigt, ni au pinch DANS le 3D
+  // (l'iframe est un document séparé : ses gestes ne remontent pas ici).
+  if (window.top !== window.self) return;            // jamais dans une iframe
+  var optF = { passive: false, capture: true };
+
+  // iOS Safari : geste de pinch-zoom de la page
+  ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (ev) {
+    document.addEventListener(ev, function (e) { e.preventDefault(); }, optF);
+  });
+
+  // Pinch à 2 doigts (le scroll 1 doigt reste intact)
+  document.addEventListener('touchmove', function (e) {
+    if (e.touches && e.touches.length > 1) e.preventDefault();
+  }, optF);
+
+  // Double-tap → zoom (iOS) : neutralise le 2e tap rapproché
+  var lastTouchEnd = 0;
+  document.addEventListener('touchend', function (e) {
+    var now = Date.now();
+    if (now - lastTouchEnd <= 300) e.preventDefault();
+    lastTouchEnd = now;
+  }, optF);
+  document.addEventListener('dblclick', function (e) { e.preventDefault(); }, optF);
+
+  // Desktop : pincement trackpad / Ctrl+molette = zoom navigateur
+  document.addEventListener('wheel', function (e) {
+    if (e.ctrlKey || e.metaKey) e.preventDefault();
+  }, optF);
+
+  // Desktop : raccourcis clavier Ctrl/⌘ + (+ - = 0 / pavé num)
+  document.addEventListener('keydown', function (e) {
+    if (!(e.ctrlKey || e.metaKey)) return;
+    var k = e.key;
+    if (k === '+' || k === '-' || k === '=' || k === '0' ||
+        k === 'Add' || k === 'Subtract' ||
+        e.code === 'NumpadAdd' || e.code === 'NumpadSubtract' || e.code === 'Numpad0') {
+      e.preventDefault();
+    }
+  }, optF);
 })();
 (function safixProtect(){
   'use strict';
@@ -3525,17 +3570,6 @@ html.lenis body { height:auto; }
 [data-theme="dark"] .scroll-story::before {
   background:rgba(255,255,255,.10);
 }
-/* Séparateur identique APRÈS la story "Notre promesse" — full width */
-.scroll-story::after {
-  content:'';
-  display:block;
-  width:100%;
-  height:1px;
-  background:rgba(128,128,128,.18);
-}
-[data-theme="dark"] .scroll-story::after {
-  background:rgba(255,255,255,.10);
-}
 .scroll-story-track {
   height:300vh;          /* 3 viewports = 3 scènes */
   position:relative;
@@ -4523,7 +4557,11 @@ body.premium-mode .series-block > .iphone-grid {
     white-space: nowrap !important;
     overflow: visible !important;
   }
-  body.premium-mode .iphone-grid { padding: 20px 16px 36px !important; gap: 14px !important; }
+  /* Halo coloré : MÊME respiration verticale qu'en desktop (50/70). En
+     mobile le padding vertical était réduit (20/36) → comme overflow-x:auto
+     force overflow-y à clipper, le halo se coupait NET en haut. On garde
+     juste le padding horizontal + gap resserrés pour le mobile. */
+  body.premium-mode .iphone-grid { padding: 50px 16px 70px !important; gap: 14px !important; }
   body.premium-mode .iphone-grid::before,
   body.premium-mode .iphone-grid::after { flex-basis: 8px; }
 }
@@ -4894,15 +4932,34 @@ body.premium-mode .iphone-card:hover .card-shine { opacity:1; }
   border:1px solid rgba(255,255,255,.10);
   border-radius:50%;
   color:rgba(255,255,255,.65);
-  pointer-events:none;
+  /* Vrai bouton : rejoue l'orbite d'intro 3D d'Apple (action réelle).
+     Avant : pointer-events:none → décoratif = "sert à rien" (owner). */
+  pointer-events:auto;
+  cursor:pointer;
   z-index:5;
   opacity:0;
+  transition:color .2s ease, background .2s ease, border-color .2s ease, transform .15s ease;
   animation:hintFadeIn .6s ease-out 1.2s forwards, hintPulse 2.6s ease-in-out 2.2s infinite;
+}
+.hero-3d-hint:hover {
+  color:rgba(255,255,255,.95);
+  background:rgba(255,255,255,.12);
+  border-color:rgba(255,255,255,.20);
+}
+.hero-3d-hint:active { transform:scale(.9); }
+.hero-3d-hint:focus-visible {
+  outline:2px solid rgba(var(--accent-rgb,0,122,255),.9);
+  outline-offset:2px;
 }
 [data-theme="light"] .hero-3d-hint {
   background:rgba(0,0,0,.05);
   border-color:rgba(0,0,0,.08);
   color:rgba(0,0,0,.42);
+}
+[data-theme="light"] .hero-3d-hint:hover {
+  color:rgba(0,0,0,.75);
+  background:rgba(0,0,0,.09);
+  border-color:rgba(0,0,0,.16);
 }
 .hero-3d-hint svg {
   width:18px; height:18px;
@@ -5113,9 +5170,11 @@ body.premium-mode .iphone-card:hover .card-shine { opacity:1; }
 .hero-3d-stage::after {
   pointer-events: none !important;
 }
-/* Le hint UX doit aussi laisser passer le drag */
+/* Le hint « ↔ » est maintenant un VRAI bouton (rejoue l'orbite d'intro
+   3D d'Apple). Petit badge en coin bas-droit → cliquable sans gêner le
+   drag du modèle (qui se fait au centre). */
 .hero-3d-stage .hero-3d-hint {
-  pointer-events: none;
+  pointer-events: auto;
 }
 
 /* Fallback PNG (caché par défaut, montré si iframe fail) */
@@ -5385,7 +5444,7 @@ header { padding-left: max(20px, env(safe-area-inset-left));
       <div class="hero-3d-stage" id="heroIphoneStage">
         <iframe
           id="heroAppleViewer"
-          src="viewer/apple-viewer.html?v=9"
+          src="viewer/apple-viewer.html?v=10"
           title="iPhone 17 Pro 3D"
           loading="eager"
           allow="xr-spatial-tracking; accelerometer; gyroscope"
@@ -5402,7 +5461,7 @@ header { padding-left: max(20px, env(safe-area-inset-left));
           <img class="hero-iphone-img" src="images/iphone17promax.png" alt="" draggable="false">
         </div>
         <!-- Hint UX : doigt qui swipe pour indiquer rotation 3D -->
-        <div class="hero-3d-hint" id="hero3dHint" aria-label="Glisser pour faire tourner l'iPhone 3D">
+        <div class="hero-3d-hint" id="hero3dHint" role="button" tabindex="0" title="Revoir l'animation 3D" aria-label="Revoir l'animation de présentation de l'iPhone en 3D">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <!-- Flèches horizontales gauche / droite -->
             <path d="M4 9l-2 2 2 2"/>
@@ -6966,14 +7025,34 @@ function syncThemeToHeroIframe(t) {
     try { iframe.style.opacity = '0'; } catch (e) {}
   };
   var ready3d = false;
+  var introBusy = false;
   window.addEventListener('message', function (ev) {
     var d = ev && ev.data;
     if (!d || d.type !== 'safix-3d') return;
     if (d.status === 'ready') { ready3d = true; }
     else if (d.status === 'failed') { showFallback(); }
+    else if (d.status === 'intro-done') { introBusy = false; }
   });
   iframe.addEventListener('error', showFallback);
   setTimeout(function () { if (!ready3d) showFallback(); }, 16000);
+
+  // ─── Bouton hint « ↔ » : action RÉELLE = rejoue l'orbite d'intro 3D
+  //     d'Apple (le timeline natif d'Apple, joué par son moteur dans
+  //     l'iframe → strictement identique à apple.com). Avant ce bouton
+  //     était décoratif (pointer-events:none) = "sert à rien" (owner).
+  var hintBtn = document.getElementById('hero3dHint');
+  function replayApple3D() {
+    if (introBusy || !iframe || !iframe.contentWindow) return;
+    introBusy = true;
+    setTimeout(function () { introBusy = false; }, 4600); // garde-fou si pas d'ACK
+    try { iframe.contentWindow.postMessage({ type: 'safix-3d-cmd', cmd: 'intro' }, '*'); } catch (e) {}
+  }
+  if (hintBtn) {
+    hintBtn.addEventListener('click', replayApple3D);
+    hintBtn.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') { e.preventDefault(); replayApple3D(); }
+    });
+  }
 })();
 applyTheme(localStorage.getItem(THEME_KEY) || 'dark');
 themeBtn && themeBtn.addEventListener('click', () => {

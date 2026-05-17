@@ -346,13 +346,37 @@
       }
       window.__applyColor = applyColor;
 
-      // === First user interaction switches from preset-tour to interactive camera ===
+      // === Animation d'intro = LE timeline natif d'Apple ===========
+      // La scène Lotus d'Apple embarque SES PROPRES timelines caméra
+      // ("intro" : orbite de révélation ~4 s ; "hint" : petit à-coup
+      // d'invitation au swipe). On joue le timeline d'Apple TEL QUEL
+      // via son moteur → mouvement strictement IDENTIQUE à
+      // apple.com/iphone-17-pro (mêmes keyframes theta/phi, mêmes
+      // courbes d'easing, même caméra). Aucune ré-implémentation
+      // maison : si le timeline d'Apple est absent, on ne fait RIEN
+      // (pas de fausse animation — consigne owner : identique sinon rien).
+      // Les timelines d'Apple ne sont PAS dispo dès la création de la
+      // scène : le moteur peuple scene.timelines (Map) seulement une fois
+      // la scène rendue + composants prêts. → lookup PARESSEUX à la demande
+      // (sinon get('intro') renvoie null trop tôt et rien ne se joue).
+      function getTL(name) {
+        try { return (scene.timelines && scene.timelines.get) ? (scene.timelines.get(name) || null) : null; }
+        catch (e) { return null; }
+      }
+      let activeIntro = null;
+      function playTL(tl) {
+        if (!tl) return false;
+        try { (tl.restart || tl.play).call(tl); L.tryRequestAnimationFrame && L.tryRequestAnimationFrame(); return true; }
+        catch (e) { err('timeline play failed:', e); return false; }
+      }
+
+      // === First user interaction → caméra interactive (reprend la main) ===
       let hasInteracted = false;
       function switchToInteractive() {
         if (hasInteracted) return;
         hasInteracted = true;
-        // Stop any running preview animation
-        if (previewTimer) clearTimeout(previewTimer);
+        // Stoppe l'orbite d'intro d'Apple si elle tourne encore
+        try { activeIntro && activeIntro.pause && activeIntro.pause(); } catch (e) {}
         try {
           scene.states.set('mode', 'ic');
           L.tryRequestAnimationFrame && L.tryRequestAnimationFrame();
@@ -364,37 +388,46 @@
         root.addEventListener(ev, switchToInteractive, { passive: true, once: false });
       });
 
-      // === Auto-preview animation : pivot droit → gauche → retour dos ===
-      // S'exécute après que la scène soit rendue. Stoppé dès interaction user.
-      let previewTimer = null;
-      function setAngle(name) {
-        try {
-          if (scene && scene.states) scene.states.set('angles', name);
-          L.tryRequestAnimationFrame && L.tryRequestAnimationFrame();
-        } catch (e) {}
-      }
-      function runPreviewAnimation() {
+      // Joue l'intro d'Apple dès que la scène est rendue ET que le
+      // timeline natif d'Apple est disponible (retry jusqu'à ~14 s).
+      function playAppleIntro(attempt) {
+        attempt = attempt || 0;
         if (hasInteracted) return;
-        // Ne pas piloter les angles avant que la scène soit rendue
-        // (sinon erreur MobX onAngleStateUpdate + saccade). On réessaie.
-        if (!scene || !scene.rendered) { setTimeout(runPreviewAnimation, 500); return; }
-        log('Preview animation start');
-        // Sequence : (déjà au dos par défaut) → backRight (3/4 droit) → backLeft (3/4 gauche) → back
-        previewTimer = setTimeout(() => {
-          if (hasInteracted) return;
-          setAngle('backRight');
-          previewTimer = setTimeout(() => {
-            if (hasInteracted) return;
-            setAngle('backLeft');
-            previewTimer = setTimeout(() => {
-              if (hasInteracted) return;
-              setAngle('back');
-            }, 1800);
-          }, 1800);
-        }, 1400);
+        const ready = scene && scene.rendered;
+        const tl = ready ? getTL('intro') : null;
+        if (!tl) {
+          if (attempt < 46) setTimeout(() => playAppleIntro(attempt + 1), 300);
+          else err('Apple intro timeline introuvable — aucune animation (consigne: identique sinon rien)');
+          return;
+        }
+        activeIntro = tl;
+        if (playTL(tl)) {
+          log('Apple intro timeline play');
+          // Prévient le parent quand l'orbite est finie (~4 s).
+          setTimeout(() => { try { parent.postMessage({ type:'safix-3d', status:'intro-done' }, '*'); } catch (e) {} }, 4200);
+        }
       }
-      // Lance la preview une fois la scène stable (après 1.2s)
-      setTimeout(runPreviewAnimation, 1200);
+      setTimeout(() => playAppleIntro(0), 900);
+
+      // === Commandes venant de la page (bouton hint ↔) =================
+      // Le parent peut REJOUER l'orbite d'Apple (action réelle du bouton
+      // « ↔ ») ou jouer le petit à-coup "hint". Lookup paresseux ici aussi.
+      window.addEventListener('message', (e) => {
+        const d = e && e.data;
+        if (!d || d.type !== 'safix-3d-cmd') return;
+        try {
+          if (d.cmd === 'intro') {
+            const tl = getTL('intro');
+            if (!tl) return;
+            hasInteracted = false;
+            try { scene.states.set('mode', 'pt'); } catch (_) {}
+            activeIntro = tl;
+            if (playTL(tl)) setTimeout(() => { try { parent.postMessage({ type:'safix-3d', status:'intro-done' }, '*'); } catch(_){} }, 4200);
+          } else if (d.cmd === 'hint') {
+            playTL(getTL('hint'));
+          }
+        } catch (err2) {}
+      });
 
       // Hook swatches
       swatches.forEach(btn => {
