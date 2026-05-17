@@ -5444,7 +5444,7 @@ header { padding-left: max(20px, env(safe-area-inset-left));
       <div class="hero-3d-stage" id="heroIphoneStage">
         <iframe
           id="heroAppleViewer"
-          src="viewer/apple-viewer.html?v=17"
+          src="viewer/apple-viewer.html?v=18"
           title="iPhone 17 Pro 3D"
           loading="eager"
           allow="xr-spatial-tracking; accelerometer; gyroscope"
@@ -7044,7 +7044,7 @@ function syncThemeToHeroIframe(t) {
   function replayApple3D() {
     if (introBusy || !iframe || !iframe.contentWindow) return;
     introBusy = true;
-    setTimeout(function () { introBusy = false; }, 4600); // garde-fou si pas d'ACK (intro Apple ~4 s)
+    setTimeout(function () { introBusy = false; }, 6000); // garde-fou (intro Apple ~4 s + pose preset 3/4 ~1,2 s)
     try { iframe.contentWindow.postMessage({ type: 'safix-3d-cmd', cmd: 'intro' }, '*'); } catch (e) {}
   }
   if (hintBtn) {

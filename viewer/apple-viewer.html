@@ -373,6 +373,21 @@
         try { (tl.restart || tl.play).call(tl); L.tryRequestAnimationFrame && L.tryRequestAnimationFrame(); return true; }
         catch (e) { err('timeline play failed:', e); return false; }
       }
+      // Fin de l'intro → on se pose sur le PRESET 3/4 d'Apple (dos vif vu
+      // de 3/4, pose hero). 100 % moteur d'Apple : mode 'pt' + angles
+      // 'back' → le CameraMixer d'Apple déplace SA caméra vers SON preset.
+      // Le modèle et l'éclairage ne sont JAMAIS touchés → aucune
+      // déformation possible, lumière correcte (c'est une vue d'Apple).
+      // Ignoré si l'utilisateur a déjà attrapé le modèle.
+      function settleApplePreset() {
+        if (hasInteracted) return;
+        try {
+          scene.states.set('mode', 'pt');
+          scene.states.set('angles', 'back');
+          L.tryRequestAnimationFrame && L.tryRequestAnimationFrame();
+          log('Intro finished → settle on Apple 3/4 back preset');
+        } catch (e) { err('settleApplePreset failed:', e); }
+      }
 
       // === L'utilisateur prend la main quand il MANIPULE le modèle =====
       // Comme Apple : l'intro joue à l'arrivée et n'est PAS interrompue
@@ -437,7 +452,10 @@
         try { scene.states.set('mode', 'ic'); } catch (e) {}
         if (playTL(tl)) {
           log('Apple intro timeline play');
-          setTimeout(() => { try { parent.postMessage({ type:'safix-3d', status:'intro-done' }, '*'); } catch (e) {} }, 4200);
+          // Intro Apple ~4 s (keyframes t=0→4) PUIS pose sur le preset
+          // 3/4 d'Apple (dos vif). intro-done une fois le tout posé.
+          setTimeout(() => { settleApplePreset(); }, 4250);
+          setTimeout(() => { try { parent.postMessage({ type:'safix-3d', status:'intro-done' }, '*'); } catch (e) {} }, 5400);
         }
       }
       // Démarrée par finishViewer() dès que le viewer est prêt (juste
@@ -459,7 +477,10 @@
             introStarted = true;
             try { scene.states.set('mode', 'ic'); } catch (_) {}   // config réelle d'Apple
             activeIntro = tl;
-            if (playTL(tl)) setTimeout(() => { try { parent.postMessage({ type:'safix-3d', status:'intro-done' }, '*'); } catch(_){} }, 4200);
+            if (playTL(tl)) {
+              setTimeout(() => { settleApplePreset(); }, 4250);
+              setTimeout(() => { try { parent.postMessage({ type:'safix-3d', status:'intro-done' }, '*'); } catch(_){} }, 5400);
+            }
           } else if (d.cmd === 'hint') {
             playTL(getTL('hint'));
           }
