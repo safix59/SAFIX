@@ -1014,14 +1014,12 @@ header {
     drop-shadow(0 10px 12px rgba(0,0,0,.14))
     drop-shadow(0 3px 4px rgba(0,0,0,.10));
 }
-.card-body { padding:11px 9px 13px; }
+.card-body { padding:11px 13px 13px; }
 .card-model {
-  font-size:12.5px; font-weight:700; letter-spacing:-.2px; margin-bottom:3px;
-  /* UNE seule ligne ("iPhone 17 Pro Max" inclus). Ellipsis = filet de
-     sécurité ultime, ne se déclenche pas à ces tailles. */
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
+  font-size:13px; font-weight:700; letter-spacing:-.2px; margin-bottom:3px;
+  white-space:normal;
+  overflow:visible;
+  text-overflow:clip;
   line-height:1.2;
 }
 .card-cta {
@@ -1030,10 +1028,9 @@ header {
   background:linear-gradient(135deg, var(--accent) 0%, #5AC8FA 100%);
   -webkit-background-clip:text; -webkit-text-fill-color:transparent;
   background-clip:text;
-  /* UNE seule ligne (libellé court "Voir réparations →"). */
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
+  white-space:normal;
+  overflow:visible;
+  text-overflow:clip;
   line-height:1.25;
 }
 
@@ -4413,27 +4410,40 @@ body.premium-mode .card-body {
   position: relative;
 }
 body.premium-mode .card-model {
-  font-size: 11px !important;
+  font-size: 13.5px !important;
   font-weight: 700 !important;
   letter-spacing: -.2px !important;
   margin-bottom: 3px !important;
   color: #fff !important;
-  /* UNE seule ligne, "iPhone 17 Pro Max" inclus (owner). Ellipsis =
-     filet ultime, ne se déclenche pas à cette taille/largeur. */
-  white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
+  /* DESKTOP/macOS : comme avant (taille d'origine, texte complet). La
+     réduction n'a lieu QUE sur mobile (voir @media plus bas). */
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
   line-height: 1.2 !important;
 }
 body.premium-mode .card-cta {
   font-size: 11.5px !important;
   font-weight: 500 !important;
   letter-spacing: .02em;
-  /* UNE seule ligne (libellé court "Voir réparations →"). */
+  /* "Voir les réparations →" : texte COMPLET sur UNE ligne, même si ça
+     déborde un peu de la carte (demande owner). Pas de coupure/ellipsis. */
   white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
   line-height: 1.25 !important;
+}
+/* MOBILE uniquement : le titre rétréci pour que "iPhone 17 Pro Max"
+   tienne sur une ligne dans la carte 158px (le souci était SUR TÉLÉPHONE).
+   Desktop garde la règle d'origine ci-dessus. */
+@media (max-width: 560px) {
+  body.premium-mode .card-model {
+    font-size: 11px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+  .card-body { padding: 11px 9px 13px; }
 }
 
 /* Hover premium : halo plus contenu, ne s'étale pas trop */
@@ -7163,7 +7173,7 @@ function renderHome() {
         <div class="card-img-wrap"><img src="${imgPath(model)}" alt="${model}" loading="lazy" decoding="async" onerror="this.style.opacity='.12'"></div>
         <div class="card-body">
           <div class="card-model">${model}</div>
-          <div class="card-cta">${(window.__lang||'fr')==='en'?'View repairs →':'Voir réparations →'}</div>
+          <div class="card-cta">${(window.__lang||'fr')==='en'?'View repairs →':'Voir les réparations →'}</div>
         </div>`;
       applyCardGlow(card, model);
       const img = card.querySelector('.card-img-wrap img');
