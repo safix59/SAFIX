@@ -309,7 +309,11 @@
           if (cv) cv.style.setProperty('touch-action', 'pan-y', 'important');
         } catch (e) {}
         try { parent.postMessage({ type: 'safix-3d', status: ok ? 'ready' : 'failed' }, '*'); } catch (e) {}
-        if (ok) { L.tryRequestAnimationFrame && L.tryRequestAnimationFrame(); }
+        if (ok) {
+          L.tryRequestAnimationFrame && L.tryRequestAnimationFrame();
+          // Intro d'Apple dès que prêt (après applyInitialStates ci-dessus).
+          try { window.__safixPlayIntro && window.__safixPlayIntro(0); } catch (e) {}
+        }
         else { loaderStatus.textContent = 'Aperçu 3D indisponible'; }
       }
       const progressTimer = setInterval(() => {
@@ -370,44 +374,76 @@
         catch (e) { err('timeline play failed:', e); return false; }
       }
 
-      // === First user interaction → caméra interactive (reprend la main) ===
+      // === L'utilisateur prend la main quand il MANIPULE le modèle =====
+      // Comme Apple : l'intro joue à l'arrivée et n'est PAS interrompue
+      // par le scroll de la page — UNIQUEMENT par un vrai drag du modèle.
+      // (Avant : un simple wheel/touch de scroll tuait l'intro → on ne la
+      //  voyait jamais sur desktop/mobile. C'était ÇA le bug.)
       let hasInteracted = false;
+      // Accesseur debug (inoffensif en prod) : sert aux tests headless à
+      // vérifier de façon déterministe que le scroll NE déclenche PAS la
+      // reprise en main, contrairement à un vrai drag du modèle.
+      try { window.__safix3dState = () => ({ introStarted, hasInteracted, mode: (scene.states && scene.states.get && scene.states.get('mode')) }); } catch (e) {}
       function switchToInteractive() {
         if (hasInteracted) return;
         hasInteracted = true;
-        // Stoppe l'orbite d'intro d'Apple si elle tourne encore
         try { activeIntro && activeIntro.pause && activeIntro.pause(); } catch (e) {}
         try {
           scene.states.set('mode', 'ic');
           L.tryRequestAnimationFrame && L.tryRequestAnimationFrame();
-          log('Switched to interactive camera mode (user took control)');
+          log('User grabbed the model → interactive camera');
           if (hint) hint.classList.add('hidden');
         } catch (e) { err('mode switch failed:', e); }
       }
-      ['pointerdown', 'touchstart', 'wheel'].forEach(ev => {
-        root.addEventListener(ev, switchToInteractive, { passive: true, once: false });
-      });
+      // Drag-vs-scroll : pointerdown → on surveille. Déplacement franc
+      // (>10 px) = vrai drag du modèle → on rend la main. pointercancel =
+      // le navigateur a pris le geste pour SCROLLER la page (touch-action
+      // pan-y) → on NE coupe PAS l'intro (fidèle à Apple). Le wheel n'est
+      // plus un déclencheur du tout (scroll desktop ≠ manipuler le modèle).
+      let pDownX = 0, pDownY = 0, pWatch = false;
+      root.addEventListener('pointerdown', (e) => {
+        pWatch = true; pDownX = e.clientX; pDownY = e.clientY;
+      }, { passive: true });
+      root.addEventListener('pointermove', (e) => {
+        if (!pWatch) return;
+        const dx = Math.abs(e.clientX - pDownX), dy = Math.abs(e.clientY - pDownY);
+        // Drag du modèle = geste HORIZONTAL franc (rotation theta). Un
+        // glissement VERTICAL = scroll de la page (pan-y) → on NE coupe
+        // PAS l'intro (fidèle à Apple : le scroll ne l'interrompt jamais).
+        if (dx > 10 && dx > dy * 1.2) { pWatch = false; switchToInteractive(); }
+        else if (dy > 12 && dy >= dx) { pWatch = false; } // scroll vertical : on lâche la surveillance
+      }, { passive: true });
+      const pStop = () => { pWatch = false; };
+      root.addEventListener('pointerup', pStop, { passive: true });
+      root.addEventListener('pointercancel', pStop, { passive: true });
+      root.addEventListener('pointerleave', pStop, { passive: true });
 
       // Joue l'intro d'Apple dès que la scène est rendue ET que le
-      // timeline natif d'Apple est disponible (retry jusqu'à ~14 s).
+      // timeline natif d'Apple est disponible (retry court, ~15 s max).
+      let introStarted = false;
       function playAppleIntro(attempt) {
         attempt = attempt || 0;
-        if (hasInteracted) return;
-        const ready = scene && scene.rendered;
-        const tl = ready ? getTL('intro') : null;
+        if (introStarted || hasInteracted) return;
+        const tl = (scene && scene.rendered) ? getTL('intro') : null;
         if (!tl) {
-          if (attempt < 46) setTimeout(() => playAppleIntro(attempt + 1), 300);
+          if (attempt < 60) setTimeout(() => playAppleIntro(attempt + 1), 250);
           else err('Apple intro timeline introuvable — aucune animation (consigne: identique sinon rien)');
           return;
         }
+        introStarted = true;
         activeIntro = tl;
+        // Config RÉELLE d'Apple (ProductTourPreview = mode 'ic') : le
+        // timeline "intro" anime l'InteractiveCamera, caméra affichée en ic.
+        try { scene.states.set('mode', 'ic'); } catch (e) {}
         if (playTL(tl)) {
           log('Apple intro timeline play');
-          // Prévient le parent quand l'orbite est finie (~4 s).
           setTimeout(() => { try { parent.postMessage({ type:'safix-3d', status:'intro-done' }, '*'); } catch (e) {} }, 4200);
         }
       }
-      setTimeout(() => playAppleIntro(0), 900);
+      // Démarrée par finishViewer() dès que le viewer est prêt (juste
+      // après applyInitialStates → pas de snap-back) ; filet temporel aussi.
+      window.__safixPlayIntro = playAppleIntro;
+      setTimeout(() => playAppleIntro(0), 700);
 
       // === Commandes venant de la page (bouton hint ↔) =================
       // Le parent peut REJOUER l'orbite d'Apple (action réelle du bouton
@@ -420,7 +456,8 @@
             const tl = getTL('intro');
             if (!tl) return;
             hasInteracted = false;
-            try { scene.states.set('mode', 'pt'); } catch (_) {}
+            introStarted = true;
+            try { scene.states.set('mode', 'ic'); } catch (_) {}   // config réelle d'Apple
             activeIntro = tl;
             if (playTL(tl)) setTimeout(() => { try { parent.postMessage({ type:'safix-3d', status:'intro-done' }, '*'); } catch(_){} }, 4200);
           } else if (d.cmd === 'hint') {
