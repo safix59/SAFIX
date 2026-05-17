@@ -5243,8 +5243,11 @@ header { padding-left: max(20px, env(safe-area-inset-left));
   #heroIphoneStage .hero-3d-stage,
   .hero-3d-stage,
   #heroAppleViewer { touch-action: pan-y !important; }
+  /* top:28% : on NE couvre PAS le haut où sont les pastilles de couleur
+     (dans le 3D) → on peut toujours choisir la couleur. Les gardes ne
+     prennent que la partie basse des côtés (corps du modèle). */
   .hero-3d-sideguard {
-    display: block; position: absolute; top: 0; bottom: 0;
+    display: block; position: absolute; top: 28%; bottom: 0;
     width: 30%; z-index: 6; background: transparent;
     touch-action: pan-y;
   }
