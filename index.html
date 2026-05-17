@@ -5143,17 +5143,19 @@ body.premium-mode .iphone-card:hover .card-shine { opacity:1; }
   display:flex;
   align-items:center;
   justify-content:center;
-  /* PAS de fond, PAS d'image : on voit le VRAI modèle 3D apparaître
-     derrière. Seule la barre est visible, puis elle se fond. */
+  /* Écran de chargement OPAQUE (fond plein thémé, = Apple). PAS
+     d'image : le VRAI modèle 3D charge derrière et se révèle au
+     crossfade dès qu'il est prêt. */
+  background:var(--bg);
   opacity:1;
   transition:opacity .5s ease;
 }
 .hero-3d-loader.done { opacity:0; }
 .hero-3d-loader-bar {
   position:relative;
-  width:280px; max-width:68%;       /* large, façon Apple */
-  height:4px;
-  border-radius:4px;
+  width:170px; max-width:42%;       /* longueur : comme avant */
+  height:6px;                       /* plus ÉPAISSE (hauteur), ≈ Apple */
+  border-radius:6px;
   background:rgba(255,255,255,.18);
   overflow:hidden;
 }
