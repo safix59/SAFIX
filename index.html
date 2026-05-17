@@ -4921,7 +4921,15 @@ body.premium-mode .iphone-card:hover .card-shine { opacity:1; }
 /* L'iframe doit passer AU-DESSUS de l'ombre au sol (sinon l'ombre,
    positionnée, peint par-dessus le 3D). Les sideguards (z-index:6)
    restent au-dessus → interception tactile latérale préservée. */
-#heroAppleViewer { position:relative; z-index:1; }
+#heroAppleViewer {
+  position:relative; z-index:1;
+  /* Recule légèrement le rendu 3D : à la fin de l'intro Apple le
+     modèle finissait trop près/zoomé. On réduit l'échelle du rendu
+     côté page (le viewer/modèle/timeline Apple ne sont PAS touchés ;
+     downscale = reste net). Ajustable via --hero3d-scale. */
+  transform:scale(var(--hero3d-scale, .82));
+  transform-origin:center center;
+}
 
 /* ─── Ombre douce au sol sous l'iPhone — MODE CLAIR UNIQUEMENT ─────── */
 .hero-3d-ground {
