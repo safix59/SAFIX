@@ -72,6 +72,12 @@ export default async function handler(req, res) {
     if (!r.ok) {
       const errText = await r.text();
       console.error('[PayPal] Capture failed:', r.status, errText);
+      if (/ORDER_ALREADY_CAPTURED/.test(errText)) {
+        // Re-onApprove / double POST : la capture a DÉJÀ réussi (argent pris à
+        // la 1re tentative). Ne PAS renvoyer 502 (le client verrait « échec »
+        // sur un paiement abouti) → succès idempotent.
+        return res.status(200).json({ ok: true, orderID, alreadyCaptured: true, deduped: true });
+      }
       return res.status(502).json({ error: 'PayPal capture failed', detail: errText });
     }
     const captureData = await r.json();

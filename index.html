@@ -7230,7 +7230,7 @@ function renderRecents() {
   hist.forEach(model => {
     const chip = document.createElement('div');
     chip.className = 'recent-chip';
-    chip.innerHTML = `<img src="${imgPath(model)}" alt="${model}" onerror="this.style.opacity='0'"> ${model}`;
+    chip.innerHTML = `<img src="${escHtml(imgPath(model))}" alt="${escHtml(model)}" onerror="this.style.opacity='0'"> ${escHtml(model)}`;
     chip.addEventListener('click', () => navigate('detail', model));
     strip.appendChild(chip);
   });

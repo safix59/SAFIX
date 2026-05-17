@@ -258,6 +258,7 @@
       L.addEventListener('unsupported', (e) => {
         err('Lotus unsupported:', e?.message || e);
         loaderStatus.textContent = 'Navigateur non supporté (WebGL2 requis)';
+        try { parent.postMessage({ type: 'safix-3d', status: 'failed' }, '*'); } catch (e2) {}
       });
 
       // === Create the scene ===
@@ -274,6 +275,7 @@
 
       if (!scene) {
         loaderStatus.textContent = 'Erreur : impossible de créer la scène';
+        try { parent.postMessage({ type: 'safix-3d', status: 'failed' }, '*'); } catch (e2) {}
         return;
       }
 
@@ -506,6 +508,7 @@
     } catch (e) {
       err('Boot failed:', e);
       loaderStatus.textContent = 'Erreur : ' + (e.message || e);
+      try { parent.postMessage({ type: 'safix-3d', status: 'failed' }, '*'); } catch (e2) {}
     }
   })();
   </script>

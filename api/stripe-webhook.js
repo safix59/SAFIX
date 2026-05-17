@@ -38,7 +38,7 @@ function buildShopEmailHtml({ session, lineItems }) {
   const dt       = new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris', dateStyle:'full', timeStyle:'short' });
 
   const SLOT_LABELS = { morning:'Matin (9h–12h)', afternoon:'Après-midi (14h–18h)', evening:'Soir (18h–20h)' };
-  const slotLabel = SLOT_LABELS[meta.apptSlot] || meta.apptSlot || '—';
+  const slotLabel = SLOT_LABELS[meta.apptSlot] || esc(meta.apptSlot) || '—';
   const apptDateFr = meta.apptDate
     ? new Date(meta.apptDate).toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' })
     : '—';
@@ -147,7 +147,7 @@ function buildClientEmailHtml({ session, lineItems }) {
   const dt       = new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris', dateStyle:'full', timeStyle:'short' });
 
   const SLOT_LABELS = { morning:'Matin (9h–12h)', afternoon:'Après-midi (14h–18h)', evening:'Soir (18h–20h)' };
-  const slotLabel = SLOT_LABELS[meta.apptSlot] || meta.apptSlot || '';
+  const slotLabel = SLOT_LABELS[meta.apptSlot] || esc(meta.apptSlot) || '';
   const apptDateFr = meta.apptDate
     ? new Date(meta.apptDate).toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' })
     : '';
