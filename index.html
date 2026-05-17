@@ -4957,9 +4957,9 @@ body.premium-mode .iphone-card:hover .card-shine { opacity:1; }
   z-index:6;
   color:#fff;                   /* main blanche, opacité gérée plus bas */
   opacity:0;                    /* invisible tant que .show absent */
-  /* PAS de filter ici : un filtre sur ce conteneur fixe rognerait la
-     flèche quand la main glisse (la fameuse « délimitation »).
-     L'ombre est portée par .swipe-hand → elle suit le mouvement. */
+  /* PAS de filter ici (ni nulle part dans .hero-3d-swipe) : sur
+     iOS/Safari un filtre CSS sur ces éléments crée une région qui
+     rogne la main quand elle glisse (= la « délimitation »). */
 }
 .hero-3d-swipe.show {
   animation:swipeAppear .7s cubic-bezier(.4,0,.2,1) forwards;
@@ -4982,9 +4982,10 @@ body.premium-mode .iphone-card:hover .card-shine { opacity:1; }
   transform-origin:center;
   transform:translateX(-8px);   /* position initiale (repos) */
   will-change:transform;
-  /* Ombre douce PORTÉE PAR LA MAIN : sa région de filtre suit
-     l'élément en mouvement → la flèche n'est JAMAIS coupée. */
-  filter:drop-shadow(0 2px 9px rgba(0,0,0,.38));
+  /* AUCUN filter ici : sur iOS/Safari, un filtre CSS sur un élément
+     SVG le rogne à sa région de filtre dès qu'il bouge (= la
+     « délimitation » que tu voyais). Invisible sous Chrome → d'où mes
+     captures « OK » à tort. Main blanche = déjà lisible sur le modèle. */
 }
 .hero-3d-swipe.show .swipe-hand {
   /* 2 glissements à la rythmique NATURELLE puis une vraie pause, en
