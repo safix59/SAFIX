@@ -5685,7 +5685,7 @@ header { padding-left: max(20px, env(safe-area-inset-left));
     <div class="float-count" id="floatCount">0 réparation</div>
   </div>
   <div class="float-total" id="floatTotal">0 €</div>
-  <button class="float-btn" id="floatBtn">Voir →</button>
+  <button class="float-btn" id="floatBtn" data-i18n="cart.float_btn">Voir →</button>
 </div>
 
 <!-- ═══ CART ═══ -->
@@ -5693,7 +5693,7 @@ header { padding-left: max(20px, env(safe-area-inset-left));
 <div class="cart-panel" id="cartPanel">
   <div class="cart-hd">
     <div class="cart-hd-left">
-      <div class="cart-title">Mon devis</div>
+      <div class="cart-title" data-i18n="cart.title">Mon devis</div>
       <div class="cart-subtitle" id="cartSubtitle">Aucune réparation</div>
     </div>
     <div class="cart-hd-right">
@@ -6830,7 +6830,7 @@ function updateCardInPlace(card, repair, model) {
   const chosenColor = cartItem?.colorName;
   const chosenHex   = chosenColor ? APPLE_COLOR_HEX[chosenColor] : null;
   const miniBubbleHtml = chosenColor && !blocked
-    ? `<span class="color-bubble-mini" data-change-color="1" style="background:${chosenHex || '#888'}" title="${colorLabel(chosenColor)} — ${currentLang==='en'?'click to change':'cliquer pour changer'}"></span>`
+    ? `<span class="color-bubble-mini" data-change-color="1" style="background:${chosenHex || '#888'}" title="${escHtml(colorLabel(chosenColor))} — ${currentLang==='en'?'click to change':'cliquer pour changer'}"></span>`
     : '';
 
   // Texte du prix
@@ -7788,7 +7788,7 @@ function renderDetail(model) {
       const chosenColor = cartItem?.colorName;
       const chosenHex = chosenColor ? APPLE_COLOR_HEX[chosenColor] : null;
       const miniBubbleHtml = chosenColor && !blocked
-        ? `<span class="color-bubble-mini" data-change-color="1" style="background:${chosenHex || '#888'}" title="${colorLabel(chosenColor)} — ${currentLang==='en'?'click to change':'cliquer pour changer'}"></span>`
+        ? `<span class="color-bubble-mini" data-change-color="1" style="background:${chosenHex || '#888'}" title="${escHtml(colorLabel(chosenColor))} — ${currentLang==='en'?'click to change':'cliquer pour changer'}"></span>`
         : '';
 
       // Détection : cette carte a-t-elle besoin de couleur ? (connecteur uniquement)
@@ -9747,6 +9747,7 @@ const I18N = {
     'cart.empty':'Aucune réparation',
     'cart.empty_title':'Panier vide','cart.empty_sub':'Sélectionnez des réparations',
     'cart.title':'Mon devis',
+    'cart.float_btn':'Voir →',
     'cart.count':'{n} réparation{s} sélectionnée{s}',
     'cart.compare':'⇄ Comparer avec un autre modèle',
     'compare.title':'Comparer les modèles',
@@ -9846,6 +9847,7 @@ const I18N = {
     'cart.empty':'No repair selected',
     'cart.empty_title':'Empty cart','cart.empty_sub':'Pick a few repairs',
     'cart.title':'My quote',
+    'cart.float_btn':'View →',
     'cart.count':'{n} repair{s} selected',
     'cart.compare':'⇄ Compare with another model',
     'compare.title':'Compare models',

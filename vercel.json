@@ -41,20 +41,20 @@
       ]
     },
     {
-      "source": "/(.*)\\.(png|jpg|jpeg|webp|svg|gif|ico)$",
+      "source": "/(.*)\\.(png|jpg|jpeg|webp|svg|gif|ico)",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=2592000, immutable" },
         { "key": "X-Robots-Tag",  "value": "noimageindex, noarchive, nosnippet" }
       ]
     },
     {
-      "source": "/(.*)\\.(woff|woff2|ttf|otf|eot)$",
+      "source": "/(.*)\\.(woff|woff2|ttf|otf|eot)",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=2592000, immutable" }
       ]
     },
     {
-      "source": "/(.*)\\.(glb|gltf|usdz|bin|lsd|ktx|ktx2|avif|wasm)$",
+      "source": "/(.*)\\.(glb|gltf|usdz|bin|lsd|ktx|ktx2|avif|wasm)",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]
