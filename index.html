@@ -4972,7 +4972,8 @@ body.premium-mode .iphone-card:hover .card-shine { opacity:1; }
 }
 .hero-3d-swipe svg {
   width:50px; height:auto; display:block;   /* encore un peu plus petit */
-  transform:translateX(-8px);   /* position initiale (repos) */
+  transform:translateX(-8px) scale(1);   /* position initiale (repos) */
+  transform-origin:center;      /* l'« appui » (scale) se fait sur place */
   will-change:transform;
   /* C'EST LE <svg> LUI-MÊME qui glisse (boîte HTML dans un conteneur
      overflow:visible + sans filtre). Le bug iOS venait d'animer un
@@ -4983,25 +4984,34 @@ body.premium-mode .iphone-card:hover .card-shine { opacity:1; }
   overflow:visible;
 }
 .hero-3d-swipe.show svg {
-  /* 2 glissements à la rythmique NATURELLE puis une vraie pause, en
-     boucle (easing par segment = mouvement organique). */
+  /* Geste NATUREL inspiré des coach-marks premium : appui du doigt
+     (scale) → léger élan → flick rapide qui décélère → petit
+     dépassement qui se pose (follow-through) → relâche → retour
+     plus souple. ×2, puis vraie pause. Easing PAR SEGMENT. */
   animation:swipeGesture 7s linear .25s infinite both;
 }
 @keyframes swipeGesture {
-  /* ── glissement 1 ── */
-  0%   { transform:translateX(-8px); }
-  2%   { transform:translateX(-8px); animation-timing-function:cubic-bezier(.42,0,.58,1); }
-  10%  { transform:translateX(14px); animation-timing-function:ease; }       /* arrivé : petit temps */
-  14%  { transform:translateX(14px); animation-timing-function:cubic-bezier(.42,0,.58,1); }
-  21%  { transform:translateX(-8px); animation-timing-function:ease; }       /* revenu : respiration */
-  /* ── glissement 2 ── */
-  28%  { transform:translateX(-8px); animation-timing-function:cubic-bezier(.42,0,.58,1); }
-  36%  { transform:translateX(14px); animation-timing-function:ease; }       /* arrivé : petit temps */
-  40%  { transform:translateX(14px); animation-timing-function:cubic-bezier(.42,0,.58,1); }
-  47%  { transform:translateX(-8px); }                                       /* revenu */
-  /* ── pause plus longue avant de recommencer (~3,5 s) ── */
-  50%  { transform:translateX(-8px); }
-  100% { transform:translateX(-8px); }
+  /* ───── geste 1 : contact → flick → dépassement → relâche → retour ───── */
+  0%   { transform:translateX(-8px)  scale(1);  animation-timing-function:cubic-bezier(.33,0,.25,1); }   /* repos */
+  2%   { transform:translateX(-9px)  scale(.9); animation-timing-function:ease-out; }                    /* le doigt se pose (appui) */
+  4%   { transform:translateX(-11px) scale(.9); animation-timing-function:cubic-bezier(.16,.84,.3,1); }  /* léger recul = élan (anticipation) */
+  9%   { transform:translateX(18px)  scale(.9); animation-timing-function:cubic-bezier(.38,0,.2,1); }    /* flick : part vite puis décélère */
+  11%  { transform:translateX(14px)  scale(.9); animation-timing-function:linear; }                      /* dépassement → se pose (follow-through) */
+  14%  { transform:translateX(14px)  scale(.9); animation-timing-function:ease; }                        /* petit temps, doigt encore posé */
+  16%  { transform:translateX(14px)  scale(1);  animation-timing-function:cubic-bezier(.4,0,.25,1); }    /* le doigt se relève */
+  22%  { transform:translateX(-8px)  scale(1);  animation-timing-function:linear; }                      /* retour souple à l'initial */
+  25%  { transform:translateX(-8px)  scale(1);  animation-timing-function:cubic-bezier(.33,0,.25,1); }   /* respiration */
+  /* ───── geste 2 (identique) ───── */
+  27%  { transform:translateX(-9px)  scale(.9); animation-timing-function:ease-out; }
+  29%  { transform:translateX(-11px) scale(.9); animation-timing-function:cubic-bezier(.16,.84,.3,1); }
+  34%  { transform:translateX(18px)  scale(.9); animation-timing-function:cubic-bezier(.38,0,.2,1); }
+  36%  { transform:translateX(14px)  scale(.9); animation-timing-function:linear; }
+  39%  { transform:translateX(14px)  scale(.9); animation-timing-function:ease; }
+  41%  { transform:translateX(14px)  scale(1);  animation-timing-function:cubic-bezier(.4,0,.25,1); }
+  47%  { transform:translateX(-8px)  scale(1); }                                                         /* revenu */
+  /* ───── vraie pause (~3,8 s) avant de recommencer ───── */
+  50%  { transform:translateX(-8px)  scale(1); }
+  100% { transform:translateX(-8px)  scale(1); }
 }
 @media (max-width:899px) { .hero-3d-swipe svg { width:38px; } }
 @media (prefers-reduced-motion: reduce) {
