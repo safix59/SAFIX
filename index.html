@@ -8136,43 +8136,95 @@ document.getElementById('heroCtaBtn')?.addEventListener('click', () => {
   const grid   = document.getElementById('gridContainer');
   const target = search || grid;
   if (!target) return;
-  // Barre de recherche atterrit juste sous le header → cartes iPhone visibles en bas
-  const targetTop = target.getBoundingClientRect().top + window.scrollY - 70;
 
-  // Si l'utilisateur préfère reduced motion → scroll natif rapide
+  // Scroller RÉEL : desktop = Lenis (smooth scroll virtualisé, instance
+  // exposée sur window.__safixLenis) qui RÉ-APPLIQUE sa position à chaque
+  // frame → piloter window.scrollTo se fait écraser (page figée). Mobile /
+  // pas de Lenis = scroll natif. On adresse donc le bon scroller.
+  const L    = window.__safixLenis;
+  const curY = () => (L ? (L.scroll || 0) : (window.scrollY || 0));
+  const setY = L ? (y => L.scrollTo(y, { immediate:true, force:true }))
+                 : (y => window.scrollTo({ top:y, left:0, behavior:'instant' }));
+
+  const baseY = curY();
+  // Barre de recherche atterrit juste sous le header → cartes iPhone visibles en bas
+  const targetTop = target.getBoundingClientRect().top + baseY - 70;
+
+  // Si l'utilisateur préfère reduced motion → saut rapide (bon scroller)
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    window.scrollTo({ top: targetTop, behavior: 'smooth' });
+    if (L) L.scrollTo(targetTop, { duration: 0.6, force:true });
+    else   window.scrollTo({ top: targetTop, behavior: 'smooth' });
     return;
   }
 
-  // Scroll contrôlé pour TOUS les appareils (desktop + iOS/Android).
-  // Le natif "smooth" iOS est cohérent MAIS trop rapide → on ne peut pas
-  // lire les 3 scènes "NOTRE PROMESSE" (texte fait pour être LU par un
-  // humain — owner). On garde donc un scroll piloté, NETTEMENT plus lent,
-  // à vitesse constante au milieu. Filet : un swipe/molette/touche de
-  // l'utilisateur annule l'auto-scroll (il reprend la main quand il veut).
-  const startY     = window.scrollY;
-  const distance   = targetTop - startY;
-  // Durée allongée pour laisser le temps de LIRE la story (owner :
-  // "encore un peu trop vite par rapport au texte").
-  const duration   = Math.min(14000, Math.max(5200, Math.abs(distance) * 3.4)); // ms : lecture confortable des 3 scènes
-  const startTime  = performance.now();
+  // CSS `html{scroll-behavior:smooth}` (l.3198) transforme CHAQUE
+  // window.scrollTo en mini-scroll animé. En pilotant frame par frame,
+  // la cible ne bouge que de ~0,3 px : le smooth natif se relance en
+  // boucle sans jamais converger → page figée ≈ toute la durée puis
+  // saut final. On neutralise scroll-behavior le temps de NOTRE
+  // animation (style inline > feuille de style), restauré à la fin /
+  // à l'annulation. (Avec Lenis : déjà `scroll-behavior:auto`.)
+  const _html = document.documentElement;
+  const _prevSB = _html.style.scrollBehavior;
+  _html.style.scrollBehavior = 'auto';
+  let _sbRestored = false;
+  const restoreSB = () => { if (!_sbRestored) { _sbRestored = true; _html.style.scrollBehavior = _prevSB; } };
 
-  // Profil de vitesse TRAPÉZOÏDAL : court ease-in (16%, départ perceptible
-  // → on sent que ça réagit), longue phase à VITESSE CONSTANTE (les 3
-  // scènes défilent au même rythme lisible, aucune ne "flashe"), puis
-  // ease-out doux (18%, arrêt sans à-coup). p(0)=0, p(1)=1, monotone.
-  // (nom conservé pour ne pas toucher l'appel step().)
-  const easeInOutCubic = (t) => {
-    const a = 0.16, d = 0.18, v = 1 / (1 - (a + d) / 2);
-    if (t < a)     return v * t * t / (2 * a);
-    if (t < 1 - d) return v * (a / 2 + (t - a));
-    const s = t - (1 - d);
-    return v * (a / 2 + (1 - a - d) + (s - s * s / (2 * d)));
-  };
+  // Scroll contrôlé pour TOUS les appareils (desktop + iOS/Android).
+  // Le natif "smooth" est trop rapide → on ne peut pas LIRE les 3 scènes
+  // "NOTRE PROMESSE" (texte fait pour être lu par un humain — owner).
+  //
+  // Profil PILOTÉ PAR LA GÉOMÉTRIE (3 phases, pas une durée ∝ distance) :
+  //   A. glissement hero → début de la story  : COURT & rapide (durée fixe)
+  //   B. traversée de .scroll-story (LE TEXTE) : LENT, vitesse constante,
+  //      DURÉE FIXE identique sur tous les appareils → même rythme de
+  //      lecture sur mobile ET desktop (réponse owner : "la vitesse pas
+  //      la même mobile/desktop ?"), et plus lent sur macOS (owner :
+  //      "retarder encore un peu plus sur le texte").
+  //   C. story → barre de recherche            : COURT & rapide (durée fixe)
+  // On ne ralentit donc QUE le texte, jamais les glissements début/fin.
+  // Filet : swipe/molette/touche de l'utilisateur annule l'auto-scroll.
+  const startY = baseY;
+
+  // Géométrie : .scroll-story est la SEULE partie "à lire".
+  const story = document.querySelector('.scroll-story');
+  let segB0 = startY, segB1 = targetTop;            // fallback = tout = lecture
+  if (story) {
+    const sTop = story.getBoundingClientRect().top + baseY;
+    const sBot = sTop + story.offsetHeight;
+    segB0 = Math.max(startY,   Math.min(sTop, targetTop));  // début du texte
+    segB1 = Math.min(targetTop, Math.max(sBot, startY));    // fin du texte
+    if (segB1 - segB0 < 40) { segB0 = startY; segB1 = targetTop; } // garde-fou
+  }
+
+  const distA = Math.max(0, segB0 - startY);        // hero (rapide)
+  const distB = Math.max(0, segB1 - segB0);         // TEXTE (lent, lecture)
+  const distC = Math.max(0, targetTop - segB1);     // → recherche (rapide)
+
+  // Durées FIXES (ne dépendent PAS de la distance → pas d'à-coup, et
+  // surtout rythme de lecture identique quel que soit l'appareil).
+  const durA = distA > 4 ? 850   : 0;   // glissement hero
+  const durB = distB > 4 ? 9500  : 0;   // 3 scènes, lecture confortable
+  const durC = distC > 4 ? 1100  : 0;   // settle sur la barre de recherche
+  const duration = (durA + durB + durC) || 600;
+  const startTime = performance.now();
+
+  // A : accélère depuis l'arrêt (départ perceptible mais doux)
+  // B : VITESSE CONSTANTE (aucune scène ne "flashe", lecture régulière)
+  // C : décélère jusqu'à l'arrêt net sur la cible (pas d'à-coup)
+  const easeInQuad  = (x) => x * x;
+  const easeOutQuad = (x) => x * (2 - x);
+  function yAt(elapsed) {
+    if (durA && elapsed < durA)        return startY + distA * easeInQuad(elapsed / durA);
+    const eB = elapsed - durA;
+    if (durB && eB < durB)             return segB0 + distB * (eB / durB);
+    const eC = elapsed - durA - durB;
+    if (durC && eC < durC)             return segB1 + distC * easeOutQuad(eC / durC);
+    return targetTop;
+  }
 
   let cancelled = false;
-  const cancel = () => { cancelled = true; };
+  const cancel = () => { cancelled = true; restoreSB(); };
   // Cancel si l'utilisateur reprend la main (wheel, touch, key)
   window.addEventListener('wheel',     cancel, { passive:true, once:true });
   window.addEventListener('touchstart',cancel, { passive:true, once:true });
@@ -8181,10 +8233,9 @@ document.getElementById('heroCtaBtn')?.addEventListener('click', () => {
   function step(now) {
     if (cancelled) return;
     const elapsed = now - startTime;
-    const t = Math.min(1, elapsed / duration);
-    const y = startY + distance * easeInOutCubic(t);
-    window.scrollTo(0, y);
-    if (t < 1) requestAnimationFrame(step);
+    setY(yAt(elapsed));
+    if (elapsed < duration) requestAnimationFrame(step);
+    else { setY(targetTop); restoreSB(); }
   }
   requestAnimationFrame(step);
 });
