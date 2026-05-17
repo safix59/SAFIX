@@ -4924,7 +4924,7 @@ body.premium-mode .iphone-card:hover .card-shine { opacity:1; }
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  width:34px; height:34px;
+  width:46px; height:46px;
   padding:0;
   background:rgba(255,255,255,.06);
   backdrop-filter:blur(14px) saturate(160%);
@@ -4962,17 +4962,24 @@ body.premium-mode .iphone-card:hover .card-shine { opacity:1; }
   border-color:rgba(0,0,0,.16);
 }
 .hero-3d-hint svg {
-  width:18px; height:18px;
+  width:30px; height:30px;
   flex-shrink:0;
 }
-/* Le doigt central swipe gauche-droite pour montrer la rotation possible */
-.hero-3d-hint svg circle {
-  transform-origin: 12px 11px;
-  animation: swipeMotion 2.4s ease-in-out 2s infinite;
+/* SEULE la main glisse (gauche→droite puis retour, ~3 s). Les flèches,
+   elles, ne sont PAS dans .hint-hand → elles restent fixes. */
+.hero-3d-hint .hint-hand {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: handSwipe 3s ease-in-out 1.6s infinite;
+  will-change: transform;
 }
-@keyframes swipeMotion {
-  0%, 100% { transform: translateX(-4px); }
-  50%      { transform: translateX(4px); }
+@keyframes handSwipe {
+  0%, 10%   { transform: translateX(-5px); }
+  50%       { transform: translateX(5px); }
+  90%, 100% { transform: translateX(-5px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-3d-hint .hint-hand { animation: none; transform: translateX(0); }
 }
 @keyframes hintFadeIn {
   to { opacity:.85; }
@@ -5463,13 +5470,21 @@ header { padding-left: max(20px, env(safe-area-inset-left));
         <!-- Hint UX : doigt qui swipe pour indiquer rotation 3D -->
         <div class="hero-3d-hint" id="hero3dHint" role="button" tabindex="0" title="Revoir l'animation 3D" aria-label="Revoir l'animation de présentation de l'iPhone en 3D">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <!-- Flèches horizontales gauche / droite -->
-            <path d="M4 9l-2 2 2 2"/>
-            <path d="M20 9l2 2-2 2"/>
-            <path d="M2 11h20"/>
-            <!-- Doigt / point de contact -->
-            <circle cx="12" cy="11" r="3" fill="currentColor" opacity=".18"/>
-            <circle cx="12" cy="11" r="3"/>
+            <!-- Flèches gauche / droite : FIXES (ne bougent jamais) -->
+            <path d="M4.5 8 L1.5 12 L4.5 16"/>
+            <path d="M19.5 8 L22.5 12 L19.5 16"/>
+            <!-- Main blanche minimaliste semi-transparente : SEUL élément
+                 animé (glisse gauche→droite puis revient). 2 doigts levés. -->
+            <g class="hint-hand" fill="currentColor" stroke="none">
+              <!-- 2 doigts levés (index + majeur, avec un écart → lisible) -->
+              <rect x="10.5" y="2.6" width="2.15" height="10" rx="1.05" opacity=".92"/>
+              <rect x="12.95" y="4"  width="2.15" height="8.6" rx="1.05" opacity=".92"/>
+              <!-- pouce -->
+              <rect x="7.5" y="11" width="1.95" height="4.7" rx=".95" opacity=".7"
+                    transform="rotate(26 8.5 13.3)"/>
+              <!-- paume / poing arrondi -->
+              <rect x="8.7" y="10.7" width="8.9" height="9" rx="3.9" opacity=".62"/>
+            </g>
           </svg>
         </div>
       </div>
