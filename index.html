@@ -4497,8 +4497,10 @@ body.premium-mode .series-block > .iphone-grid {
   body.premium-mode .series-label { font-size: 14px !important; padding: 0 20px 10px !important; }
   /* Portrait = MÊME rendu que le paysage (jugé correct par l'owner) :
      plus de shrink à 132px → cartes 158px + image 128px comme en paysage. */
-  body.premium-mode .iphone-card { width: 158px !important; min-width: 158px !important; max-width: 158px !important; }
-  body.premium-mode .card-img-wrap { height: 158px !important; }
+  /* Portrait : légèrement plus petit que le paysage (158) pour ne pas
+     faire "big" sur mobile, sans revenir au 132 trop serré (owner). */
+  body.premium-mode .iphone-card { width: 146px !important; min-width: 146px !important; max-width: 146px !important; }
+  body.premium-mode .card-img-wrap { height: 146px !important; }
   body.premium-mode .iphone-grid { padding: 20px 16px 36px !important; gap: 14px !important; }
   body.premium-mode .iphone-grid::before,
   body.premium-mode .iphone-grid::after { flex-basis: 8px; }
