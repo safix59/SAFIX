@@ -62,3 +62,7 @@ SAFIX_icone_grande_mode_clair_4K.png
 # Documentation interne
 *.md
 !api/README.md
+
+# Outils & scripts internes — JAMAIS servis par le site (sécurité : évite l'exposition publique)
+scripts/
+tools/

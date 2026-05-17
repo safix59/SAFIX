@@ -7,8 +7,8 @@
 # ═════════════════════════════════════════════════════════════════════
 # Pas de `set -e` : on veut continuer même si certaines vérifs échouent
 URL="${1:-https://safix59.fr}"
-SUPA_URL="${SUPABASE_URL:-https://fdirktxyipjrxcxjtnss.supabase.co}"
-SUPA_KEY="${SUPABASE_SERVICE_ROLE:-sb_secret_KFtWChH907VFOenC9GCHOA_EXR0L5Oq}"
+SUPA_URL="${SUPABASE_URL:?SUPABASE_URL requis — export-le avant de lancer le smoke test (jamais en dur)}"
+SUPA_KEY="${SUPABASE_SERVICE_ROLE:?SUPABASE_SERVICE_ROLE requis — export-le avant de lancer (jamais en dur dans ce fichier)}"
 ERRORS=0
 
 ok()  { echo "  ✅ $1"; }
