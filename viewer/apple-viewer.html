@@ -408,6 +408,9 @@
           L.tryRequestAnimationFrame && L.tryRequestAnimationFrame();
           log('User grabbed the model → interactive camera');
           if (hint) hint.classList.add('hidden');
+          // Prévient la page : l'utilisateur a touché le modèle → elle
+          // masque la main de swipe centrée (boucle d'invitation finie).
+          try { parent.postMessage({ type: 'safix-3d', status: 'interacted' }, '*'); } catch (e) {}
         } catch (e) { err('mode switch failed:', e); }
       }
       // Drag-vs-scroll : pointerdown → on surveille. Déplacement franc

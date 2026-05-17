@@ -4916,70 +4916,73 @@ body.premium-mode .iphone-card:hover .card-shine { opacity:1; }
 }
 #heroCanvas:active { cursor:grabbing; }
 
-/* HINT UX : icône rotation 360° minimaliste, sans texte */
-.hero-3d-hint {
+/* Bouton rond hint SUPPRIMÉ (jugé inutile par l'owner). */
+
+/* L'iframe doit passer AU-DESSUS de l'ombre au sol (sinon l'ombre,
+   positionnée, peint par-dessus le 3D). Les sideguards (z-index:6)
+   restent au-dessus → interception tactile latérale préservée. */
+#heroAppleViewer { position:relative; z-index:1; }
+
+/* ─── Ombre douce au sol sous l'iPhone — MODE CLAIR UNIQUEMENT ─────── */
+.hero-3d-ground {
   position:absolute;
-  bottom:14px;
-  right:14px;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  width:46px; height:46px;
-  padding:0;
-  background:rgba(255,255,255,.06);
-  backdrop-filter:blur(14px) saturate(160%);
-  -webkit-backdrop-filter:blur(14px) saturate(160%);
-  border:1px solid rgba(255,255,255,.10);
+  left:50%;
+  bottom:9%;
+  transform:translateX(-50%);
+  width:52%;
+  height:7%;
   border-radius:50%;
-  color:rgba(255,255,255,.65);
-  /* Vrai bouton : rejoue l'orbite d'intro 3D d'Apple (action réelle).
-     Avant : pointer-events:none → décoratif = "sert à rien" (owner). */
-  pointer-events:auto;
-  cursor:pointer;
-  z-index:5;
+  background:radial-gradient(ellipse,
+    rgba(0,0,0,.17) 0%,
+    rgba(0,0,0,.09) 45%,
+    rgba(0,0,0,.03) 68%,
+    transparent 80%);
+  filter:blur(15px);
+  pointer-events:none;
+  z-index:0;                 /* derrière l'iframe (z-index:1) */
+  display:none;              /* rien en mode sombre */
+}
+[data-theme="light"] .hero-3d-ground { display:block; }
+
+/* ─── Invite « swipe » : main blanche minimaliste CENTRÉE sur le 3D ── */
+.hero-3d-swipe {
+  position:absolute;
+  top:50%; left:50%;
+  transform:translate(-50%,-50%);
+  pointer-events:none;          /* ne bloque JAMAIS le drag du modèle */
+  z-index:6;
+  color:rgba(255,255,255,.80);  /* main blanche semi-transparente */
   opacity:0;
-  transition:color .2s ease, background .2s ease, border-color .2s ease, transform .15s ease;
-  animation:hintFadeIn .6s ease-out 1.2s forwards, hintPulse 2.6s ease-in-out 2.2s infinite;
+  /* Apparition douce, pilotée par le CSS (robuste — ne dépend PAS d'un
+     message de l'iframe). Reste visible jusqu'à interaction. */
+  animation:swipeAppear .6s ease-out 1.1s forwards;
+  filter:drop-shadow(0 1px 4px rgba(0,0,0,.45)); /* lisible aussi en clair */
 }
-.hero-3d-hint:hover {
-  color:rgba(255,255,255,.95);
-  background:rgba(255,255,255,.12);
-  border-color:rgba(255,255,255,.20);
+@keyframes swipeAppear { from { opacity:0; } to { opacity:.96; } }
+.hero-3d-swipe.gone {
+  opacity:0 !important;
+  animation:none;
+  transition:opacity .5s ease;
 }
-.hero-3d-hint:active { transform:scale(.9); }
-.hero-3d-hint:focus-visible {
-  outline:2px solid rgba(var(--accent-rgb,0,122,255),.9);
-  outline-offset:2px;
+.hero-3d-swipe svg {
+  width:148px; height:auto; display:block;
 }
-[data-theme="light"] .hero-3d-hint {
-  background:rgba(0,0,0,.05);
-  border-color:rgba(0,0,0,.08);
-  color:rgba(0,0,0,.42);
+/* SEULE la main glisse (gauche↔droite, boucle douce). Les flèches ne
+   sont PAS dans .swipe-hand → elles restent strictement FIXES. */
+.hero-3d-swipe .swipe-hand {
+  transform-box:fill-box;
+  transform-origin:center;
+  animation:swipeLoop 3s ease-in-out infinite;
+  will-change:transform;
 }
-[data-theme="light"] .hero-3d-hint:hover {
-  color:rgba(0,0,0,.75);
-  background:rgba(0,0,0,.09);
-  border-color:rgba(0,0,0,.16);
+@keyframes swipeLoop {
+  0%, 10%   { transform:translateX(-9px); }
+  50%       { transform:translateX(9px); }
+  90%, 100% { transform:translateX(-9px); }
 }
-.hero-3d-hint svg {
-  width:30px; height:30px;
-  flex-shrink:0;
-}
-/* SEULE la main glisse (gauche→droite puis retour, ~3 s). Les flèches,
-   elles, ne sont PAS dans .hint-hand → elles restent fixes. */
-.hero-3d-hint .hint-hand {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: handSwipe 3s ease-in-out 1.6s infinite;
-  will-change: transform;
-}
-@keyframes handSwipe {
-  0%, 10%   { transform: translateX(-5px); }
-  50%       { transform: translateX(5px); }
-  90%, 100% { transform: translateX(-5px); }
-}
+@media (max-width:899px) { .hero-3d-swipe svg { width:120px; } }
 @media (prefers-reduced-motion: reduce) {
-  .hero-3d-hint .hint-hand { animation: none; transform: translateX(0); }
+  .hero-3d-swipe .swipe-hand { animation:none; transform:translateX(0); }
 }
 @keyframes hintFadeIn {
   to { opacity:.85; }
@@ -5449,9 +5452,12 @@ header { padding-left: max(20px, env(safe-area-inset-left));
     <!-- Colonne 3D : viewer Apple Lotus self-hosté (rendu identique apple.com/fr) -->
     <div class="hero-3d-col">
       <div class="hero-3d-stage" id="heroIphoneStage">
+        <!-- Ombre douce au sol sous l'iPhone — MODE CLAIR uniquement
+             (derrière l'iframe transparente ; le mode sombre n'a rien). -->
+        <div class="hero-3d-ground" aria-hidden="true"></div>
         <iframe
           id="heroAppleViewer"
-          src="viewer/apple-viewer.html?v=18"
+          src="viewer/apple-viewer.html?v=19"
           title="iPhone 17 Pro 3D"
           loading="eager"
           allow="xr-spatial-tracking; accelerometer; gyroscope"
@@ -5467,23 +5473,26 @@ header { padding-left: max(20px, env(safe-area-inset-left));
         <div class="hero-iphone-wrap fallback-png" id="heroIphoneWrap" aria-hidden="true">
           <img class="hero-iphone-img" src="images/iphone17promax.png" alt="" draggable="false">
         </div>
-        <!-- Hint UX : doigt qui swipe pour indiquer rotation 3D -->
-        <div class="hero-3d-hint" id="hero3dHint" role="button" tabindex="0" title="Revoir l'animation 3D" aria-label="Revoir l'animation de présentation de l'iPhone en 3D">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <!-- Flèches gauche / droite : FIXES (ne bougent jamais) -->
-            <path d="M4.5 8 L1.5 12 L4.5 16"/>
-            <path d="M19.5 8 L22.5 12 L19.5 16"/>
-            <!-- Main blanche minimaliste semi-transparente : SEUL élément
-                 animé (glisse gauche→droite puis revient). 2 doigts levés. -->
-            <g class="hint-hand" fill="currentColor" stroke="none">
-              <!-- 2 doigts levés (index + majeur, avec un écart → lisible) -->
-              <rect x="10.5" y="2.6" width="2.15" height="10" rx="1.05" opacity=".92"/>
-              <rect x="12.95" y="4"  width="2.15" height="8.6" rx="1.05" opacity=".92"/>
+        <!-- Invite UX : main blanche minimaliste semi-transparente,
+             CENTRÉE sur le modèle 3D, qui glisse gauche↔droite en boucle
+             douce (les flèches restent FIXES). Disparaît dès que
+             l'utilisateur touche le modèle. Non interactive (laisse
+             passer le drag du 3D). -->
+        <div class="hero-3d-swipe" id="hero3dSwipe" aria-hidden="true">
+          <svg viewBox="0 0 64 44" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <!-- Flèches gauche / droite : FIXES (jamais animées) -->
+            <path d="M9 16 L3 22 L9 28"/>
+            <path d="M55 16 L61 22 L55 28"/>
+            <!-- Main = SEUL élément animé (translateX en boucle) -->
+            <g class="swipe-hand" fill="currentColor" stroke="none">
+              <!-- 2 doigts levés (index + majeur, écart visible) -->
+              <rect x="28.4" y="5"  width="3.5" height="17" rx="1.75" opacity=".95"/>
+              <rect x="32.5" y="7.6" width="3.5" height="14.4" rx="1.75" opacity=".95"/>
               <!-- pouce -->
-              <rect x="7.5" y="11" width="1.95" height="4.7" rx=".95" opacity=".7"
-                    transform="rotate(26 8.5 13.3)"/>
+              <rect x="22.6" y="20.5" width="3.2" height="8" rx="1.6" opacity=".75"
+                    transform="rotate(26 24.2 24.5)"/>
               <!-- paume / poing arrondi -->
-              <rect x="8.7" y="10.7" width="8.9" height="9" rx="3.9" opacity=".62"/>
+              <rect x="24.3" y="20" width="15.2" height="15.5" rx="6.6" opacity=".66"/>
             </g>
           </svg>
         </div>
@@ -7040,34 +7049,19 @@ function syncThemeToHeroIframe(t) {
     try { iframe.style.opacity = '0'; } catch (e) {}
   };
   var ready3d = false;
-  var introBusy = false;
+  // Main de swipe centrée : montrée quand le 3D est prêt, masquée dès
+  // que l'utilisateur touche le modèle (message 'interacted' du viewer).
+  var swipe = document.getElementById('hero3dSwipe');
+  function hideSwipe() { if (swipe) swipe.classList.add('gone'); }
   window.addEventListener('message', function (ev) {
     var d = ev && ev.data;
     if (!d || d.type !== 'safix-3d') return;
     if (d.status === 'ready') { ready3d = true; }
-    else if (d.status === 'failed') { showFallback(); }
-    else if (d.status === 'intro-done') { introBusy = false; }
+    else if (d.status === 'interacted') { hideSwipe(); }
+    else if (d.status === 'failed') { hideSwipe(); showFallback(); }
   });
-  iframe.addEventListener('error', showFallback);
-  setTimeout(function () { if (!ready3d) showFallback(); }, 16000);
-
-  // ─── Bouton hint « ↔ » : action RÉELLE = rejoue l'orbite d'intro 3D
-  //     d'Apple (le timeline natif d'Apple, joué par son moteur dans
-  //     l'iframe → strictement identique à apple.com). Avant ce bouton
-  //     était décoratif (pointer-events:none) = "sert à rien" (owner).
-  var hintBtn = document.getElementById('hero3dHint');
-  function replayApple3D() {
-    if (introBusy || !iframe || !iframe.contentWindow) return;
-    introBusy = true;
-    setTimeout(function () { introBusy = false; }, 6000); // garde-fou (intro Apple ~4 s + pose preset 3/4 ~1,2 s)
-    try { iframe.contentWindow.postMessage({ type: 'safix-3d-cmd', cmd: 'intro' }, '*'); } catch (e) {}
-  }
-  if (hintBtn) {
-    hintBtn.addEventListener('click', replayApple3D);
-    hintBtn.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') { e.preventDefault(); replayApple3D(); }
-    });
-  }
+  iframe.addEventListener('error', function () { hideSwipe(); showFallback(); });
+  setTimeout(function () { if (!ready3d) { hideSwipe(); showFallback(); } }, 16000);
 })();
 applyTheme(localStorage.getItem(THEME_KEY) || 'dark');
 themeBtn && themeBtn.addEventListener('click', () => {
