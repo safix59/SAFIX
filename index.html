@@ -4495,12 +4495,23 @@ body.premium-mode .series-block > .iphone-grid {
   body.premium-mode #gridContainer::before { font-size: 36px; padding: 8px 20px 8px; }
   body.premium-mode #gridContainer::after { content: none !important; display: none !important; }
   body.premium-mode .series-label { font-size: 14px !important; padding: 0 20px 10px !important; }
-  /* Portrait = MÊME rendu que le paysage (jugé correct par l'owner) :
-     plus de shrink à 132px → cartes 158px + image 128px comme en paysage. */
-  /* Portrait : légèrement plus petit que le paysage (158) pour ne pas
-     faire "big" sur mobile, sans revenir au 132 trop serré (owner). */
+  /* MOBILE UNIQUEMENT (≤640px = portrait). On rétrécit TOUT l'ensemble —
+     carte + image + texte — pour garder le texte COMPLET sur UNE ligne
+     ("iPhone 17 Pro Max" / "Voir les réparations →" entiers, non coupés,
+     juste plus petits). Desktop & paysage : strictement inchangés. */
   body.premium-mode .iphone-card { width: 146px !important; min-width: 146px !important; max-width: 146px !important; }
   body.premium-mode .card-img-wrap { height: 146px !important; }
+  body.premium-mode .card-model {
+    font-size: 11px !important;
+    white-space: nowrap !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+  body.premium-mode .card-cta {
+    font-size: 10px !important;
+    white-space: nowrap !important;
+    overflow: visible !important;
+  }
   body.premium-mode .iphone-grid { padding: 20px 16px 36px !important; gap: 14px !important; }
   body.premium-mode .iphone-grid::before,
   body.premium-mode .iphone-grid::after { flex-basis: 8px; }
