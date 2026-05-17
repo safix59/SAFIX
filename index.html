@@ -4971,6 +4971,8 @@ body.premium-mode .iphone-card:hover .card-shine { opacity:1; }
 }
 .hero-3d-swipe svg {
   width:60px; height:auto; display:block;   /* plus petit (était 104) */
+  overflow:visible;            /* la flèche ne se coupe plus au bord du
+                                  SVG quand la main glisse vers la droite */
 }
 /* SEULE la main glisse (gauche → droite → retour), UN SEUL geste
    d'environ 3 s, courbe soignée façon Apple. */
