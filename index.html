@@ -7190,7 +7190,31 @@ function navigate(to, model, cardEl) {
     { const _pg=document.getElementById('phoneGlow'); if(_pg) _pg.style.background=''; }
     document.documentElement.style.setProperty('--dynamic', '0,122,255');
   }
-  window.scrollTo({ top: 0, behavior: 'instant' });
+  // Remonter en HAUT de la nouvelle vue, de façon ROBUSTE. Un simple
+  // window.scrollTo(0) ne suffisait pas : selon le contexte le scroller
+  // réel est window, <html> ou <body>, et iOS Safari ré-ancre le
+  // scroll APRÈS l'injection du contenu (renderDetail) → on arrivait
+  // au même niveau qu'avant la navigation. On remet donc à 0 sur tous
+  // les scrollers possibles, tout de suite ET à la frame suivante
+  // (anti ré-ancrage iOS). Lenis (desktop) ré-applique sa position →
+  // on le réinitialise aussi s'il est présent.
+  function __scrollTop0() {
+    try { if (window.__safixLenis) window.__safixLenis.scrollTo(0, { immediate: true, force: true }); } catch (e) {}
+    try { window.scrollTo(0, 0); } catch (e) {}
+    try { if (document.scrollingElement) document.scrollingElement.scrollTop = 0; } catch (e) {}
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }
+  __scrollTop0();
+  requestAnimationFrame(__scrollTop0);
+  // renderDetail() peuple la vue de façon asynchrone (images, mise en
+  // page) et iOS peut ré-ancrer le scroll une fois la hauteur
+  // stabilisée → on ré-affirme le haut sur une courte fenêtre.
+  // Invisible (la vue vient d'apparaître en haut), et UNIQUEMENT à la
+  // navigation → n'interfère pas avec la scroll-story de l'accueil.
+  setTimeout(__scrollTop0, 60);
+  setTimeout(__scrollTop0, 200);
+  setTimeout(__scrollTop0, 420);
 }
 
 function switchViews(to) {
