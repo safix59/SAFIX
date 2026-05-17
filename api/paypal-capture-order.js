@@ -85,13 +85,97 @@ export default async function handler(req, res) {
       });
     }
 
-    // ⚠️ TODO : ici on devrait insérer l'order dans Supabase + déclencher le bot
-    //          + envoyer les emails (idem flow Stripe webhook). Pour faire ça
-    //          proprement, factoriser le code de stripe-webhook.js dans un
-    //          module commun (lib/order-pipeline.js) appelé par les 2.
-    //          Pour la v1 PayPal direct : retourner OK, le client recevra son
-    //          mail PayPal de confirmation par défaut, et SAFIX traitera la
-    //          commande manuellement (compatible avec phase d'amorçage volume).
+    // ── Persistance + idempotence + bot + notif boutique ──────────────────
+    //    BEST-EFFORT, JAMAIS FATAL : le paiement est déjà capturé (argent pris),
+    //    le client DOIT recevoir 200 quoi qu'il arrive ; on enregistre/notifie
+    //    hors-bande. (Le montant PayPal est déjà figé serveur par
+    //    paypal-create-order.js via loadPrices/enforcePrices → pas de re-check.)
+    //    NOTE: à tester en sandbox PayPal avant activation (custom_id PayPal
+    //    limité à 127 c. → metadata RDV/adresse possiblement tronquée).
+    const SUPA_URL = process.env.SUPABASE_URL;
+    const SUPA_KEY = process.env.SUPABASE_SERVICE_ROLE;
+    const dedupeRef = `paypal_${orderID}`;
+    try {
+      if (SUPA_URL && SUPA_KEY) {
+        const ex = await fetch(
+          `${SUPA_URL}/rest/v1/orders?stripe_session_id=eq.${encodeURIComponent(dedupeRef)}&select=id&limit=1`,
+          { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` } },
+        );
+        const exRows = await ex.json().catch(() => null);
+        if (Array.isArray(exRows) && exRows.length > 0) {
+          console.log(`[PayPal] order ${dedupeRef} déjà enregistrée (${exRows[0].id}) — skip`);
+          return res.status(200).json({
+            ok: true, captureId: capture.id, amount: capture.amount,
+            payerEmail: captureData?.payer?.email_address || null, deduped: true,
+          });
+        }
+        const pu = captureData?.purchase_units?.[0] || {};
+        let meta = {};
+        try { meta = JSON.parse(pu.custom_id || '{}'); } catch (e) {}
+        const lineItems = (Array.isArray(pu.items) ? pu.items : []).map(it => ({
+          name: it.name,
+          qty: Number(it.quantity) || 1,
+          unit_amount: Math.round(Number(it.unit_amount?.value || 0) * 100),
+        }));
+        const amountCents = Math.round(Number(capture.amount?.value || 0) * 100);
+        const order = {
+          stripe_session_id:     dedupeRef,
+          stripe_payment_intent: `paypal_${capture.id}`,
+          customer_email:        captureData?.payer?.email_address || meta.email || null,
+          total_cents:           amountCents,
+          currency:              (capture.amount?.currency_code || 'EUR').toLowerCase(),
+          status:                'paid',
+          line_items:            lineItems,
+          metadata:              { ...meta, source: 'paypal', paypal_order: orderID, paypal_capture: capture.id },
+          created_at:            new Date().toISOString(),
+        };
+        const ins = await fetch(`${SUPA_URL}/rest/v1/orders`, {
+          method: 'POST',
+          headers: {
+            apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`,
+            'Content-Type': 'application/json', Prefer: 'return=representation',
+          },
+          body: JSON.stringify(order),
+        });
+        const insRow = await ins.json().catch(() => null);
+        const orderId = Array.isArray(insRow) ? insRow[0]?.id : insRow?.id;
+        console.log(`[PayPal] order persistée ${dedupeRef} → ${orderId} (HTTP ${ins.status})`);
+
+        const botUrl = process.env.BOT_TRIGGER_URL;
+        if (botUrl && ins.ok && orderId) {
+          fetch(botUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-SAFIX-Secret': process.env.BOT_TRIGGER_SECRET || '' },
+            body: JSON.stringify({ orderId }),
+          }).then(r => console.log('[PayPal] bot trigger HTTP', r.status))
+            .catch(e => console.warn('[PayPal] bot trigger fail:', e.message));
+        }
+
+        const RK = process.env.RESEND_API_KEY, RF = process.env.RESEND_FROM, RT = process.env.RESEND_TO;
+        if (RK && RF && RT) {
+          const e = (v) => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          const rows = lineItems.map(li => `<tr><td>${e(li.name)}</td><td>×${li.qty}</td></tr>`).join('');
+          fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${RK}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              from: RF, to: RT,
+              subject: `SAFIX 🔔 PayPal ${(amountCents / 100).toFixed(2)} € · ${e(meta.model || 'Commande')}`,
+              html: `<h2>Nouvelle commande PayPal — ${(amountCents / 100).toFixed(2)} €</h2>
+<p>Client : ${e(order.customer_email || '—')} · Modèle : ${e(meta.model || '—')} · Snap : ${e(meta.snap || '—')}</p>
+<table border="1" cellpadding="6">${rows}</table>
+<p>PayPal order ${e(orderID)} · capture ${e(capture.id)} · Supabase #${e(String(orderId || '?'))}</p>
+<p>⚠️ custom_id PayPal limité à 127 c. → vérifier RDV/adresse avec le client.</p>`,
+            }),
+          }).then(r => console.log('[PayPal] mail shop HTTP', r.status))
+            .catch(e2 => console.warn('[PayPal] mail shop fail:', e2.message));
+        }
+      } else {
+        console.warn('[PayPal] Supabase non configuré — capture NON persistée (à traiter manuellement):', orderID, capture.id);
+      }
+    } catch (e) {
+      console.error('[PayPal] Persistance non-fatale échouée (paiement OK, traiter manuellement):', e.message, 'order', orderID, 'capture', capture.id);
+    }
 
     return res.status(200).json({
       ok: true,
