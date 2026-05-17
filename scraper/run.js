@@ -138,10 +138,11 @@ function loadLinks() {
   const raw = fs.readFileSync(CONFIG.linksFile, "utf8");
   const data = JSON.parse(raw);
   if (!Array.isArray(data)) throw new Error("links.json doit être un tableau.");
+  const skipped = [];
   for (const [i, e] of data.entries()) {
     if (!e.url) throw new Error(`Entrée #${i} sans url`);
     if (!e.repair_id) throw new Error(`Entrée #${i} sans repair_id`);
-    if (!e.model) throw new Error(`Entrée #${i} sans model`);
+    if (!e.model) { skipped.push(i); continue; }
     if (!e.category) e.category = "repair";
     if (!["repair", "accessory"].includes(e.category)) {
       throw new Error(
@@ -149,7 +150,12 @@ function loadLinks() {
       );
     }
   }
-  return data;
+  if (skipped.length) {
+    console.warn(
+      `[WARN] ${skipped.length} entrée(s) sans "model" ignorée(s) (indices ${skipped.join(", ")}) — non scrapées, comportement connu-bon`,
+    );
+  }
+  return data.filter((e) => e.model);
 }
 
 function loadPrevious() {
