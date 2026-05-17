@@ -4983,14 +4983,24 @@ body.premium-mode .iphone-card:hover .card-shine { opacity:1; }
   will-change:transform;
 }
 .hero-3d-swipe.show .swipe-hand {
-  animation:swipeGesture 3s cubic-bezier(.45,0,.22,1) .25s 1 both;
+  /* 2 allers-retours soignés, puis un laps de temps, en boucle. */
+  animation:swipeGesture 5s cubic-bezier(.45,0,.22,1) .25s infinite both;
 }
 @keyframes swipeGesture {
-  0%   { transform:translateX(-8px); }
-  14%  { transform:translateX(-8px); }    /* repos : l'œil l'accroche */
-  50%  { transform:translateX(14px); }    /* glisse de gauche à droite */
-  62%  { transform:translateX(14px); }    /* petit temps à droite */
-  92%  { transform:translateX(-8px); }    /* revient à la position initiale */
+  /* ── 1er glissement ── */
+  0%   { transform:translateX(-8px); }   /* repos */
+  3%   { transform:translateX(-8px); }
+  11%  { transform:translateX(14px); }   /* va à droite */
+  15%  { transform:translateX(14px); }   /* petit temps à droite */
+  24%  { transform:translateX(-8px); }   /* revient */
+  28%  { transform:translateX(-8px); }   /* mini-pose entre les deux */
+  /* ── 2e glissement ── */
+  31%  { transform:translateX(-8px); }
+  39%  { transform:translateX(14px); }   /* va à droite */
+  43%  { transform:translateX(14px); }   /* petit temps à droite */
+  52%  { transform:translateX(-8px); }   /* revient */
+  /* ── laps de temps (pause) avant de recommencer ── */
+  56%  { transform:translateX(-8px); }
   100% { transform:translateX(-8px); }
 }
 @media (max-width:899px) { .hero-3d-swipe svg { width:46px; } }
