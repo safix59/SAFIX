@@ -3525,6 +3525,17 @@ html.lenis body { height:auto; }
 [data-theme="dark"] .scroll-story::before {
   background:rgba(255,255,255,.10);
 }
+/* Séparateur identique APRÈS la story "Notre promesse" — full width */
+.scroll-story::after {
+  content:'';
+  display:block;
+  width:100%;
+  height:1px;
+  background:rgba(128,128,128,.18);
+}
+[data-theme="dark"] .scroll-story::after {
+  background:rgba(255,255,255,.10);
+}
 .scroll-story-track {
   height:300vh;          /* 3 viewports = 3 scènes */
   position:relative;
