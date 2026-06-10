@@ -1,0 +1,92 @@
+name: Rafraîchir les prix Utopya
+
+# But : maintenir scraper/prices.json à jour automatiquement, sans dépendre du PC
+# du propriétaire. Tourne sur les serveurs GitHub (gratuit, repo public).
+# - schedule : 2×/semaine (lundi & jeudi 04:00 UTC)
+# - workflow_dispatch : bouton "Run workflow" manuel (mode "login-test" pour
+#   simplement vérifier la connexion Utopya sans scraper, ou "full" pour tout)
+# Le commit de prices.json sur main déclenche l'auto-déploiement Vercel → prix en ligne.
+
+on:
+  schedule:
+    - cron: "0 4 * * 1,4"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "login-test (vérif connexion seule) ou full (scrape complet)"
+        required: true
+        default: "login-test"
+        type: choice
+        options: [login-test, full]
+
+# Un seul run à la fois ; on n'annule pas un run en cours.
+concurrency:
+  group: refresh-prices
+  cancel-in-progress: false
+
+permissions:
+  contents: write   # pour committer prices.json
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: scraper
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install deps
+        run: npm ci || npm install
+
+      - name: Install Chromium (Playwright)
+        run: npx playwright install --with-deps chromium
+
+      - name: Run (login-test ou full)
+        env:
+          UTOPYA_EMAIL: ${{ secrets.UTOPYA_EMAIL }}
+          UTOPYA_PASSWORD: ${{ secrets.UTOPYA_PASSWORD }}
+          SCRAPE_CONCURRENCY: "2"
+        run: |
+          MODE="${{ github.event.inputs.mode || 'full' }}"
+          echo "Mode = $MODE"
+          if [ "$MODE" = "login-test" ]; then
+            node run.js --login-only
+          else
+            node run.js
+          fi
+
+      - name: Valider prices.json (garde-fou anti-publication-cassée)
+        if: ${{ github.event.inputs.mode != 'login-test' }}
+        run: |
+          node -e '
+            const fs=require("fs");
+            const d=JSON.parse(fs.readFileSync("prices.json","utf8"));
+            const p=d.prices||{};
+            let act=0,zero=0;
+            for(const c of Object.values(p)){if(c&&typeof c==="object"){for(const v of Object.values(c)){if(v&&typeof v==="object"){const f=v.final;if(typeof f==="number"&&f>0)act++;else zero++;}}}}
+            console.log("generatedAt="+d.generatedAt+" | prix actifs="+act+" | sans prix="+zero);
+            if(act < 150){ console.error("ABANDON: trop peu de prix actifs ("+act+") — on ne publie pas un scrape suspect."); process.exit(1); }
+          '
+
+      - name: Commit & push prices.json (si changé)
+        if: ${{ github.event.inputs.mode != 'login-test' }}
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          if git diff --quiet -- scraper/prices.json; then
+            echo "Aucun changement de prix — rien à committer."
+          else
+            git config user.name "safix-prices-bot"
+            git config user.email "actions@users.noreply.github.com"
+            git add scraper/prices.json
+            git commit -m "Auto: rafraîchissement prix Utopya ($(date -u +%Y-%m-%d))"
+            git push
+            echo "prices.json publié → Vercel va auto-déployer."
+          fi
