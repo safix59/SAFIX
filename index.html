@@ -8977,6 +8977,8 @@ async function mountExpressCheckout(amountCents, orderContext) {
     // → reconstruit le contexte commande À CHAUD depuis le DOM (pas de stale data)
     // → crée le PaymentIntent côté backend avec les MÊMES métadonnées que checkoutBtn
     _eceComponent.on('confirm', async (event) => {
+      if (window._eceBusy) return;   // P1 : anti double-clic Apple/Google Pay
+      window._eceBusy = true;
       try {
         // Re-vérifie la validation (silencieuse — pas de rouge sur Apple Pay)
         const v = validateCheckoutForm({ silent: true });
@@ -9044,10 +9046,12 @@ async function mountExpressCheckout(amountCents, orderContext) {
         console.error('[ECE] Confirm fatal :', e);
         showToast('⚠️', paymentErrMsg(e && e.code));
         if (e && (e.code === 'out_of_stock' || e.code === 'price_mismatch')) syncCart();
+      } finally {
+        window._eceBusy = false;   // P1 : libère le verrou (succès → redirection, échec → réessai possible)
       }
     });
 
-    _eceComponent.on('cancel', () => { console.info('[ECE] User cancelled'); });
+    _eceComponent.on('cancel', () => { window._eceBusy = false; console.info('[ECE] User cancelled'); });
   } catch (e) {
     console.warn('[SAFIX] Express Checkout mount fail :', e.message);
     mount.innerHTML = '';
@@ -11062,7 +11066,15 @@ async function openPayPalDirectModal(ctx) {
             orderMeta: { ...live.orderMeta, paymentMethod: 'paypal_direct' },
           }),
         });
-        if (!r.ok) throw new Error('paypal-create-order HTTP ' + r.status);
+        if (!r.ok) {
+          // P3 : parité carte — message clair rupture/prix + resync panier
+          const j = await r.json().catch(() => ({}));
+          if (j.error === 'out_of_stock' || j.error === 'price_mismatch') {
+            showToast('⚠️', paymentErrMsg(j.error));
+            syncCart();
+          }
+          throw new Error(j.error || 'paypal-create-order HTTP ' + r.status);
+        }
         const j = await r.json();
         if (!j.id) throw new Error(j.error || 'no order id');
         return j.id;
@@ -11070,6 +11082,8 @@ async function openPayPalDirectModal(ctx) {
 
       // 2) Approbation client → capture côté serveur
       onApprove: async (data) => {
+        if (window._ppBusy) return;   // P1 : anti double-clic PayPal
+        window._ppBusy = true;
         try {
           const r = await fetch('/api/paypal-capture-order', {
             method: 'POST',
@@ -11099,10 +11113,13 @@ async function openPayPalDirectModal(ctx) {
         } catch (e) {
           console.error('[PayPal] capture error :', e);
           showToast('⚠️', currentLang === 'en' ? 'Payment failed' : 'Paiement échoué');
+        } finally {
+          window._ppBusy = false;   // P1 : libère le verrou
         }
       },
 
       onCancel: () => {
+        window._ppBusy = false;
         closeModal('paypalOverlay');
       },
       onError: (err) => {
