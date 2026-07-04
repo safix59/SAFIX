@@ -11334,6 +11334,10 @@ document.querySelectorAll('a[data-modal], button[data-modal]').forEach(a => {
 document.querySelectorAll('[data-close]').forEach(b => {
   b.addEventListener('click', () => closeModal(b.getAttribute('data-close')));
 });
+// P4 : fermer une modale en cliquant sur le fond (parité avec QR/Snap/PayPal)
+document.querySelectorAll('.gm-overlay').forEach(ov => {
+  ov.addEventListener('click', e => { if (e.target === ov && ov.id) closeModal(ov.id); });
+});
 
 /* ═══ ESC ferme toutes les modales ═══ */
 document.addEventListener('keydown', e => {

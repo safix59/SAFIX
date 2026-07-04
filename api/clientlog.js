@@ -5,9 +5,13 @@
 // jamais avoir un site cassé en silence (cf. panne TDZ currentLang).
 // ─────────────────────────────────────────────────────────────────────────
 
-const allowOrigin = process.env.ALLOWED_ORIGIN || '*';
+// P5 : durcissement — plus de CORS ouvert '*'. On ne reflète que nos origines.
+const ALLOWED = ['https://safix59.fr', 'https://www.safix59.fr'];
 
 export default async function handler(req, res) {
+  const origin = req.headers.origin;
+  const allowOrigin = process.env.ALLOWED_ORIGIN
+    || (ALLOWED.includes(origin) ? origin : 'https://safix59.fr');
   res.setHeader('Access-Control-Allow-Origin', allowOrigin);
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
