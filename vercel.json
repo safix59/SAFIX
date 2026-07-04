@@ -8,6 +8,11 @@
   "crons": [
     { "path": "/api/keepalive", "schedule": "0 6 * * *" }
   ],
+  "redirects": [
+    { "source": "/api/(.*)\\.(js|mjs|json|md)", "destination": "/", "permanent": false },
+    { "source": "/vercel.json", "destination": "/", "permanent": false },
+    { "source": "/.vercelignore", "destination": "/", "permanent": false }
+  ],
   "headers": [
     {
       "source": "/(.*)",
