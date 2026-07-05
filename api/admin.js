@@ -127,17 +127,34 @@ export default async function handler(req, res) {
   const prices = (pricesDoc && pricesDoc.prices) || {};
   const priceOf = (rid, model) => (prices?.[rid]?.[model] || prices?.[rid]?.default) || null;
 
+  // Détail fiable des pièces d'une commande : d'abord metadata.cart (compact,
+  // écrit pour le bot), sinon line_items s'ils portent le repair_id.
+  const itemsOf = (o) => {
+    const m = o.metadata || {};
+    try { const c = JSON.parse(m.cart || 'null'); if (Array.isArray(c) && c.length) return c.map(x => ({ rid: x.r, mdl: x.m || 'default', q: x.q || 1 })); } catch {}
+    const li = Array.isArray(o.line_items) ? o.line_items : [];
+    if (li.some(x => x.repair_id || x.repairId)) return li.map(x => ({ rid: x.repair_id || x.repairId, mdl: x.model || 'default', q: x.qty || 1 }));
+    return null;
+  };
+
   const now = new Date(); const d30 = new Date(now.getTime() - 30 * 864e5);
-  let revenue = 0, revenue30 = 0, count30 = 0, partsCost = 0;
+  let revenue = 0, revenue30 = 0, count30 = 0, partsCost = 0, gain = 0, cost30 = 0, gain30 = 0, costUnknown = 0;
   const upcoming = [];
   for (const o of orders) {
-    revenue += (o.total_cents || 0);
-    if (o.created_at && new Date(o.created_at) >= d30) { revenue30 += (o.total_cents || 0); count30++; }
-    const items = Array.isArray(o.line_items) ? o.line_items : [];
-    for (const it of items) {
-      const rid = it.repair_id || it.repairId; const mdl = it.model || 'default';
-      if (rid) { const p = priceOf(rid, mdl); if (p && typeof p.basePrice === 'number') partsCost += Math.round(p.basePrice * 100) * (it.qty || 1); }
+    const tot = o.total_cents || 0; revenue += tot;
+    const recent = o.created_at && new Date(o.created_at) >= d30;
+    if (recent) { revenue30 += tot; count30++; }
+    // Coût pièces Utopya (basePrice) — connu seulement si TOUS les articles sont reliés
+    const its = itemsOf(o);
+    let cost = 0, known = false;
+    if (its) {
+      known = true;
+      for (const it of its) { const p = priceOf(it.rid, it.mdl); if (p && typeof p.basePrice === 'number') cost += Math.round(p.basePrice * 100) * it.q; else known = false; }
     }
+    o._cost_cents = known ? cost : null;
+    o._gain_cents = known ? (tot - cost) : null;
+    if (known) { partsCost += cost; gain += (tot - cost); if (recent) { cost30 += cost; gain30 += (tot - cost); } }
+    else costUnknown++;
     const m = o.metadata || {};
     if (m.apptDate) { const ad = new Date(m.apptDate); if (ad >= new Date(now.toDateString())) upcoming.push({ id: o.id, date: m.apptDate, slot: m.apptSlot || null, addr: m.addr || null, email: o.customer_email, model: m.model || null }); }
   }
@@ -181,7 +198,14 @@ export default async function handler(req, res) {
 
   return res.status(200).json({
     orders,
-    stats: { total_orders: orders.length, revenue_cents: revenue, revenue_30d_cents: revenue30, orders_30d: count30, parts_cost_cents_est: partsCost, margin_cents_est: revenue - partsCost, upcoming_appointments: upcoming.slice(0, 40) },
+    stats: {
+      total_orders: orders.length, orders_30d: count30,
+      encaisse_cents: revenue, encaisse_30d_cents: revenue30,
+      cout_pieces_cents: partsCost, benefice_cents: gain,
+      cout_30d_cents: cost30, benefice_30d_cents: gain30,
+      cost_unknown_orders: costUnknown,
+      upcoming_appointments: upcoming.slice(0, 40),
+    },
     catalog: { combos, in_stock: inStock, out_of_stock: oos, broken, prices_generated_at: pricesDoc?.generatedAt || null, prices_age_hours: ageH, over_ceiling: overCeiling, broken_items: brokenItems.slice(0, 60), coverage, model_gaps: modelGaps },
     price_changes: { updatedAt: hist?.updatedAt || null, total: changes.length, recent: changes.slice(0, 60), counts_30d: c30 },
     health: { supabase_ok: !!(SUPA && KEY) && !alerts.some(a => a.level === 'error' && /Supabase/.test(a.msg)), prices_ok: !!pricesDoc && !stale, order_errors: orderErrors, paid_not_ordered: paidNotOrdered, alerts },

@@ -63,6 +63,16 @@ button{font-family:inherit}
 .toolbar input:focus{border-color:var(--accent)}
 .toolbar .exp{background:var(--surface);border:1px solid var(--border);color:var(--text2);border-radius:11px;padding:11px 15px;font-size:13.5px;cursor:pointer;white-space:nowrap}
 .toolbar .exp:hover{border-color:var(--border2);color:var(--text)}
+.money-flow{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:12px;align-items:stretch;margin-bottom:16px}
+.money{background:var(--panel);border:1px solid var(--border);border-radius:var(--r2);padding:20px 22px}
+.money .ml{font-size:12.5px;color:var(--text3);font-weight:500}
+.money .mv{font-size:29px;font-weight:750;letter-spacing:-1px;margin-top:9px;font-variant-numeric:tabular-nums;line-height:1.05}
+.money .ms{font-size:12px;color:var(--text3);margin-top:5px}
+.money.in .mv{color:var(--accent2)}.money.out .mv{color:var(--warn)}
+.money.gain{border-color:rgba(48,209,88,.4);background:linear-gradient(180deg,rgba(48,209,88,.06),transparent)}
+.money.gain .mv{color:var(--ok)}
+.money-arrow{display:flex;align-items:center;justify-content:center;font-size:24px;color:var(--text3);font-weight:300}
+@media(max-width:820px){.money-flow{grid-template-columns:1fr}.money-arrow{padding:1px 0}}
 
 .main{min-width:0;display:flex;flex-direction:column}
 .topbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:14px;padding:16px 26px;background:rgba(0,0,0,.72);backdrop-filter:blur(18px);border-bottom:1px solid var(--border)}
@@ -233,10 +243,10 @@ function render(){
       ${(h.alerts&&h.alerts.length)?`<div class="sect-title">À surveiller</div>${alertsHtml(h.alerts)}`:''}
       <div class="sect-title">Chiffres clés</div>
       <div class="kpis">
-        ${kpi(s.total_orders??0,'Commandes reçues','', (s.orders_30d??0)+' sur 30 jours')}
-        ${kpi(euro(s.revenue_cents),'Chiffre d’affaires','ac')}
-        ${kpi(euro(s.margin_cents_est),'Marge estimée','ok')}
-        ${kpi(cat.out_of_stock??0,'Pièces en rupture','warn', (cat.in_stock??0)+' en stock')}
+        ${kpi(s.total_orders??0,'Commandes reçues','',(s.orders_30d??0)+' sur 30 jours')}
+        ${kpi(euro(s.encaisse_cents),'Encaissé (clients)','ac')}
+        ${kpi(euro(s.benefice_cents),'Ton bénéfice','ok')}
+        ${kpi(cat.out_of_stock??0,'Pièces en rupture','warn',(cat.in_stock??0)+' en stock')}
       </div>
       <div class="sect-title">Prochains rendez-vous</div>
       ${ap.length?`<div class="panel">${ap.map(apptRow).join('')}</div>`:emptyBox('📅','Aucun rendez-vous à venir.')}`;
@@ -244,14 +254,23 @@ function render(){
   else if(TAB==='orders'){renderOrders();return;}
   else if(TAB==='finance'){
     v.innerHTML=`
-      <div class="sect-title">Vue financière</div>
-      <div class="kpis">
-        ${kpi(euro(s.revenue_cents),'CA encaissé','ac')}
-        ${kpi(euro(s.parts_cost_cents_est),'Coût pièces (est.)','warn')}
-        ${kpi(euro(s.margin_cents_est),'Marge brute (est.)','ok')}
-        ${kpi(euro(s.revenue_30d_cents),'CA sur 30 jours','ac')}
+      <div class="sect-title">Ton argent, en clair</div>
+      <div class="money-flow">
+        <div class="money in"><div class="ml">Tu encaisses</div><div class="mv">${euro(s.encaisse_cents)}</div><div class="ms">payé par les clients</div></div>
+        <div class="money-arrow">−</div>
+        <div class="money out"><div class="ml">Tu paies chez Utopya</div><div class="mv">${euro(s.cout_pieces_cents)}</div><div class="ms">coût des pièces à commander</div></div>
+        <div class="money-arrow">=</div>
+        <div class="money gain"><div class="ml">Il te reste (bénéfice)</div><div class="mv">${euro(s.benefice_cents)}</div><div class="ms">c’est ton gain, à toi</div></div>
       </div>
-      <div class="alert a-ok" style="margin-top:14px"><span>ℹ️</span><span>Le <b>coût pièces</b> est estimé d’après le prix Utopya des articles. La <b>marge</b> = CA encaissé − coût pièces (hors frais de livraison et frais bancaires).</span></div>
+      <div class="alert a-ok"><span>💡</span><span>Chaque client te paie une pièce + ton travail. La part <b>pièce</b> repart chez Utopya, le reste est <b>ton bénéfice</b>. (Hors frais de livraison que tu factures et frais bancaires Stripe.)</span></div>
+      ${s.cost_unknown_orders?`<div class="alert a-warn"><span>⚠️</span><span><b>${s.cost_unknown_orders} commande(s)</b> sans détail de pièces exploitable (ex. anciennes commandes de test) — leur coût n’est pas compté, marquées « à confirmer » ci-dessous.</span></div>`:''}
+      <div class="sect-title">Sur les 30 derniers jours</div>
+      <div class="kpis">
+        ${kpi(euro(s.encaisse_30d_cents),'Encaissé','ac')}
+        ${kpi(euro(s.cout_30d_cents),'Payé chez Utopya','warn')}
+        ${kpi(euro(s.benefice_30d_cents),'Bénéfice','ok')}
+        ${kpi(s.orders_30d??0,'Commandes')}
+      </div>
       <div class="sect-title">Détail par commande</div>
       ${(DATA.orders||[]).length?financeTable(DATA.orders):emptyBox('💶','Aucune commande.')}`;
   }
@@ -326,8 +345,9 @@ function apptRow(a){const soon=(new Date(a.date)-new Date())<3*864e5?'<span clas
 function ordersTable(o){return `<div class="panel tbl-scroll"><table><thead><tr><th>Date</th><th>Client</th><th>Modèle / Articles</th><th>Livr.</th><th>Rendez-vous</th><th>Total</th><th>Statut</th></tr></thead><tbody>`+
   o.map(x=>{const m=x.metadata||{};const appt=m.apptDate?fDate(m.apptDate)+(m.apptSlot?(' · '+(SLOTS[m.apptSlot]||m.apptSlot)):''):'—';const dl=m.delivery==='express'?'Express':m.delivery==='standard'?'Standard':'—';
   return `<tr><td class="muted" style="white-space:nowrap">${fDT(x.created_at)}</td><td>${esc(x.customer_email||'—')}${m.phone?'<br><span class="muted">'+esc(m.phone)+'</span>':''}${m.snap?'<br><span class="muted">👻 '+esc(m.snap)+'</span>':''}</td><td>${esc(m.model||'—')}<div class="items">${itemsText(x.line_items)}</div></td><td>${dl}</td><td>${esc(appt)}</td><td class="tot">${euro(x.total_cents)}</td><td>${statusBadge(x.status)}</td></tr>`;}).join('')+`</tbody></table></div>`;}
-function financeTable(o){return `<div class="panel tbl-scroll"><table><thead><tr><th>Date</th><th>Modèle / Articles</th><th>Encaissé</th><th>Statut</th></tr></thead><tbody>`+
-  o.map(x=>{const m=x.metadata||{};return `<tr><td class="muted">${fDT(x.created_at)}</td><td>${esc(m.model||'—')}<div class="items">${itemsText(x.line_items)}</div></td><td class="tot">${euro(x.total_cents)}</td><td>${statusBadge(x.status)}</td></tr>`;}).join('')+`</tbody></table></div>`;}
+function financeTable(o){return `<div class="panel tbl-scroll"><table><thead><tr><th>Date</th><th>Modèle / Articles</th><th>Encaissé</th><th>Coût pièces</th><th>Ton gain</th><th>Statut</th></tr></thead><tbody>`+
+  o.map(x=>{const m=x.metadata||{};const cost=x._cost_cents,gain=x._gain_cents;
+  return `<tr><td class="muted" style="white-space:nowrap">${fDT(x.created_at)}</td><td>${esc(m.model||'—')}<div class="items">${itemsText(x.line_items)}</div></td><td class="tot" style="color:var(--accent2)">${euro(x.total_cents)}</td><td class="tot ${cost==null?'muted':''}">${cost==null?'à confirmer':euro(cost)}</td><td class="tot" style="${gain!=null?'color:var(--ok)':''}">${gain==null?'—':euro(gain)}</td><td>${statusBadge(x.status)}</td></tr>`;}).join('')+`</tbody></table></div>`;}
 function overCeilTable(a){return `<table><thead><tr><th>Produit</th><th>Modèle</th><th>Prix calculé</th><th>Plafond Apple</th></tr></thead><tbody>`+a.map(x=>`<tr><td>${esc(x.repairId)}</td><td>${esc(x.model)}</td><td class="tot up">${x.final} €</td><td>${x.ceiling} €</td></tr>`).join('')+`</tbody></table>`;}
 function brokenTable(a){return `<table><thead><tr><th>Réparation</th><th>Modèle</th><th>Lien</th></tr></thead><tbody>`+a.map(x=>`<tr><td>${esc(x.repairId)}</td><td>${esc(x.model)}</td><td>${x.url?`<a href="${esc(x.url)}" target="_blank" rel="noopener" style="color:var(--accent2)">ouvrir ↗</a>`:'<span class="muted">—</span>'}</td></tr>`).join('')+`</tbody></table>`;}
 function gapsHtml(g){if(!g||!g.length)return `<div class="alert a-ok"><span>✓</span><span>Tous les modèles phares sont bien couverts.</span></div>`;
