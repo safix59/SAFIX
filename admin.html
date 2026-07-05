@@ -4,284 +4,342 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
-<title>SAFIX — Administration</title>
+<meta name="theme-color" content="#000000">
+<title>SAFIX · Admin</title>
 <style>
 :root{
-  --bg:#0a0c10; --bg2:#12161c; --card:#161b22; --bd:#232a33; --tx:#e9eef5; --mut:#8a97a8;
-  --ac:#0a84ff; --ac2:#5ac8fa; --ok:#30d158; --warn:#ff9f0a; --dang:#ff453a;
+  --bg:#000; --bg2:#0a0a0a; --panel:#0d0d0f; --panel2:#141416;
+  --surface:rgba(255,255,255,.05); --surface2:rgba(255,255,255,.08);
+  --border:rgba(255,255,255,.08); --border2:rgba(255,255,255,.14);
+  --text:#fff; --text2:rgba(235,235,245,.74); --text3:rgba(235,235,245,.5);
+  --accent:#007AFF; --accent2:#0A84FF; --accent-rgb:0,122,255;
+  --ok:#30d158; --warn:#ff9f0a; --dang:#ff453a;
+  --r:14px; --r2:18px;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
 }
-*{box-sizing:border-box}
-html,body{margin:0;min-height:100%;background:linear-gradient(180deg,#0a0c10,#0d1117);color:var(--tx);
-  font:15px/1.5 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 .hidden{display:none!important}
-/* LOGIN */
-.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
-.login-card{width:100%;max-width:380px;background:var(--card);border:1px solid var(--bd);border-radius:20px;padding:34px 28px;box-shadow:0 30px 80px rgba(0,0,0,.5);text-align:center}
-.logo{font-size:30px;font-weight:800;letter-spacing:-1.5px}.logo span{color:var(--ac)}
-.login-sub{color:var(--mut);font-size:13px;margin:4px 0 26px}
-input[type=password]{width:100%;background:var(--bg2);border:1px solid var(--bd);border-radius:12px;color:var(--tx);font-size:16px;padding:14px 16px;outline:none}
-input[type=password]:focus{border-color:var(--ac)}
-.btn{width:100%;background:var(--ac);color:#fff;border:0;border-radius:12px;font-size:16px;font-weight:600;padding:14px;cursor:pointer;margin-top:14px}
-.btn:disabled{opacity:.6}
-.err{color:var(--dang);font-size:13px;min-height:18px;margin-top:8px}
-/* APP */
-.top{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px;padding:12px 18px;background:rgba(13,17,23,.9);backdrop-filter:blur(14px);border-bottom:1px solid var(--bd)}
-.top .logo{font-size:19px}
-.top .sp{flex:1}
-.pill{font-size:12.5px;color:var(--mut);border:1px solid var(--bd);border-radius:999px;padding:6px 12px;cursor:pointer;background:none}
-.pill:hover{border-color:var(--ac);color:var(--tx)}
-.dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:middle}
-.dot.ok{background:var(--ok)}.dot.warn{background:var(--warn)}.dot.dang{background:var(--dang)}
-.tabs{position:sticky;top:53px;z-index:15;display:flex;gap:4px;overflow:auto;padding:10px 14px;background:rgba(10,12,16,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--bd)}
-.tab{white-space:nowrap;font-size:13.5px;color:var(--mut);border:1px solid transparent;border-radius:10px;padding:8px 13px;cursor:pointer;background:none}
-.tab.on{color:var(--tx);background:var(--card);border-color:var(--bd)}
-.wrap{max-width:1180px;margin:0 auto;padding:20px 16px 70px}
-h2{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);margin:26px 0 12px}
-h2:first-child{margin-top:6px}
-.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-.kpi{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:15px 16px}
-.kpi .v{font-size:24px;font-weight:800;letter-spacing:-.5px}
-.kpi .v.ac{color:var(--ac2)}.kpi .v.ok{color:var(--ok)}.kpi .v.warn{color:var(--warn)}
-.kpi .l{font-size:11px;color:var(--mut);text-transform:uppercase;margin-top:3px}
-.alert{display:flex;gap:10px;align-items:flex-start;border-radius:12px;padding:12px 14px;margin-bottom:8px;font-size:13.5px;border:1px solid}
-.a-error{background:rgba(255,69,58,.09);border-color:rgba(255,69,58,.4)}
-.a-warn{background:rgba(255,159,10,.08);border-color:rgba(255,159,10,.35)}
-.a-ok{background:rgba(48,209,88,.08);border-color:rgba(48,209,88,.3);color:var(--mut)}
-.cards{display:grid;gap:9px}
-.appt{display:flex;gap:12px;align-items:center;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:11px 14px}
-.appt .dt{font-weight:700;min-width:140px}.appt .slot{color:var(--ac2);font-size:13px}.appt .who{color:var(--mut);font-size:13px;margin-left:auto;text-align:right}
-.tbl-wrap{background:var(--card);border:1px solid var(--bd);border-radius:16px;overflow:auto}
-table{width:100%;border-collapse:collapse;font-size:13px;min-width:640px}
-th,td{padding:10px 13px;text-align:left;border-bottom:1px solid var(--bd);vertical-align:top}
-th{color:var(--mut);font-size:11px;text-transform:uppercase;background:#10151b;position:sticky;top:0}
+button{font-family:inherit}
+::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:var(--surface2);border-radius:9px}
+
+/* ─── LOGIN ─── */
+.login{min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:24px;
+  background:radial-gradient(1200px 600px at 50% -10%,rgba(var(--accent-rgb),.12),transparent 60%)}
+.login-card{width:100%;max-width:360px;text-align:center}
+.brand-lg{font-size:34px;font-weight:800;letter-spacing:-1.8px}
+.brand-lg b{color:var(--accent);font-weight:800}
+.login-sub{color:var(--text3);font-size:13.5px;margin:6px 0 30px;letter-spacing:.2px}
+.login input{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:16px;padding:15px 16px;outline:none;transition:border-color .15s,background .15s}
+.login input:focus{border-color:var(--accent);background:var(--surface2)}
+.login .btn{width:100%;margin-top:12px;background:var(--accent);color:#fff;border:0;border-radius:12px;font-size:16px;font-weight:600;padding:15px;cursor:pointer;transition:filter .15s}
+.login .btn:hover{filter:brightness(1.1)}.login .btn:disabled{opacity:.55}
+.err{color:var(--dang);font-size:13px;min-height:18px;margin-top:10px}
+
+/* ─── SHELL ─── */
+.app{display:grid;grid-template-columns:248px 1fr;min-height:100dvh}
+.sidebar{position:sticky;top:0;height:100dvh;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:20px 14px;z-index:40}
+.side-brand{display:flex;align-items:center;gap:9px;padding:6px 10px 20px;font-size:19px;font-weight:800;letter-spacing:-.8px}
+.side-brand b{color:var(--accent)}
+.side-brand .tag{margin-left:auto;font-size:10px;font-weight:600;color:var(--text3);letter-spacing:.14em;text-transform:uppercase}
+.nav{display:flex;flex-direction:column;gap:2px;flex:1}
+.nav a{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:11px;color:var(--text2);font-size:14.5px;font-weight:500;cursor:pointer;text-decoration:none;transition:background .13s,color .13s;border:1px solid transparent}
+.nav a:hover{background:var(--surface);color:var(--text)}
+.nav a.on{background:var(--surface2);color:var(--text);border-color:var(--border)}
+.nav a svg{width:18px;height:18px;flex:none;opacity:.9}
+.nav a .cnt{margin-left:auto;font-size:11px;font-weight:700;color:#fff;background:var(--dang);border-radius:999px;padding:1px 7px;min-width:20px;text-align:center}
+.side-foot{border-top:1px solid var(--border);padding-top:14px;margin-top:8px;display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--text3)}
+.side-foot .logout{margin-left:auto;color:var(--text2);cursor:pointer;border:1px solid var(--border);border-radius:9px;padding:6px 11px;background:none;font-size:12.5px}
+.side-foot .logout:hover{border-color:var(--border2);color:var(--text)}
+.dot{width:8px;height:8px;border-radius:50%;flex:none}
+.dot.ok{background:var(--ok);box-shadow:0 0 0 3px rgba(48,209,88,.18)}.dot.warn{background:var(--warn);box-shadow:0 0 0 3px rgba(255,159,10,.18)}.dot.dang{background:var(--dang);box-shadow:0 0 0 3px rgba(255,69,58,.18)}
+
+.main{min-width:0;display:flex;flex-direction:column}
+.topbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:14px;padding:16px 26px;background:rgba(0,0,0,.72);backdrop-filter:blur(18px);border-bottom:1px solid var(--border)}
+.menu-btn{display:none;background:var(--surface);border:1px solid var(--border);color:var(--text);width:38px;height:38px;border-radius:10px;font-size:17px;cursor:pointer}
+.page-title{font-size:20px;font-weight:700;letter-spacing:-.4px}
+.page-sub{color:var(--text3);font-size:12.5px;margin-top:1px}
+.topbar .sp{flex:1}
+.clock{color:var(--text3);font-size:12.5px;font-variant-numeric:tabular-nums}
+.icon-btn{background:var(--surface);border:1px solid var(--border);color:var(--text2);width:38px;height:38px;border-radius:10px;font-size:16px;cursor:pointer;transition:.13s}
+.icon-btn:hover{border-color:var(--border2);color:var(--text)}
+.content{padding:24px 26px 80px;max-width:1160px;width:100%}
+
+/* ─── COMPONENTS ─── */
+.sect-title{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--text3);margin:30px 0 13px}
+.sect-title:first-child{margin-top:0}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.kpi{background:var(--panel);border:1px solid var(--border);border-radius:var(--r2);padding:18px 20px;transition:border-color .15s}
+.kpi:hover{border-color:var(--border2)}
+.kpi .l{font-size:12px;color:var(--text3);font-weight:500}
+.kpi .v{font-size:27px;font-weight:750;letter-spacing:-.8px;margin-top:8px;font-variant-numeric:tabular-nums}
+.kpi .v.ac{color:var(--accent2)}.kpi .v.ok{color:var(--ok)}.kpi .v.warn{color:var(--warn)}
+.kpi .s{font-size:11.5px;color:var(--text3);margin-top:3px}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden}
+.panel-pad{padding:18px 20px}
+.alert{display:flex;gap:11px;align-items:flex-start;border-radius:var(--r);padding:13px 15px;margin-bottom:9px;font-size:14px;border:1px solid}
+.a-error{background:rgba(255,69,58,.08);border-color:rgba(255,69,58,.32);color:#ffd7d4}
+.a-warn{background:rgba(255,159,10,.07);border-color:rgba(255,159,10,.3);color:#ffe6bf}
+.a-ok{background:var(--surface);border-color:var(--border);color:var(--text2)}
+.appt{display:flex;gap:13px;align-items:center;padding:13px 16px;border-bottom:1px solid var(--border)}
+.appt:last-child{border-bottom:0}
+.appt .dt{font-weight:650;min-width:145px;font-size:14px}
+.appt .slot{color:var(--accent2);font-size:13px}
+.appt .who{color:var(--text3);font-size:13px;margin-left:auto;text-align:right;line-height:1.4}
+table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:600px}
+th,td{padding:12px 16px;text-align:left;border-bottom:1px solid var(--border);vertical-align:top}
+thead th{color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;background:var(--bg2);position:sticky;top:0}
+tbody tr{transition:background .1s}tbody tr:hover{background:var(--surface)}
 tr:last-child td{border-bottom:0}
 .tot{font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
-.badge{display:inline-block;font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px}
-.b-paid{background:rgba(48,209,88,.15);color:var(--ok)}.b-ordered{background:rgba(10,132,255,.15);color:var(--ac2)}
-.b-err{background:rgba(255,69,58,.15);color:var(--dang)}.b-other{background:rgba(138,151,168,.15);color:var(--mut)}
-.up{color:var(--dang)}.down{color:var(--ok)}.chip{display:inline-block;font-size:11px;padding:2px 8px;border-radius:8px;background:var(--bg2);border:1px solid var(--bd);margin:2px 4px 2px 0}
-.muted{color:var(--mut)}.items{color:var(--mut);font-size:12px}
-.empty{text-align:center;color:var(--mut);padding:34px 18px;background:var(--card);border:1px dashed var(--bd);border-radius:16px}
-.soon{font-size:11px;color:var(--warn);border:1px solid rgba(255,159,10,.4);border-radius:999px;padding:1px 8px;margin-left:6px}
+.tbl-scroll{overflow:auto}
+.badge{display:inline-block;font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px}
+.b-paid{background:rgba(48,209,88,.14);color:var(--ok)}.b-ordered{background:rgba(10,132,255,.16);color:var(--accent2)}
+.b-err{background:rgba(255,69,58,.14);color:var(--dang)}.b-other{background:var(--surface2);color:var(--text3)}
+.up{color:var(--dang);font-weight:600}.down{color:var(--ok);font-weight:600}
+.chip{display:inline-block;font-size:11.5px;padding:3px 9px;border-radius:8px;background:var(--surface);border:1px solid var(--border);margin:2px 4px 2px 0;color:var(--text2)}
+.muted{color:var(--text3)}.items{color:var(--text3);font-size:12px;margin-top:3px}
+.empty{text-align:center;color:var(--text3);padding:46px 20px}
+.empty .big{font-size:30px;margin-bottom:8px;opacity:.5}
+.soon{font-size:10.5px;color:var(--warn);border:1px solid rgba(255,159,10,.4);border-radius:999px;padding:1px 8px;margin-left:7px;vertical-align:middle}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-@media(max-width:820px){.kpis{grid-template-columns:repeat(2,1fr)}.two{grid-template-columns:1fr}}
+.bar-row{display:flex;align-items:center;gap:12px;margin:7px 0}
+.bar-row .bl{width:120px;color:var(--text2);font-size:13px;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar-row .bt{flex:1;background:var(--surface);border-radius:7px;overflow:hidden;height:20px}
+.bar-row .bf{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:7px;min-width:3px}
+.bar-row .bv{width:46px;text-align:right;font-variant-numeric:tabular-nums;font-size:13px;color:var(--text2)}
+pre.sql{margin:0;white-space:pre-wrap;font:12.5px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--accent2)}
+.scrim{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:35;backdrop-filter:blur(2px)}
+@media(max-width:900px){
+  .app{grid-template-columns:1fr}
+  .sidebar{position:fixed;left:0;top:0;width:260px;transform:translateX(-100%);transition:transform .22s ease}
+  .app.open .sidebar{transform:none}.app.open .scrim{display:block}
+  .menu-btn{display:block}.content{padding:20px 16px 80px}.topbar{padding:14px 16px}
+  .kpis{grid-template-columns:repeat(2,1fr)}.two{grid-template-columns:1fr}
+}
 </style>
 </head>
 <body>
 
-<div class="login-wrap" id="loginView">
+<!-- LOGIN -->
+<div class="login" id="loginView">
   <form class="login-card" id="loginForm" autocomplete="off">
-    <div class="logo"><span>SA</span>FIX</div>
-    <div class="login-sub">Espace administrateur</div>
+    <div class="brand-lg"><b>SA</b>FIX</div>
+    <div class="login-sub">ESPACE ADMINISTRATEUR</div>
     <input type="password" id="pw" placeholder="Mot de passe" autocomplete="current-password" required>
     <button class="btn" id="loginBtn" type="submit">Se connecter</button>
     <div class="err" id="loginErr"></div>
   </form>
 </div>
 
-<div id="appView" class="hidden">
-  <div class="top">
-    <div class="logo"><span>SA</span>FIX</div>
-    <span id="healthDot"></span>
-    <span class="sp"></span>
-    <span class="muted" id="clock" style="font-size:12px"></span>
-    <span class="pill" id="refreshBtn">↻</span>
-    <span class="pill" id="logoutBtn">Quitter</span>
+<!-- APP -->
+<div class="app hidden" id="appView">
+  <aside class="sidebar">
+    <div class="side-brand"><b>SA</b>FIX<span class="tag">Admin</span></div>
+    <nav class="nav" id="nav"></nav>
+    <div class="side-foot"><span class="dot ok" id="hdot"></span><span id="hlabel">—</span><button class="logout" id="logoutBtn">Quitter</button></div>
+  </aside>
+  <div class="main">
+    <header class="topbar">
+      <button class="menu-btn" id="menuBtn">☰</button>
+      <div><div class="page-title" id="pageTitle">Vue d’ensemble</div><div class="page-sub" id="pageSub"></div></div>
+      <div class="sp"></div>
+      <span class="clock" id="clock"></span>
+      <button class="icon-btn" id="refreshBtn" title="Rafraîchir">↻</button>
+    </header>
+    <div class="content" id="view"></div>
   </div>
-  <div class="tabs" id="tabs"></div>
-  <div class="wrap" id="view"></div>
+  <div class="scrim" id="scrim"></div>
 </div>
 
 <script>
-const $ = s => document.querySelector(s);
-const euro = c => (Number(c||0)/100).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
-const esc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const $=s=>document.querySelector(s);
+const euro=c=>(Number(c||0)/100).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const SLOTS={morning:'Matin (9h–12h)',afternoon:'Après-midi (14h–18h)',evening:'Soir (18h–20h)'};
+const SRC_LABEL={qr:'Scan QR',search:'Recherche',social:'Réseaux sociaux',direct:'Accès direct',referral:'Autre site',interne:'Navigation interne'};
+const DEV_LABEL={mobile:'Mobile',tablet:'Tablette',desktop:'Ordinateur'};
 const fDate=s=>{try{return new Date(s).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'})}catch{return s}};
 const fDT=s=>{try{return new Date(s).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}catch{return s}};
 let DATA=null, VISITS=null, TAB='home';
-const TABS=[['home','🏠 Accueil'],['orders','📦 Commandes'],['finance','💶 Finances'],['visitors','👥 Visiteurs'],['catalog','🧩 Catalogue & Prix'],['history','📈 Historique prix'],['system','⚙️ Système']];
-const SRC_LABEL={qr:'📷 Scan QR',search:'🔍 Recherche',social:'📱 Réseaux sociaux',direct:'➡️ Direct',referral:'🔗 Autre site',interne:'🏠 Interne'};
-const DEV_LABEL={mobile:'📱 Mobile',tablet:'📲 Tablette',desktop:'🖥️ Ordinateur'};
 
-async function tryLoad(){
-  const r=await fetch('/api/admin?action=data',{credentials:'same-origin'});
-  if(r.status===401){showLogin();return;}
-  DATA=await r.json(); showApp();
-}
+const IC={
+  home:'<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/>',
+  orders:'<path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/>',
+  finance:'<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/>',
+  visitors:'<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M16 4.5a3 3 0 0 1 0 6"/><path d="M21 20c0-2.4-1.4-4.2-3.5-5"/>',
+  catalog:'<path d="M20.6 13.4 12 22l-9-9V4h9l8.6 8.6a1.4 1.4 0 0 1 0 2z"/><circle cx="7.5" cy="7.5" r="1.3"/>',
+  history:'<path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v4h4"/><path d="M12 8v4l3 2"/>',
+  system:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 7 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H1a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 2.6 7a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H7a1.6 1.6 0 0 0 1-1.5V1a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V7a1.6 1.6 0 0 0 1.5 1H23a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/>'
+};
+const NAV=[['home','Vue d’ensemble'],['orders','Commandes'],['finance','Finances'],['visitors','Visiteurs'],['catalog','Catalogue & Prix'],['history','Historique prix'],['system','Système & santé']];
+const SUB={home:'Résumé de l’activité',orders:'Toutes les commandes reçues',finance:'Chiffre d’affaires, coûts et marge',visitors:'Fréquentation du site',catalog:'Disponibilité, liens et prix',history:'Évolution des prix Utopya',system:'État technique et alertes'};
+
+async function api(action,opts){return fetch('/api/admin?action='+action,Object.assign({credentials:'same-origin'},opts||{}));}
+async function tryLoad(){const r=await api('data');if(r.status===401){showLogin();return;}DATA=await r.json();showApp();}
 function showLogin(){$('#appView').classList.add('hidden');$('#loginView').classList.remove('hidden');setTimeout(()=>$('#pw')?.focus(),50);}
-function showApp(){$('#loginView').classList.add('hidden');$('#appView').classList.remove('hidden');renderTabs();renderHealthDot();render();}
+function showApp(){$('#loginView').classList.add('hidden');$('#appView').classList.remove('hidden');renderNav();renderHealth();render();}
 
 $('#loginForm').addEventListener('submit',async e=>{
-  e.preventDefault();const b=$('#loginBtn'),er=$('#loginErr');er.textContent='';b.disabled=true;b.textContent='…';
-  try{const r=await fetch('/api/admin?action=login',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({password:$('#pw').value})});
+  e.preventDefault();const b=$('#loginBtn'),er=$('#loginErr');er.textContent='';b.disabled=true;b.textContent='Connexion…';
+  try{const r=await api('login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:$('#pw').value})});
     if(r.ok){$('#pw').value='';await tryLoad();}else er.textContent='Mot de passe incorrect';}
   catch{er.textContent='Erreur réseau';}
   b.disabled=false;b.textContent='Se connecter';
 });
-$('#logoutBtn').addEventListener('click',async()=>{await fetch('/api/admin?action=logout',{method:'POST',credentials:'same-origin'});showLogin();});
-$('#refreshBtn').addEventListener('click',()=>{VISITS=null;tryLoad();});
+$('#logoutBtn').addEventListener('click',async()=>{await api('logout',{method:'POST'});showLogin();});
+$('#refreshBtn').addEventListener('click',()=>{VISITS=null;$('#refreshBtn').style.transform='rotate(360deg)';setTimeout(()=>$('#refreshBtn').style.transform='',400);tryLoad();});
+$('#menuBtn').addEventListener('click',()=>$('#appView').classList.toggle('open'));
+$('#scrim').addEventListener('click',()=>$('#appView').classList.remove('open'));
 
-function renderTabs(){
-  $('#tabs').innerHTML=TABS.map(([k,l])=>`<button class="tab ${k===TAB?'on':''}" data-tab="${k}">${l}</button>`).join('');
-  $('#tabs').querySelectorAll('.tab').forEach(b=>b.onclick=()=>{TAB=b.dataset.tab;renderTabs();render();});
+function renderNav(){
+  const errs=(DATA?.health?.order_errors||[]).length;
+  $('#nav').innerHTML=NAV.map(([k,l])=>{
+    const badge=(k==='system'&&errs)?`<span class="cnt">${errs}</span>`:'';
+    return `<a data-tab="${k}" class="${k===TAB?'on':''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${IC[k]}</svg>${l}${badge}</a>`;
+  }).join('');
+  $('#nav').querySelectorAll('a').forEach(a=>a.onclick=()=>{TAB=a.dataset.tab;$('#appView').classList.remove('open');renderNav();render();});
+  $('#pageTitle').textContent=NAV.find(n=>n[0]===TAB)[1];
+  $('#pageSub').textContent=SUB[TAB]||'';
 }
-function renderHealthDot(){
-  const al=(DATA?.health?.alerts)||[];
-  const lvl=al.some(a=>a.level==='error')?'dang':al.some(a=>a.level==='warn')?'warn':'ok';
-  const txt=lvl==='ok'?'Tout va bien':(al.length+' alerte(s)');
-  $('#healthDot').innerHTML=`<span class="dot ${lvl}"></span><span class="muted" style="font-size:12px">${txt}</span>`;
-}
+function renderHealth(){const al=DATA?.health?.alerts||[];const lvl=al.some(a=>a.level==='error')?'dang':al.some(a=>a.level==='warn')?'warn':'ok';
+  $('#hdot').className='dot '+lvl;$('#hlabel').textContent=lvl==='ok'?'Tout va bien':(al.length+' alerte'+(al.length>1?'s':''));}
+
 function statusBadge(s){const m={paid:['Payé','b-paid'],ordered:['Commandé','b-ordered'],error:['Erreur','b-err']};const[t,c]=m[s]||[s||'—','b-other'];return `<span class="badge ${c}">${esc(t)}</span>`;}
 function itemsText(li){if(!Array.isArray(li))return '';return li.map(it=>esc(it.name||it.repair_id||'')+(it.qty>1?(' ×'+it.qty):'')).join(', ');}
-
-function alertsHtml(al){
-  if(!al||!al.length)return `<div class="alert a-ok"><span>✅</span><span>Aucune alerte — tout fonctionne normalement.</span></div>`;
-  return al.map(a=>`<div class="alert a-${a.level}"><span>${a.level==='error'?'⛔':'⚠️'}</span><span>${esc(a.msg)}</span></div>`).join('');
-}
+function alertsHtml(al){if(!al||!al.length)return `<div class="alert a-ok"><span>✓</span><span>Aucune alerte — tout fonctionne normalement.</span></div>`;
+  return al.map(a=>`<div class="alert a-${a.level}"><span>${a.level==='error'?'⛔':'⚠️'}</span><span>${esc(a.msg)}</span></div>`).join('');}
+function kpi(v,l,cls,s){return `<div class="kpi"><div class="l">${l}</div><div class="v ${cls||''}">${v}</div>${s?`<div class="s">${s}</div>`:''}</div>`;}
+function emptyBox(icon,txt){return `<div class="panel"><div class="empty"><div class="big">${icon}</div>${txt}</div></div>`;}
+function bars(items){const max=Math.max(1,...items.map(i=>i.v));return items.map(i=>`<div class="bar-row"><div class="bl">${esc(i.k)}</div><div class="bt"><div class="bf" style="width:${Math.round(i.v/max*100)}%"></div></div><div class="bv">${i.v}</div></div>`).join('');}
+function hourChart(arr){const max=Math.max(1,...arr);return `<div style="display:flex;gap:3px;align-items:flex-end;height:110px">`+arr.map((n,h)=>`<div title="${h}h : ${n} visite(s)" style="flex:1;background:linear-gradient(180deg,var(--accent2),var(--accent));border-radius:4px 4px 0 0;height:${Math.max(3,Math.round(n/max*100))}px;opacity:${n?1:.18}"></div>`).join('')+`</div><div class="muted" style="font-size:10.5px;display:flex;justify-content:space-between;margin-top:6px"><span>0h</span><span>6h</span><span>12h</span><span>18h</span><span>23h</span></div>`;}
 
 function render(){
-  const v=$('#view');const s=DATA.stats||{},cat=DATA.catalog||{},h=DATA.health||{},pc=DATA.price_changes||{};
+  const v=$('#view'),s=DATA.stats||{},cat=DATA.catalog||{},h=DATA.health||{},pc=DATA.price_changes||{};
   if(TAB==='home'){
-    const ap=(s.upcoming_appointments||[]);
+    const ap=s.upcoming_appointments||[];
     v.innerHTML=`
-      <h2>État du système</h2>${alertsHtml(h.alerts)}
-      <h2>Chiffres clés</h2>
+      ${(h.alerts&&h.alerts.length)?`<div class="sect-title">À surveiller</div>${alertsHtml(h.alerts)}`:''}
+      <div class="sect-title">Chiffres clés</div>
       <div class="kpis">
-        ${kpi(s.total_orders??0,'Commandes')}
-        ${kpi(euro(s.revenue_cents),'Chiffre d\'affaires','ac')}
+        ${kpi(s.total_orders??0,'Commandes reçues','', (s.orders_30d??0)+' sur 30 jours')}
+        ${kpi(euro(s.revenue_cents),'Chiffre d’affaires','ac')}
         ${kpi(euro(s.margin_cents_est),'Marge estimée','ok')}
-        ${kpi(s.orders_30d??0,'Commandes (30 j)')}
+        ${kpi(cat.out_of_stock??0,'Pièces en rupture','warn', (cat.in_stock??0)+' en stock')}
       </div>
-      <h2>📅 Prochains rendez-vous</h2>
-      <div class="cards">${ap.length?ap.map(a=>apptRow(a)).join(''):'<div class="empty">Aucun rendez-vous à venir.</div>'}</div>`;
+      <div class="sect-title">Prochains rendez-vous</div>
+      ${ap.length?`<div class="panel">${ap.map(apptRow).join('')}</div>`:emptyBox('📅','Aucun rendez-vous à venir.')}`;
   }
   else if(TAB==='orders'){
     const o=DATA.orders||[];
-    v.innerHTML=`<h2>${o.length} commande(s)</h2>`+ (o.length?ordersTable(o):'<div class="empty">Aucune commande pour le moment.<br><span style="font-size:12px">Les commandes payées apparaîtront ici automatiquement.</span></div>');
+    v.innerHTML=`<div class="sect-title">${o.length} commande${o.length>1?'s':''}</div>`+(o.length?ordersTable(o):emptyBox('📦','Aucune commande pour le moment.<br><span style="font-size:12.5px">Les commandes payées s’afficheront ici automatiquement.</span>'));
   }
   else if(TAB==='finance'){
     v.innerHTML=`
-      <h2>Vue financière</h2>
+      <div class="sect-title">Vue financière</div>
       <div class="kpis">
         ${kpi(euro(s.revenue_cents),'CA encaissé','ac')}
-        ${kpi(euro(s.parts_cost_cents_est),'Coût pièces (estimé)','warn')}
-        ${kpi(euro(s.margin_cents_est),'Marge brute estimée','ok')}
-        ${kpi(euro(s.revenue_30d_cents),'CA 30 jours','ac')}
+        ${kpi(euro(s.parts_cost_cents_est),'Coût pièces (est.)','warn')}
+        ${kpi(euro(s.margin_cents_est),'Marge brute (est.)','ok')}
+        ${kpi(euro(s.revenue_30d_cents),'CA sur 30 jours','ac')}
       </div>
-      <div class="alert a-ok" style="margin-top:14px"><span>ℹ️</span><span>Le <b>coût pièces</b> est estimé à partir du prix Utopya (basePrice) des articles commandés. La <b>marge</b> = CA encaissé − coût pièces (hors frais de livraison que tu payes et frais bancaires).</span></div>
-      <h2>Détail par commande</h2>${(DATA.orders||[]).length?financeTable(DATA.orders):'<div class="empty">Aucune commande.</div>'}`;
+      <div class="alert a-ok" style="margin-top:14px"><span>ℹ️</span><span>Le <b>coût pièces</b> est estimé d’après le prix Utopya des articles. La <b>marge</b> = CA encaissé − coût pièces (hors frais de livraison et frais bancaires).</span></div>
+      <div class="sect-title">Détail par commande</div>
+      ${(DATA.orders||[]).length?financeTable(DATA.orders):emptyBox('💶','Aucune commande.')}`;
   }
+  else if(TAB==='visitors'){renderVisitors();return;}
   else if(TAB==='catalog'){
     v.innerHTML=`
-      <h2>Santé du catalogue</h2>
+      <div class="sect-title">Santé du catalogue</div>
       <div class="kpis">
         ${kpi(cat.combos??0,'Fiches suivies')}
         ${kpi(cat.in_stock??0,'En stock','ok')}
         ${kpi(cat.out_of_stock??0,'En rupture','warn')}
-        ${kpi(cat.broken??0,'Liens KO','warn')}
+        ${kpi(cat.broken??0,'Liens sans prix','warn')}
       </div>
-      ${(cat.over_ceiling&&cat.over_ceiling.length)?`<h2>⚠️ Prix au-dessus du prix Apple</h2>`+overCeilTable(cat.over_ceiling):''}
-      ${(cat.broken_items&&cat.broken_items.length)?`<h2>🔗 Liens sans prix (à vérifier chez Utopya)</h2>`+brokenTable(cat.broken_items):''}
-      <h2>🧩 Réparations manquantes par modèle</h2>${gapsHtml(cat.model_gaps)}
-      <h2>📊 Couverture par type de réparation</h2>${coverageHtml(cat.coverage)}`;
+      ${(cat.over_ceiling&&cat.over_ceiling.length)?`<div class="sect-title">Prix au-dessus du prix Apple</div><div class="panel tbl-scroll">${overCeilTable(cat.over_ceiling)}</div>`:''}
+      ${(cat.broken_items&&cat.broken_items.length)?`<div class="sect-title">Liens à vérifier chez Utopya</div><div class="panel tbl-scroll">${brokenTable(cat.broken_items)}</div>`:''}
+      <div class="sect-title">Réparations manquantes par modèle</div>${gapsHtml(cat.model_gaps)}
+      <div class="sect-title">Couverture par type de réparation</div><div class="panel tbl-scroll">${coverageHtml(cat.coverage)}</div>`;
   }
   else if(TAB==='history'){
     const c=pc.counts_30d||{};
     v.innerHTML=`
-      <h2>Évolution des prix (30 derniers jours)</h2>
+      <div class="sect-title">Évolution (30 derniers jours)</div>
       <div class="kpis">
         ${kpi(c.up??0,'Hausses','warn')}
         ${kpi(c.down??0,'Baisses','ok')}
         ${kpi(c.oos??0,'Ruptures')}
-        ${kpi(c.restock??0,'Retours stock','ok')}
+        ${kpi(c.restock??0,'Retours en stock','ok')}
       </div>
-      <h2>Derniers changements${pc.updatedAt?` <span class="muted" style="text-transform:none">· maj ${fDT(pc.updatedAt)}</span>`:''}</h2>
-      ${(pc.recent&&pc.recent.length)?historyTable(pc.recent):'<div class="empty">Pas encore d\'historique — il se remplira aux prochains rafraîchissements.</div>'}`;
+      <div class="sect-title">Derniers changements${pc.updatedAt?` · maj ${fDT(pc.updatedAt)}`:''}</div>
+      ${(pc.recent&&pc.recent.length)?`<div class="panel tbl-scroll">${historyTable(pc.recent)}</div>`:emptyBox('📈','L’historique se remplira aux prochains rafraîchissements.')}`;
   }
-  else if(TAB==='visitors'){ renderVisitors(); return; }
   else if(TAB==='system'){
     v.innerHTML=`
-      <h2>Alertes & pannes</h2>${alertsHtml(h.alerts)}
-      <h2>Diagnostic</h2>
-      <div class="cards">
+      <div class="sect-title">Alertes & pannes</div>${alertsHtml(h.alerts)}
+      <div class="sect-title">Diagnostic</div>
+      <div class="panel">
         ${diag('Base de données (Supabase)',h.supabase_ok)}
         ${diag('Prix à jour',h.prices_ok)}
-        ${diag('Commandes en erreur',(h.order_errors||[]).length===0, (h.order_errors||[]).length+' en erreur')}
-        ${diag('Payées non commandées', (h.paid_not_ordered||0)===0, (h.paid_not_ordered||0)+' en attente')}
+        ${diag('Commandes en erreur',(h.order_errors||[]).length===0,(h.order_errors||[]).length+' en erreur')}
+        ${diag('Payées non commandées',(h.paid_not_ordered||0)===0,(h.paid_not_ordered||0)+' en attente')}
       </div>
-      ${cat.prices_generated_at?`<div class="alert a-ok" style="margin-top:12px"><span>🕒</span><span>Dernier rafraîchissement des prix : <b>${fDT(cat.prices_generated_at)}</b> (${cat.prices_age_hours!=null?Math.round(cat.prices_age_hours)+' h':'?'}).</span></div>`:''}
-      ${(h.order_errors&&h.order_errors.length)?`<h2>Commandes en erreur</h2>`+errorsTable(h.order_errors):''}`;
+      ${cat.prices_generated_at?`<div class="alert a-ok" style="margin-top:14px"><span>🕒</span><span>Dernier rafraîchissement des prix : <b>${fDT(cat.prices_generated_at)}</b> (${cat.prices_age_hours!=null?Math.round(cat.prices_age_hours)+' h':'?'}).</span></div>`:''}
+      ${(h.order_errors&&h.order_errors.length)?`<div class="sect-title">Commandes en erreur</div><div class="panel tbl-scroll">${errorsTable(h.order_errors)}</div>`:''}`;
   }
 }
-function kpi(v,l,cls=''){return `<div class="kpi"><div class="v ${cls}">${v}</div><div class="l">${l}</div></div>`;}
 function apptRow(a){const soon=(new Date(a.date)-new Date())<3*864e5?'<span class="soon">bientôt</span>':'';const lieu=a.addr==='other'?'🏠 domicile':'📍 dépôt';
-  return `<div class="appt"><div class="dt">${fDate(a.date)} ${soon}</div><div class="slot">${esc(SLOTS[a.slot]||a.slot||'')} · ${lieu}</div><div class="who">${esc(a.model||'')}<br>${esc(a.email||'')}</div></div>`;}
-function ordersTable(o){return `<div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Client</th><th>Modèle / Articles</th><th>Livr.</th><th>RDV</th><th>Total</th><th>Statut</th></tr></thead><tbody>`+
+  return `<div class="appt"><div class="dt">${fDate(a.date)}${soon}</div><div class="slot">${esc(SLOTS[a.slot]||a.slot||'')} · ${lieu}</div><div class="who">${esc(a.model||'')}<br>${esc(a.email||'')}</div></div>`;}
+function ordersTable(o){return `<div class="panel tbl-scroll"><table><thead><tr><th>Date</th><th>Client</th><th>Modèle / Articles</th><th>Livr.</th><th>Rendez-vous</th><th>Total</th><th>Statut</th></tr></thead><tbody>`+
   o.map(x=>{const m=x.metadata||{};const appt=m.apptDate?fDate(m.apptDate)+(m.apptSlot?(' · '+(SLOTS[m.apptSlot]||m.apptSlot)):''):'—';const dl=m.delivery==='express'?'Express':m.delivery==='standard'?'Standard':'—';
   return `<tr><td class="muted" style="white-space:nowrap">${fDT(x.created_at)}</td><td>${esc(x.customer_email||'—')}${m.phone?'<br><span class="muted">'+esc(m.phone)+'</span>':''}${m.snap?'<br><span class="muted">👻 '+esc(m.snap)+'</span>':''}</td><td>${esc(m.model||'—')}<div class="items">${itemsText(x.line_items)}</div></td><td>${dl}</td><td>${esc(appt)}</td><td class="tot">${euro(x.total_cents)}</td><td>${statusBadge(x.status)}</td></tr>`;}).join('')+`</tbody></table></div>`;}
-function financeTable(o){return `<div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Modèle</th><th>Encaissé</th><th>Statut</th></tr></thead><tbody>`+
+function financeTable(o){return `<div class="panel tbl-scroll"><table><thead><tr><th>Date</th><th>Modèle / Articles</th><th>Encaissé</th><th>Statut</th></tr></thead><tbody>`+
   o.map(x=>{const m=x.metadata||{};return `<tr><td class="muted">${fDT(x.created_at)}</td><td>${esc(m.model||'—')}<div class="items">${itemsText(x.line_items)}</div></td><td class="tot">${euro(x.total_cents)}</td><td>${statusBadge(x.status)}</td></tr>`;}).join('')+`</tbody></table></div>`;}
-function overCeilTable(a){return `<div class="tbl-wrap"><table><thead><tr><th>Produit</th><th>Modèle</th><th>Prix calculé</th><th>Plafond Apple</th></tr></thead><tbody>`+
-  a.map(x=>`<tr><td>${esc(x.repairId)}</td><td>${esc(x.model)}</td><td class="tot up">${x.final} €</td><td>${x.ceiling} €</td></tr>`).join('')+`</tbody></table></div>`;}
-function brokenTable(a){return `<div class="tbl-wrap"><table><thead><tr><th>Réparation</th><th>Modèle</th><th>Lien</th></tr></thead><tbody>`+
-  a.map(x=>`<tr><td>${esc(x.repairId)}</td><td>${esc(x.model)}</td><td>${x.url?`<a href="${esc(x.url)}" target="_blank" rel="noopener" style="color:var(--ac2)">ouvrir ↗</a>`:'<span class="muted">—</span>'}</td></tr>`).join('')+`</tbody></table></div>`;}
-function gapsHtml(g){if(!g||!g.length)return '<div class="alert a-ok"><span>✅</span><span>Tous les modèles phares sont bien couverts.</span></div>';
-  return g.map(x=>`<div class="appt" style="align-items:flex-start"><div class="dt">${esc(x.model)}</div><div style="margin-left:auto;text-align:right">${x.missing.map(m=>`<span class="chip">${esc(m)}</span>`).join('')}</div></div>`).join('');}
-function coverageHtml(c){if(!c||!c.length)return '<div class="empty">—</div>';
-  return `<div class="tbl-wrap"><table><thead><tr><th>Type de réparation</th><th>Modèles couverts</th></tr></thead><tbody>`+
-  c.sort((a,b)=>a.models-b.models).map(x=>`<tr><td>${esc(x.repairId)}</td><td>${x.models} ${x.models<12?'<span class="soon">peu</span>':''}</td></tr>`).join('')+`</tbody></table></div>`;}
-function historyTable(r){return `<div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Produit</th><th>Modèle</th><th>Avant</th><th>Après</th></tr></thead><tbody>`+
+function overCeilTable(a){return `<table><thead><tr><th>Produit</th><th>Modèle</th><th>Prix calculé</th><th>Plafond Apple</th></tr></thead><tbody>`+a.map(x=>`<tr><td>${esc(x.repairId)}</td><td>${esc(x.model)}</td><td class="tot up">${x.final} €</td><td>${x.ceiling} €</td></tr>`).join('')+`</tbody></table>`;}
+function brokenTable(a){return `<table><thead><tr><th>Réparation</th><th>Modèle</th><th>Lien</th></tr></thead><tbody>`+a.map(x=>`<tr><td>${esc(x.repairId)}</td><td>${esc(x.model)}</td><td>${x.url?`<a href="${esc(x.url)}" target="_blank" rel="noopener" style="color:var(--accent2)">ouvrir ↗</a>`:'<span class="muted">—</span>'}</td></tr>`).join('')+`</tbody></table>`;}
+function gapsHtml(g){if(!g||!g.length)return `<div class="alert a-ok"><span>✓</span><span>Tous les modèles phares sont bien couverts.</span></div>`;
+  return `<div class="panel">`+g.map(x=>`<div class="appt" style="align-items:flex-start"><div class="dt">${esc(x.model)}</div><div style="margin-left:auto;text-align:right">${x.missing.map(m=>`<span class="chip">${esc(m)}</span>`).join('')}</div></div>`).join('')+`</div>`;}
+function coverageHtml(c){if(!c||!c.length)return '<div class="empty">—</div>';return `<table><thead><tr><th>Type de réparation</th><th>Modèles couverts</th></tr></thead><tbody>`+c.slice().sort((a,b)=>a.models-b.models).map(x=>`<tr><td>${esc(x.repairId)}</td><td>${x.models}${x.models<12?'<span class="soon">peu</span>':''}</td></tr>`).join('')+`</tbody></table>`;}
+function historyTable(r){return `<table><thead><tr><th>Date</th><th>Produit</th><th>Modèle</th><th>Avant</th><th>Après</th></tr></thead><tbody>`+
   r.map(c=>{const arrow=c.kind==='up'?'<span class="up">▲</span>':c.kind==='down'?'<span class="down">▼</span>':c.kind==='oos'?'⛔':c.kind==='restock'?'✅':'•';
   const bef=c.oldOOS?'rupture':(c.oldFinal!=null?c.oldFinal+' €':'—');const aft=c.newOOS?'rupture':(c.newFinal!=null?c.newFinal+' €':'—');
-  return `<tr><td class="muted" style="white-space:nowrap">${fDT(c.t)}</td><td>${esc(c.repairId)}</td><td>${esc(c.model)}</td><td class="muted">${bef}</td><td>${arrow} ${aft}</td></tr>`;}).join('')+`</tbody></table></div>`;}
-function errorsTable(e){return `<div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Client</th><th>Erreur</th><th>Total</th></tr></thead><tbody>`+
-  e.map(x=>`<tr><td class="muted">${fDT(x.created_at)}</td><td>${esc(x.email||'—')}</td><td class="up">${esc(x.error)}</td><td class="tot">${euro(x.total)}</td></tr>`).join('')+`</tbody></table></div>`;}
-function diag(label,ok,detail){return `<div class="appt"><div class="dt"><span class="dot ${ok?'ok':'dang'}"></span>${esc(label)}</div><div class="who">${ok?'OK':'<span class="up">'+esc(detail||'problème')+'</span>'}</div></div>`;}
+  return `<tr><td class="muted" style="white-space:nowrap">${fDT(c.t)}</td><td>${esc(c.repairId)}</td><td>${esc(c.model)}</td><td class="muted">${bef}</td><td>${arrow} ${aft}</td></tr>`;}).join('')+`</tbody></table>`;}
+function errorsTable(e){return `<table><thead><tr><th>Date</th><th>Client</th><th>Erreur</th><th>Total</th></tr></thead><tbody>`+e.map(x=>`<tr><td class="muted">${fDT(x.created_at)}</td><td>${esc(x.email||'—')}</td><td class="up">${esc(x.error)}</td><td class="tot">${euro(x.total)}</td></tr>`).join('')+`</tbody></table>`;}
+function diag(label,ok,detail){return `<div class="appt"><div class="dt"><span class="dot ${ok?'ok':'dang'}" style="display:inline-block;margin-right:9px"></span>${esc(label)}</div><div class="who">${ok?'<span style="color:var(--ok)">OK</span>':'<span class="up">'+esc(detail||'problème')+'</span>'}</div></div>`;}
 
-async function loadVisits(){
-  $('#view').innerHTML='<h2>👥 Visiteurs</h2><div class="empty">Chargement des statistiques…</div>';
-  try{const r=await fetch('/api/admin?action=visits',{credentials:'same-origin'});VISITS=await r.json();}
-  catch{VISITS={ready:false,reason:'réseau'};}
-  if(TAB==='visitors')renderVisitors();
-}
+async function loadVisits(){$('#view').innerHTML=`<div class="sect-title">Fréquentation</div>${emptyBox('⏳','Chargement des statistiques…')}`;
+  try{const r=await api('visits');VISITS=await r.json();}catch{VISITS={ready:false,reason:'réseau'};}if(TAB==='visitors')renderVisitors();}
 function renderVisitors(){
-  const v=$('#view');
-  if(!VISITS){loadVisits();return;}
+  const v=$('#view');if(!VISITS){loadVisits();return;}
   if(!VISITS.ready){
-    const sql=`create table if not exists public.visits (\n  id bigserial primary key,\n  ts timestamptz not null default now(),\n  day date not null, hour smallint not null,\n  path text, source text, ref_host text,\n  device text, country text, lang text\n);`;
-    v.innerHTML=`<h2>👥 Visiteurs</h2>
-      <div class="alert a-warn"><span>⚙️</span><span>Le suivi des visiteurs est <b>installé sur le site</b> mais la table de stockage n'existe pas encore. Colle ce bloc dans <b>Supabase → SQL Editor → Run</b>, et les visites s'afficheront ici :</span></div>
-      <div class="tbl-wrap" style="padding:14px"><pre style="margin:0;white-space:pre-wrap;font-size:12px;color:var(--ac2)">${esc(sql)}</pre></div>`;
-    return;
+    const sql=`create table if not exists public.visits (\n  id bigserial primary key,\n  ts timestamptz not null default now(),\n  day date not null, hour smallint not null,\n  path text, source text, ref_host text,\n  device text, country text, lang text\n);\ncreate index if not exists visits_ts_idx on public.visits(ts);`;
+    v.innerHTML=`<div class="sect-title">Activation requise</div>
+      <div class="alert a-warn"><span>⚙️</span><span>Le suivi des visiteurs est <b>déjà installé sur le site</b> — il ne reste qu’à créer la table de stockage. Colle ceci dans <b>Supabase → SQL Editor → Run</b> :</span></div>
+      <div class="panel panel-pad"><pre class="sql">${esc(sql)}</pre></div>`;return;
   }
   const d=VISITS;
   v.innerHTML=`
-    <h2>Fréquentation (30 derniers jours)</h2>
+    <div class="sect-title">Fréquentation (30 derniers jours)</div>
     <div class="kpis">
-      ${kpi(d.today??0,"Visites aujourd'hui",'ac')}
-      ${kpi(d.total_30d??0,'Visites (30 j)')}
-      ${kpi((d.by_device.find(x=>x.k==='mobile')?.v||0),'Sur mobile','ac')}
+      ${kpi(d.today??0,'Visites aujourd’hui','ac')}
+      ${kpi(d.total_30d??0,'Visites sur 30 j')}
+      ${kpi((d.by_device.find(x=>x.k==='mobile')?.v||0),'Depuis mobile','ac')}
       ${kpi(d.by_country.length,'Pays différents')}
     </div>
-    <h2>Par heure de la journée</h2>
-    <div class="tbl-wrap" style="padding:16px">${hourChart(d.by_hour)}</div>
+    <div class="sect-title">Affluence par heure</div>
+    <div class="panel panel-pad">${hourChart(d.by_hour)}</div>
     <div class="two">
-      <div><h2>Par source</h2><div class="tbl-wrap" style="padding:14px">${d.by_source.length?bars(d.by_source.map(x=>({k:SRC_LABEL[x.k]||x.k,v:x.v}))):'<span class="muted">—</span>'}</div></div>
-      <div><h2>Par appareil</h2><div class="tbl-wrap" style="padding:14px">${d.by_device.length?bars(d.by_device.map(x=>({k:DEV_LABEL[x.k]||x.k,v:x.v}))):'<span class="muted">—</span>'}</div></div>
+      <div><div class="sect-title">Par source</div><div class="panel panel-pad">${d.by_source.length?bars(d.by_source.map(x=>({k:SRC_LABEL[x.k]||x.k,v:x.v}))):'<span class="muted">—</span>'}</div></div>
+      <div><div class="sect-title">Par appareil</div><div class="panel panel-pad">${d.by_device.length?bars(d.by_device.map(x=>({k:DEV_LABEL[x.k]||x.k,v:x.v}))):'<span class="muted">—</span>'}</div></div>
     </div>
     <div class="two">
-      <div><h2>Par pays</h2><div class="tbl-wrap" style="padding:14px">${d.by_country.length?bars(d.by_country.map(x=>({k:'🌍 '+x.k,v:x.v}))):'<span class="muted">Aucune donnée pays</span>'}</div></div>
-      <div><h2>Pages les plus vues</h2><div class="tbl-wrap" style="padding:14px">${d.by_path.length?bars(d.by_path):'<span class="muted">—</span>'}</div></div>
+      <div><div class="sect-title">Par pays</div><div class="panel panel-pad">${d.by_country.length?bars(d.by_country.map(x=>({k:x.k,v:x.v}))):'<span class="muted">Aucune donnée pays</span>'}</div></div>
+      <div><div class="sect-title">Pages les plus vues</div><div class="panel panel-pad">${d.by_path.length?bars(d.by_path):'<span class="muted">—</span>'}</div></div>
     </div>`;
 }
-function bars(items){const max=Math.max(1,...items.map(i=>i.v));
-  return items.map(i=>`<div style="display:flex;align-items:center;gap:10px;margin:5px 0"><div style="width:118px;color:var(--mut);font-size:12.5px;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(i.k)}</div><div style="flex:1;background:var(--bg2);border-radius:6px;overflow:hidden"><div style="height:18px;width:${Math.round(i.v/max*100)}%;background:linear-gradient(90deg,var(--ac),var(--ac2));min-width:2px"></div></div><div style="width:44px;font-variant-numeric:tabular-nums;text-align:right">${i.v}</div></div>`).join('');}
-function hourChart(arr){const max=Math.max(1,...arr);
-  return `<div style="display:flex;gap:2px;align-items:flex-end;height:96px">`+arr.map((n,h)=>`<div title="${h}h : ${n} visite(s)" style="flex:1;background:linear-gradient(180deg,var(--ac2),var(--ac));border-radius:3px 3px 0 0;height:${Math.max(2,Math.round(n/max*90))}px;opacity:${n?1:.2}"></div>`).join('')+`</div><div class="muted" style="font-size:10px;display:flex;justify-content:space-between;margin-top:5px"><span>0h</span><span>6h</span><span>12h</span><span>18h</span><span>23h</span></div>`;}
 function tick(){const c=$('#clock');if(c)c.textContent=new Date().toLocaleString('fr-FR',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});}
-setInterval(tick,1000);tick();
-tryLoad();
+setInterval(tick,1000);tick();tryLoad();
 </script>
 </body>
 </html>
