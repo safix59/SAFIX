@@ -103,17 +103,20 @@ button{font-family:inherit}
 .a-error{background:rgba(255,69,58,.08);border-color:rgba(255,69,58,.32);color:#ffd7d4}
 .a-warn{background:rgba(255,159,10,.07);border-color:rgba(255,159,10,.3);color:#ffe6bf}
 .a-ok{background:var(--surface);border-color:var(--border);color:var(--text2)}
-.appt{display:flex;gap:13px;align-items:center;padding:13px 16px;border-bottom:1px solid var(--border)}
+.appt{display:flex;gap:14px;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border);transition:background .12s}
+.appt:hover{background:var(--surface)}
 .appt:last-child{border-bottom:0}
 .appt .dt{font-weight:650;min-width:145px;font-size:14px}
 .appt .slot{color:var(--accent2);font-size:13px}
 .appt .who{color:var(--text3);font-size:13px;margin-left:auto;text-align:right;line-height:1.4}
-table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:600px}
-th,td{padding:12px 16px;text-align:left;border-bottom:1px solid var(--border);vertical-align:top}
-thead th{color:var(--text3);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;background:var(--bg2);position:sticky;top:0}
-tbody tr{transition:background .1s}tbody tr:hover{background:var(--surface)}
-tr:last-child td{border-bottom:0}
-.tot{font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+table{width:100%;border-collapse:collapse;font-size:14px;min-width:600px}
+th,td{padding:15px 20px;text-align:left;vertical-align:middle}
+thead th{color:var(--text3);font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;background:var(--bg2);position:sticky;top:0;border-bottom:1px solid var(--border2)}
+tbody td{border-bottom:1px solid var(--border)}
+tbody tr:last-child td{border-bottom:0}
+tbody tr{transition:background .12s}tbody tr:hover{background:var(--surface)}
+tbody td:first-child{color:var(--text3);font-size:13px}
+.tot{font-weight:650;font-variant-numeric:tabular-nums;white-space:nowrap}
 .tbl-scroll{overflow:auto}
 .badge{display:inline-block;font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px}
 .b-paid{background:rgba(48,209,88,.14);color:var(--ok)}.b-ordered{background:rgba(10,132,255,.16);color:var(--accent2)}
@@ -241,17 +244,22 @@ function render(){
   const v=$('#view'),s=DATA.stats||{},cat=DATA.catalog||{},h=DATA.health||{},pc=DATA.price_changes||{};
   if(TAB==='home'){
     const ap=s.upcoming_appointments||[];
+    const recent=(DATA.orders||[]).slice(0,5);
+    const online=(LIVE&&LIVE.ready)?LIVE.online:null;
+    const visToday=(VISITS&&VISITS.ready)?VISITS.today:null;
     v.innerHTML=`
       ${(h.alerts&&h.alerts.length)?`<div class="sect-title">À surveiller</div>${alertsHtml(h.alerts)}`:''}
-      <div class="sect-title">Chiffres clés</div>
+      <div class="sect-title">En direct</div>
       <div class="kpis">
-        ${kpi(s.total_orders??0,'Commandes reçues','',(s.orders_30d??0)+' sur 30 jours')}
-        ${kpi(euro(s.encaisse_cents),'Encaissé (clients)','ac')}
-        ${kpi(euro(s.benefice_cents),'Ton bénéfice','ok')}
-        ${kpi(cat.out_of_stock??0,'Pièces en rupture','warn',(cat.in_stock??0)+' en stock')}
+        ${kpi(online==null?'—':online,'En ligne maintenant',online?'ok':'',online?'personne(s) sur le site':'personne pour l’instant')}
+        ${kpi(visToday==null?'—':visToday,'Visites aujourd’hui','ac')}
+        ${kpi(s.total_orders??0,'Commandes','',(s.orders_30d??0)+' sur 30 jours')}
+        ${kpi(euro(s.benefice_cents),'Bénéfice total','ok')}
       </div>
       <div class="sect-title">Prochains rendez-vous</div>
-      ${ap.length?`<div class="panel">${ap.map(apptRow).join('')}</div>`:emptyBox('📅','Aucun rendez-vous à venir.')}`;
+      ${ap.length?`<div class="panel">${ap.map(apptRow).join('')}</div>`:emptyBox('📅','Aucun rendez-vous à venir.')}
+      <div class="sect-title">Dernières commandes</div>
+      ${recent.length?`<div class="panel">${recent.map(x=>{const m=x.metadata||{};return `<div class="appt"><div class="dt" style="min-width:105px">${fDT(x.created_at)}</div><div style="flex:1;min-width:0">${esc(m.model||'—')}<div class="items">${itemsText(x.line_items)}</div></div><div class="tot" style="color:var(--accent2);margin:0 14px">${euro(x.total_cents)}</div>${statusBadge(x.status)}</div>`;}).join('')}</div>`:emptyBox('📦','Aucune commande pour le moment.')}`;
   }
   else if(TAB==='orders'){renderOrders();return;}
   else if(TAB==='finance'){
@@ -405,10 +413,11 @@ function renderVisitors(){
 }
 let LIVE=null,_livePoll=null,_autoPoll=null;
 async function loadLive(){try{const r=await api('live');LIVE=await r.json();}catch{LIVE=null;}renderLiveBadge();if(TAB==='visitors'&&VISITS&&VISITS.ready)renderVisitors();}
+async function loadVisitsSilent(){try{const r=await api('visits');VISITS=await r.json();}catch{}if(TAB==='home')render();}
 function renderLiveBadge(){const el=$('#liveBadge'),t=$('#liveTxt');if(!el)return;
   if(LIVE&&LIVE.ready){const n=LIVE.online||0;el.className='live'+(n?'':' off');t.innerHTML=n?('<b>'+n+'</b> en ligne'):'0 en ligne';}
   else{el.className='live off';t.textContent='hors-ligne';}}
-function startPolling(){clearInterval(_livePoll);clearInterval(_autoPoll);loadLive();
+function startPolling(){clearInterval(_livePoll);clearInterval(_autoPoll);loadLive();loadVisitsSilent();
   _livePoll=setInterval(loadLive,10000);
   _autoPoll=setInterval(async()=>{try{const r=await api('data');if(r.ok){DATA=await r.json();renderHealth();renderNav();if(TAB!=='visitors'&&TAB!=='orders')render();}}catch{}},45000);}
 function stopPolling(){clearInterval(_livePoll);clearInterval(_autoPoll);}
