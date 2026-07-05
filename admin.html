@@ -181,7 +181,7 @@ const euro=c=>(Number(c||0)/100).toLocaleString('fr-FR',{minimumFractionDigits:2
 const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const SLOTS={morning:'Matin (9h–12h)',afternoon:'Après-midi (14h–18h)',evening:'Soir (18h–20h)'};
 const SRC_LABEL={qr:'Scan QR',search:'Recherche',social:'Réseaux sociaux',direct:'Accès direct',referral:'Autre site',interne:'Navigation interne'};
-const DEV_LABEL={mobile:'Mobile',tablet:'Tablette',desktop:'Ordinateur'};
+const DEV_LABEL={'iPhone':'📱 iPhone','iPad':'📲 iPad','iPod':'📱 iPod','Mac':'💻 Mac','Android':'🤖 Android','Tablette Android':'🤖 Tablette Android','Windows':'🖥️ Windows','Windows Phone':'📱 Windows Phone','Chromebook':'💻 Chromebook','Linux':'🐧 Linux','Autre':'❔ Autre','mobile':'📱 Mobile','tablet':'📲 Tablette','desktop':'🖥️ Ordinateur'};
 const fDate=s=>{try{return new Date(s).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'})}catch{return s}};
 const fDT=s=>{try{return new Date(s).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}catch{return s}};
 let DATA=null, VISITS=null, TAB='home';

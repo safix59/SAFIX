@@ -8,11 +8,17 @@ const SEARCH = /google\.|bing\.|duckduckgo|yahoo|ecosia|qwant|yandex|baidu/i;
 const SOCIAL = /instagram|facebook|fb\.|snapchat|tiktok|twitter|t\.co|x\.com|youtube|pinterest|reddit|linkedin/i;
 
 function deviceOf(ua) {
-  ua = (ua || '').toLowerCase();
-  if (/ipad|tablet|playbook|silk|kindle/.test(ua)) return 'tablet';
-  if (/mobi|iphone|ipod|android.*mobile|windows phone|phone/.test(ua)) return 'mobile';
-  if (/android/.test(ua)) return 'tablet';
-  return 'desktop';
+  const u = (ua || '').toLowerCase();
+  if (/iphone/.test(u)) return 'iPhone';
+  if (/ipad/.test(u)) return 'iPad';
+  if (/ipod/.test(u)) return 'iPod';
+  if (/android/.test(u)) return /mobile/.test(u) ? 'Android' : 'Tablette Android';
+  if (/windows phone/.test(u)) return 'Windows Phone';
+  if (/macintosh|mac os x/.test(u)) return 'Mac';
+  if (/windows/.test(u)) return 'Windows';
+  if (/cros/.test(u)) return 'Chromebook';
+  if (/linux/.test(u)) return 'Linux';
+  return 'Autre';
 }
 function isBot(ua) {
   return /bot|crawl|spider|slurp|bingpreview|facebookexternalhit|embedly|quora|pinterest\/|preview|monitor|lighthouse|headless|dataprovider|ahrefs|semrush|python-requests|curl\//i.test(ua || '');
