@@ -256,11 +256,11 @@
 <!-- GSAP : orchestration timeline animations cinematics -->
 <script defer src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
-<!-- Google model-viewer : chargement GLB local pour le iPhone 3D -->
-<!-- jsdelivr CDN (compat. Safari + Firefox + Chrome + Edge) -->
-<script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
-<!-- Fallback legacy pour Safari ancien (< 13) -->
-<script nomodule src="https://cdn.jsdelivr.net/npm/@google/model-viewer@3.5.0/dist/model-viewer-legacy.js"></script>
+<!-- model-viewer RETIRÉ de l'accueil : le hero 3D utilise l'iframe Lotus
+     (viewer/apple-viewer.html), pas model-viewer. Le seul consommateur
+     (initSketchfabViewer → #heroSketchfab) sort immédiatement car l'élément
+     n'existe pas. Économie ~1 Mo de JS par visite (perf accueil). La page
+     de test viewer/index.html garde son propre model-viewer. -->
 <!-- ImportMap pour Three.js + addons (OrbitControls, etc.) -->
 <script type="importmap">
 {
@@ -5407,11 +5407,15 @@ body.premium-mode .series-label::before {
   }
 }
 
-/* 3. iOS/Android : barre d'URL dynamique → 100vh saute. dvh = viewport réel. */
-@supports (height: 100dvh) {
-  .view { min-height: 100dvh; }
-  .scroll-story-pin { height: calc(100dvh - var(--hh)); }
-  .scroll-story-track { height: 300dvh; }
+/* 3. iOS/Android : barre d'URL dynamique. On utilise svh (small viewport
+   height) = hauteur STABLE qui NE change PAS quand la barre d'adresse se
+   cache/s'affiche. dvh changeait pendant le scroll → la scroll-story
+   grandissait/rétrécissait → le contenu en dessous « rebondissait » sur
+   iPhone. svh fige la hauteur → plus de rebond. */
+@supports (height: 100svh) {
+  .view { min-height: 100svh; }
+  .scroll-story-pin { height: calc(100svh - var(--hh)); }
+  .scroll-story-track { height: 300svh; }
 }
 
 /* 4. Encoche / barre d'accueil (iPhone X+, Android gestes, PWA) */
@@ -11817,10 +11821,16 @@ setInterval(refreshDeliveryAvailability, 60000); // ré-évalue chaque minute (c
     if (!scenes.length) return;
 
     var ticking = false;
+    // On MESURE la hauteur une seule fois (et au resize), PAS à chaque frame de
+    // scroll : offsetHeight force un reflow (coûteux) et, sur iOS, innerHeight
+    // change quand la barre d'adresse bouge → jitter. Mesure figée = stable + fluide.
+    var trackHeight = track.offsetHeight;
+    var vh = window.innerHeight;
+    function measure(){ trackHeight = track.offsetHeight; vh = window.innerHeight; }
+    window.addEventListener('resize', measure, { passive:true });
+    window.addEventListener('orientationchange', function(){ setTimeout(measure, 250); });
     function update(){
       var rect = track.getBoundingClientRect();
-      var trackHeight = track.offsetHeight;
-      var vh = window.innerHeight;
       // progress 0..1 over the full track (les 3 viewports)
       var startY = rect.top;
       var totalScroll = trackHeight - vh;
