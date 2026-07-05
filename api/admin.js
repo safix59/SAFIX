@@ -55,6 +55,19 @@ export default async function handler(req, res) {
 
   const SUPA = process.env.SUPABASE_URL, KEY = process.env.SUPABASE_SERVICE_ROLE;
 
+  // ── SUPPRIMER UNE COMMANDE (nettoyage des tests, contrôle propriétaire) ──
+  if (action === 'order-del') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+    const id = (req.query && req.query.id) || (req.body && req.body.id);
+    if (!id) return res.status(400).json({ error: 'id_manquant' });
+    if (!SUPA || !KEY) return res.status(500).json({ error: 'supabase_absent' });
+    try {
+      const r = await fetch(`${SUPA}/rest/v1/orders?id=eq.${encodeURIComponent(id)}`,
+        { method: 'DELETE', headers: { apikey: KEY, Authorization: `Bearer ${KEY}` } });
+      return res.status(r.ok ? 200 : 500).json({ ok: r.ok });
+    } catch (e) { return res.status(500).json({ error: e.message }); }
+  }
+
   // ── LIVE (temps réel : qui est en ligne maintenant) ──
   if (action === 'live') {
     if (!SUPA || !KEY) return res.status(200).json({ ready: false });
@@ -89,20 +102,29 @@ export default async function handler(req, res) {
     const today = new Date().toISOString().slice(0, 10);
     const byHour = Array(24).fill(0);
     const bySource = {}, byDevice = {}, byCountry = {}, byDay = {}, byPath = {};
-    let todayCount = 0;
+
+    // Une VISITE = une session unique (peu importe que la ligne soit 'view' ou 'ping').
+    // rows est trié du plus récent au plus ancien : on garde 1 entrée par session.
+    const sessions = new Map();
     for (const v of rows) {
-      if (v.kind === 'ping') continue;   // les battements présence ne comptent pas comme des visites
+      const sid = v.session || ('_' + v.ts); // sans session → chaque ligne = 1 visite
+      if (!sessions.has(sid)) sessions.set(sid, v);
+    }
+    let todayCount = 0;
+    for (const v of sessions.values()) {
       if (v.day === today) todayCount++;
       if (typeof v.hour === 'number' && v.hour >= 0 && v.hour < 24) byHour[v.hour]++;
       bySource[v.source || 'direct'] = (bySource[v.source || 'direct'] || 0) + 1;
       byDevice[v.device || 'desktop'] = (byDevice[v.device || 'desktop'] || 0) + 1;
       if (v.country) byCountry[v.country] = (byCountry[v.country] || 0) + 1;
       if (v.day) byDay[v.day] = (byDay[v.day] || 0) + 1;
-      const p = v.path || '/'; byPath[p] = (byPath[p] || 0) + 1;
     }
+    // Pages vues : on compte les vraies vues de page (pas les battements).
+    for (const v of rows) { if (v.kind === 'ping') continue; const p = v.path || '/'; byPath[p] = (byPath[p] || 0) + 1; }
+
     const topN = (o, n) => Object.entries(o).sort((a, b) => b[1] - a[1]).slice(0, n).map(([k, v]) => ({ k, v }));
     return res.status(200).json({
-      ready: true, total_30d: rows.length, today: todayCount, by_hour: byHour,
+      ready: true, total_30d: sessions.size, today: todayCount, by_hour: byHour,
       by_source: topN(bySource, 8), by_device: topN(byDevice, 4), by_country: topN(byCountry, 10),
       by_path: topN(byPath, 10), by_day: Object.entries(byDay).sort().slice(-30).map(([k, v]) => ({ k, v })),
     });
