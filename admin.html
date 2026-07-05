@@ -99,8 +99,10 @@ const esc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
 const SLOTS={morning:'Matin (9h–12h)',afternoon:'Après-midi (14h–18h)',evening:'Soir (18h–20h)'};
 const fDate=s=>{try{return new Date(s).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'})}catch{return s}};
 const fDT=s=>{try{return new Date(s).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}catch{return s}};
-let DATA=null, TAB='home';
-const TABS=[['home','🏠 Accueil'],['orders','📦 Commandes'],['finance','💶 Finances'],['catalog','🧩 Catalogue & Prix'],['history','📈 Historique prix'],['system','⚙️ Système']];
+let DATA=null, VISITS=null, TAB='home';
+const TABS=[['home','🏠 Accueil'],['orders','📦 Commandes'],['finance','💶 Finances'],['visitors','👥 Visiteurs'],['catalog','🧩 Catalogue & Prix'],['history','📈 Historique prix'],['system','⚙️ Système']];
+const SRC_LABEL={qr:'📷 Scan QR',search:'🔍 Recherche',social:'📱 Réseaux sociaux',direct:'➡️ Direct',referral:'🔗 Autre site',interne:'🏠 Interne'};
+const DEV_LABEL={mobile:'📱 Mobile',tablet:'📲 Tablette',desktop:'🖥️ Ordinateur'};
 
 async function tryLoad(){
   const r=await fetch('/api/admin-data',{credentials:'same-origin'});
@@ -118,7 +120,7 @@ $('#loginForm').addEventListener('submit',async e=>{
   b.disabled=false;b.textContent='Se connecter';
 });
 $('#logoutBtn').addEventListener('click',async()=>{await fetch('/api/admin-logout',{method:'POST',credentials:'same-origin'});showLogin();});
-$('#refreshBtn').addEventListener('click',tryLoad);
+$('#refreshBtn').addEventListener('click',()=>{VISITS=null;tryLoad();});
 
 function renderTabs(){
   $('#tabs').innerHTML=TABS.map(([k,l])=>`<button class="tab ${k===TAB?'on':''}" data-tab="${k}">${l}</button>`).join('');
@@ -197,6 +199,7 @@ function render(){
       <h2>Derniers changements${pc.updatedAt?` <span class="muted" style="text-transform:none">· maj ${fDT(pc.updatedAt)}</span>`:''}</h2>
       ${(pc.recent&&pc.recent.length)?historyTable(pc.recent):'<div class="empty">Pas encore d\'historique — il se remplira aux prochains rafraîchissements.</div>'}`;
   }
+  else if(TAB==='visitors'){ renderVisitors(); return; }
   else if(TAB==='system'){
     v.innerHTML=`
       <h2>Alertes & pannes</h2>${alertsHtml(h.alerts)}
@@ -236,6 +239,46 @@ function errorsTable(e){return `<div class="tbl-wrap"><table><thead><tr><th>Date
   e.map(x=>`<tr><td class="muted">${fDT(x.created_at)}</td><td>${esc(x.email||'—')}</td><td class="up">${esc(x.error)}</td><td class="tot">${euro(x.total)}</td></tr>`).join('')+`</tbody></table></div>`;}
 function diag(label,ok,detail){return `<div class="appt"><div class="dt"><span class="dot ${ok?'ok':'dang'}"></span>${esc(label)}</div><div class="who">${ok?'OK':'<span class="up">'+esc(detail||'problème')+'</span>'}</div></div>`;}
 
+async function loadVisits(){
+  $('#view').innerHTML='<h2>👥 Visiteurs</h2><div class="empty">Chargement des statistiques…</div>';
+  try{const r=await fetch('/api/admin-visits',{credentials:'same-origin'});VISITS=await r.json();}
+  catch{VISITS={ready:false,reason:'réseau'};}
+  if(TAB==='visitors')renderVisitors();
+}
+function renderVisitors(){
+  const v=$('#view');
+  if(!VISITS){loadVisits();return;}
+  if(!VISITS.ready){
+    const sql=`create table if not exists public.visits (\n  id bigserial primary key,\n  ts timestamptz not null default now(),\n  day date not null, hour smallint not null,\n  path text, source text, ref_host text,\n  device text, country text, lang text\n);`;
+    v.innerHTML=`<h2>👥 Visiteurs</h2>
+      <div class="alert a-warn"><span>⚙️</span><span>Le suivi des visiteurs est <b>installé sur le site</b> mais la table de stockage n'existe pas encore. Colle ce bloc dans <b>Supabase → SQL Editor → Run</b>, et les visites s'afficheront ici :</span></div>
+      <div class="tbl-wrap" style="padding:14px"><pre style="margin:0;white-space:pre-wrap;font-size:12px;color:var(--ac2)">${esc(sql)}</pre></div>`;
+    return;
+  }
+  const d=VISITS;
+  v.innerHTML=`
+    <h2>Fréquentation (30 derniers jours)</h2>
+    <div class="kpis">
+      ${kpi(d.today??0,"Visites aujourd'hui",'ac')}
+      ${kpi(d.total_30d??0,'Visites (30 j)')}
+      ${kpi((d.by_device.find(x=>x.k==='mobile')?.v||0),'Sur mobile','ac')}
+      ${kpi(d.by_country.length,'Pays différents')}
+    </div>
+    <h2>Par heure de la journée</h2>
+    <div class="tbl-wrap" style="padding:16px">${hourChart(d.by_hour)}</div>
+    <div class="two">
+      <div><h2>Par source</h2><div class="tbl-wrap" style="padding:14px">${d.by_source.length?bars(d.by_source.map(x=>({k:SRC_LABEL[x.k]||x.k,v:x.v}))):'<span class="muted">—</span>'}</div></div>
+      <div><h2>Par appareil</h2><div class="tbl-wrap" style="padding:14px">${d.by_device.length?bars(d.by_device.map(x=>({k:DEV_LABEL[x.k]||x.k,v:x.v}))):'<span class="muted">—</span>'}</div></div>
+    </div>
+    <div class="two">
+      <div><h2>Par pays</h2><div class="tbl-wrap" style="padding:14px">${d.by_country.length?bars(d.by_country.map(x=>({k:'🌍 '+x.k,v:x.v}))):'<span class="muted">Aucune donnée pays</span>'}</div></div>
+      <div><h2>Pages les plus vues</h2><div class="tbl-wrap" style="padding:14px">${d.by_path.length?bars(d.by_path):'<span class="muted">—</span>'}</div></div>
+    </div>`;
+}
+function bars(items){const max=Math.max(1,...items.map(i=>i.v));
+  return items.map(i=>`<div style="display:flex;align-items:center;gap:10px;margin:5px 0"><div style="width:118px;color:var(--mut);font-size:12.5px;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(i.k)}</div><div style="flex:1;background:var(--bg2);border-radius:6px;overflow:hidden"><div style="height:18px;width:${Math.round(i.v/max*100)}%;background:linear-gradient(90deg,var(--ac),var(--ac2));min-width:2px"></div></div><div style="width:44px;font-variant-numeric:tabular-nums;text-align:right">${i.v}</div></div>`).join('');}
+function hourChart(arr){const max=Math.max(1,...arr);
+  return `<div style="display:flex;gap:2px;align-items:flex-end;height:96px">`+arr.map((n,h)=>`<div title="${h}h : ${n} visite(s)" style="flex:1;background:linear-gradient(180deg,var(--ac2),var(--ac));border-radius:3px 3px 0 0;height:${Math.max(2,Math.round(n/max*90))}px;opacity:${n?1:.2}"></div>`).join('')+`</div><div class="muted" style="font-size:10px;display:flex;justify-content:space-between;margin-top:5px"><span>0h</span><span>6h</span><span>12h</span><span>18h</span><span>23h</span></div>`;}
 function tick(){const c=$('#clock');if(c)c.textContent=new Date().toLocaleString('fr-FR',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});}
 setInterval(tick,1000);tick();
 tryLoad();

@@ -13201,5 +13201,16 @@ setInterval(refreshDeliveryAvailability, 60000); // ré-évalue chaque minute (c
 })();
 </script>
 
+<!-- Analytics 1ʳᵉ partie SAFIX — sans cookie, sans IP, respecte Do-Not-Track -->
+<script>
+(function(){try{
+  if(navigator.doNotTrack==='1'||window.doNotTrack==='1'||navigator.msDoNotTrack==='1')return;
+  var b={path:location.pathname,ref:document.referrer||'',q:location.search||'',lang:(navigator.language||'').slice(0,5)};
+  var body=JSON.stringify(b);
+  if(navigator.sendBeacon){navigator.sendBeacon('/api/hit',new Blob([body],{type:'application/json'}));}
+  else{fetch('/api/hit',{method:'POST',headers:{'Content-Type':'application/json'},body:body,keepalive:true}).catch(function(){});}
+}catch(e){}})();
+</script>
+
 </body>
 </html>
