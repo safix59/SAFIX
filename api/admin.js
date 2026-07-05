@@ -55,13 +55,31 @@ export default async function handler(req, res) {
 
   const SUPA = process.env.SUPABASE_URL, KEY = process.env.SUPABASE_SERVICE_ROLE;
 
+  // ── LIVE (temps réel : qui est en ligne maintenant) ──
+  if (action === 'live') {
+    if (!SUPA || !KEY) return res.status(200).json({ ready: false });
+    const since = new Date(Date.now() - 50 * 1000).toISOString(); // fenêtre 50 s
+    try {
+      const r = await fetch(`${SUPA}/rest/v1/visits?select=session,path,country,device,ts&ts=gte.${since}&order=ts.desc&limit=800`,
+        { headers: { apikey: KEY, Authorization: `Bearer ${KEY}` } });
+      if (r.status === 404 || !r.ok) return res.status(200).json({ ready: false });
+      const rows = await r.json();
+      const seen = new Map();
+      for (const v of (Array.isArray(rows) ? rows : [])) {
+        const key = v.session || v.ts;
+        if (!seen.has(key)) seen.set(key, { path: v.path, country: v.country, device: v.device, ts: v.ts });
+      }
+      return res.status(200).json({ ready: true, online: seen.size, visitors: [...seen.values()].slice(0, 60) });
+    } catch { return res.status(200).json({ ready: false }); }
+  }
+
   // ── VISITS ──
   if (action === 'visits') {
     if (!SUPA || !KEY) return res.status(200).json({ ready: false, reason: 'supabase_absent' });
     const since = new Date(Date.now() - 30 * 864e5).toISOString();
     let rows;
     try {
-      const r = await fetch(`${SUPA}/rest/v1/visits?select=ts,hour,source,device,country,path,day&ts=gte.${since}&order=ts.desc&limit=20000`,
+      const r = await fetch(`${SUPA}/rest/v1/visits?select=ts,hour,source,device,country,path,day,kind&ts=gte.${since}&order=ts.desc&limit=20000`,
         { headers: { apikey: KEY, Authorization: `Bearer ${KEY}` } });
       if (r.status === 404) return res.status(200).json({ ready: false, reason: 'table_absente' });
       if (!r.ok) return res.status(200).json({ ready: false, reason: 'http_' + r.status });
@@ -73,6 +91,7 @@ export default async function handler(req, res) {
     const bySource = {}, byDevice = {}, byCountry = {}, byDay = {}, byPath = {};
     let todayCount = 0;
     for (const v of rows) {
+      if (v.kind === 'ping') continue;   // les battements présence ne comptent pas comme des visites
       if (v.day === today) todayCount++;
       if (typeof v.hour === 'number' && v.hour >= 0 && v.hour < 24) byHour[v.hour]++;
       bySource[v.source || 'direct'] = (bySource[v.source || 'direct'] || 0) + 1;

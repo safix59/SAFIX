@@ -49,6 +49,8 @@ export default async function handler(req, res) {
       ts: now.toISOString(),
       day: now.toISOString().slice(0, 10),
       hour: now.getUTCHours(),
+      session: String(b.session || '').slice(0, 40) || null,
+      kind: b.hb ? 'ping' : 'view',   // 'ping' = battement présence, 'view' = vue de page
       path: String(b.path || '/').slice(0, 120),
       source,
       ref_host: refHost.slice(0, 80) || null,

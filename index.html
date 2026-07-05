@@ -13201,14 +13201,19 @@ setInterval(refreshDeliveryAvailability, 60000); // ré-évalue chaque minute (c
 })();
 </script>
 
-<!-- Analytics 1ʳᵉ partie SAFIX — sans cookie, sans IP, respecte Do-Not-Track -->
+<!-- Analytics 1ʳᵉ partie SAFIX — sans cookie, sans IP, respecte Do-Not-Track. Vue + battement présence (temps réel). -->
 <script>
 (function(){try{
   if(navigator.doNotTrack==='1'||window.doNotTrack==='1'||navigator.msDoNotTrack==='1')return;
-  var b={path:location.pathname,ref:document.referrer||'',q:location.search||'',lang:(navigator.language||'').slice(0,5)};
-  var body=JSON.stringify(b);
-  if(navigator.sendBeacon){navigator.sendBeacon('/api/hit',new Blob([body],{type:'application/json'}));}
-  else{fetch('/api/hit',{method:'POST',headers:{'Content-Type':'application/json'},body:body,keepalive:true}).catch(function(){});}
+  var sid;try{sid=sessionStorage.getItem('sfx_sid');if(!sid){sid=Date.now().toString(36)+Math.random().toString(36).slice(2,8);sessionStorage.setItem('sfx_sid',sid);}}catch(e){sid='';}
+  function send(hb){try{
+    var b={path:location.pathname,ref:document.referrer||'',q:location.search||'',lang:(navigator.language||'').slice(0,5),session:sid,hb:hb?1:0};
+    var body=JSON.stringify(b);
+    if(navigator.sendBeacon){navigator.sendBeacon('/api/hit',new Blob([body],{type:'application/json'}));}
+    else{fetch('/api/hit',{method:'POST',headers:{'Content-Type':'application/json'},body:body,keepalive:true}).catch(function(){});}
+  }catch(e){}}
+  send(false);
+  setInterval(function(){if(document.visibilityState==='visible')send(true);},25000);
 }catch(e){}})();
 </script>
 

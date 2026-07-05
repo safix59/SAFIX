@@ -53,6 +53,16 @@ button{font-family:inherit}
 .side-foot .logout:hover{border-color:var(--border2);color:var(--text)}
 .dot{width:8px;height:8px;border-radius:50%;flex:none}
 .dot.ok{background:var(--ok);box-shadow:0 0 0 3px rgba(48,209,88,.18)}.dot.warn{background:var(--warn);box-shadow:0 0 0 3px rgba(255,159,10,.18)}.dot.dang{background:var(--dang);box-shadow:0 0 0 3px rgba(255,69,58,.18)}
+.live{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text2);background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:6px 12px;font-variant-numeric:tabular-nums}
+.live b{color:var(--text);font-weight:700}
+.live .pulse{width:8px;height:8px;border-radius:50%;background:var(--ok);animation:pulse 1.8s infinite}
+.live.off{color:var(--text3)}.live.off .pulse{background:var(--text3);animation:none;box-shadow:none}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(48,209,88,.5)}70%{box-shadow:0 0 0 8px rgba(48,209,88,0)}100%{box-shadow:0 0 0 0 rgba(48,209,88,0)}}
+.toolbar{display:flex;gap:10px;margin-bottom:15px;flex-wrap:wrap}
+.toolbar input{flex:1;min-width:180px;background:var(--surface);border:1px solid var(--border);border-radius:11px;color:var(--text);font-size:14.5px;padding:11px 14px;outline:none}
+.toolbar input:focus{border-color:var(--accent)}
+.toolbar .exp{background:var(--surface);border:1px solid var(--border);color:var(--text2);border-radius:11px;padding:11px 15px;font-size:13.5px;cursor:pointer;white-space:nowrap}
+.toolbar .exp:hover{border-color:var(--border2);color:var(--text)}
 
 .main{min-width:0;display:flex;flex-direction:column}
 .topbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:14px;padding:16px 26px;background:rgba(0,0,0,.72);backdrop-filter:blur(18px);border-bottom:1px solid var(--border)}
@@ -144,6 +154,7 @@ pre.sql{margin:0;white-space:pre-wrap;font:12.5px/1.6 ui-monospace,SFMono-Regula
       <button class="menu-btn" id="menuBtn">☰</button>
       <div><div class="page-title" id="pageTitle">Vue d’ensemble</div><div class="page-sub" id="pageSub"></div></div>
       <div class="sp"></div>
+      <span class="live off" id="liveBadge"><span class="pulse"></span><span id="liveTxt">—</span></span>
       <span class="clock" id="clock"></span>
       <button class="icon-btn" id="refreshBtn" title="Rafraîchir">↻</button>
     </header>
@@ -177,8 +188,8 @@ const SUB={home:'Résumé de l’activité',orders:'Toutes les commandes reçues
 
 async function api(action,opts){return fetch('/api/admin?action='+action,Object.assign({credentials:'same-origin'},opts||{}));}
 async function tryLoad(){const r=await api('data');if(r.status===401){showLogin();return;}DATA=await r.json();showApp();}
-function showLogin(){$('#appView').classList.add('hidden');$('#loginView').classList.remove('hidden');setTimeout(()=>$('#pw')?.focus(),50);}
-function showApp(){$('#loginView').classList.add('hidden');$('#appView').classList.remove('hidden');renderNav();renderHealth();render();}
+function showLogin(){stopPolling&&stopPolling();$('#appView').classList.add('hidden');$('#loginView').classList.remove('hidden');setTimeout(()=>$('#pw')?.focus(),50);}
+function showApp(){$('#loginView').classList.add('hidden');$('#appView').classList.remove('hidden');renderNav();renderHealth();render();startPolling();}
 
 $('#loginForm').addEventListener('submit',async e=>{
   e.preventDefault();const b=$('#loginBtn'),er=$('#loginErr');er.textContent='';b.disabled=true;b.textContent='Connexion…';
@@ -230,10 +241,7 @@ function render(){
       <div class="sect-title">Prochains rendez-vous</div>
       ${ap.length?`<div class="panel">${ap.map(apptRow).join('')}</div>`:emptyBox('📅','Aucun rendez-vous à venir.')}`;
   }
-  else if(TAB==='orders'){
-    const o=DATA.orders||[];
-    v.innerHTML=`<div class="sect-title">${o.length} commande${o.length>1?'s':''}</div>`+(o.length?ordersTable(o):emptyBox('📦','Aucune commande pour le moment.<br><span style="font-size:12.5px">Les commandes payées s’afficheront ici automatiquement.</span>'));
-  }
+  else if(TAB==='orders'){renderOrders();return;}
   else if(TAB==='finance'){
     v.innerHTML=`
       <div class="sect-title">Vue financière</div>
@@ -289,6 +297,30 @@ function render(){
       ${(h.order_errors&&h.order_errors.length)?`<div class="sect-title">Commandes en erreur</div><div class="panel tbl-scroll">${errorsTable(h.order_errors)}</div>`:''}`;
   }
 }
+let ORDER_Q='';
+function rawItems(li){if(!Array.isArray(li))return '';return li.map(it=>(it.name||it.repair_id||'')+(it.qty>1?(' x'+it.qty):'')).join(', ');}
+function renderOrders(){
+  const all=DATA.orders||[];const q=ORDER_Q.trim().toLowerCase();
+  const o=q?all.filter(x=>{const m=x.metadata||{};return [x.customer_email,m.model,m.phone,m.snap,x.status,rawItems(x.line_items)].join(' ').toLowerCase().includes(q);}):all;
+  $('#view').innerHTML=`
+    <div class="toolbar">
+      <input id="ordSearch" type="search" placeholder="Rechercher : email, modèle, téléphone, statut…" value="${esc(ORDER_Q)}">
+      <button class="exp" id="ordExport">⬇︎ Exporter (CSV)</button>
+    </div>
+    <div class="sect-title">${o.length} commande${o.length>1?'s':''}${q?` sur ${all.length}`:''}</div>
+    ${o.length?ordersTable(o):emptyBox('📦',q?('Aucun résultat pour « '+esc(ORDER_Q)+' ».'):'Aucune commande pour le moment.<br><span style="font-size:12.5px">Les commandes payées s’afficheront ici automatiquement.</span>')}`;
+  const si=$('#ordSearch');
+  if(si){si.oninput=()=>{const p=si.selectionStart;ORDER_Q=si.value;renderOrders();const s2=$('#ordSearch');if(s2){s2.focus();try{s2.setSelectionRange(p,p);}catch(e){}}};}
+  $('#ordExport')?.addEventListener('click',exportCSV);
+}
+function exportCSV(){
+  const o=DATA.orders||[];
+  const head=['Date','Email','Téléphone','Snapchat','Modèle','Articles','Livraison','Date RDV','Créneau','Lieu','Total (€)','Statut'];
+  const rows=o.map(x=>{const m=x.metadata||{};return [x.created_at||'',x.customer_email||'',m.phone||'',m.snap||'',m.model||'',rawItems(x.line_items),m.delivery||'',m.apptDate||'',m.apptSlot||'',m.addr==='other'?'domicile':'dépôt',(Number(x.total_cents||0)/100).toFixed(2),x.status||''];});
+  const csv=[head,...rows].map(r=>r.map(c=>'"'+String(c==null?'':c).replace(/"/g,'""')+'"').join(',')).join('\r\n');
+  const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='commandes-safix-'+new Date().toISOString().slice(0,10)+'.csv';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
 function apptRow(a){const soon=(new Date(a.date)-new Date())<3*864e5?'<span class="soon">bientôt</span>':'';const lieu=a.addr==='other'?'🏠 domicile':'📍 dépôt';
   return `<div class="appt"><div class="dt">${fDate(a.date)}${soon}</div><div class="slot">${esc(SLOTS[a.slot]||a.slot||'')} · ${lieu}</div><div class="who">${esc(a.model||'')}<br>${esc(a.email||'')}</div></div>`;}
 function ordersTable(o){return `<div class="panel tbl-scroll"><table><thead><tr><th>Date</th><th>Client</th><th>Modèle / Articles</th><th>Livr.</th><th>Rendez-vous</th><th>Total</th><th>Statut</th></tr></thead><tbody>`+
@@ -313,13 +345,19 @@ async function loadVisits(){$('#view').innerHTML=`<div class="sect-title">Fréqu
 function renderVisitors(){
   const v=$('#view');if(!VISITS){loadVisits();return;}
   if(!VISITS.ready){
-    const sql=`create table if not exists public.visits (\n  id bigserial primary key,\n  ts timestamptz not null default now(),\n  day date not null, hour smallint not null,\n  path text, source text, ref_host text,\n  device text, country text, lang text\n);\ncreate index if not exists visits_ts_idx on public.visits(ts);`;
+    const sql=`create table if not exists public.visits (\n  id bigserial primary key,\n  ts timestamptz not null default now(),\n  day date not null, hour smallint not null,\n  session text, kind text default 'view',\n  path text, source text, ref_host text,\n  device text, country text, lang text\n);\ncreate index if not exists visits_ts_idx on public.visits(ts);\ncreate index if not exists visits_session_idx on public.visits(session);`;
     v.innerHTML=`<div class="sect-title">Activation requise</div>
       <div class="alert a-warn"><span>⚙️</span><span>Le suivi des visiteurs est <b>déjà installé sur le site</b> — il ne reste qu’à créer la table de stockage. Colle ceci dans <b>Supabase → SQL Editor → Run</b> :</span></div>
       <div class="panel panel-pad"><pre class="sql">${esc(sql)}</pre></div>`;return;
   }
   const d=VISITS;
-  v.innerHTML=`
+  const liveBlock=(LIVE&&LIVE.ready)?`
+    <div class="sect-title">En ce moment</div>
+    <div class="panel panel-pad" style="margin-bottom:6px">
+      <div style="display:flex;align-items:center;gap:11px"><span class="pulse" style="width:11px;height:11px;border-radius:50%;background:${LIVE.online?'var(--ok)':'var(--text3)'};display:inline-block"></span><span style="font-size:23px;font-weight:750">${LIVE.online}</span><span class="muted">personne(s) sur le site maintenant</span></div>
+      ${(LIVE.visitors&&LIVE.visitors.length)?'<div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px">'+LIVE.visitors.map(x=>`<div style="display:flex;gap:10px;padding:5px 0;font-size:13px"><span style="flex:1;color:var(--text2)">${esc(x.path||'/')}</span><span class="muted">${esc(DEV_LABEL[x.device]||x.device||'')}${x.country?(' · '+esc(x.country)):''}</span></div>`).join('')+'</div>':''}
+    </div>`:'';
+  v.innerHTML=liveBlock+`
     <div class="sect-title">Fréquentation (30 derniers jours)</div>
     <div class="kpis">
       ${kpi(d.today??0,'Visites aujourd’hui','ac')}
@@ -338,6 +376,15 @@ function renderVisitors(){
       <div><div class="sect-title">Pages les plus vues</div><div class="panel panel-pad">${d.by_path.length?bars(d.by_path):'<span class="muted">—</span>'}</div></div>
     </div>`;
 }
+let LIVE=null,_livePoll=null,_autoPoll=null;
+async function loadLive(){try{const r=await api('live');LIVE=await r.json();}catch{LIVE=null;}renderLiveBadge();if(TAB==='visitors'&&VISITS&&VISITS.ready)renderVisitors();}
+function renderLiveBadge(){const el=$('#liveBadge'),t=$('#liveTxt');if(!el)return;
+  if(LIVE&&LIVE.ready){const n=LIVE.online||0;el.className='live'+(n?'':' off');t.innerHTML=n?('<b>'+n+'</b> en ligne'):'0 en ligne';}
+  else{el.className='live off';t.textContent='hors-ligne';}}
+function startPolling(){clearInterval(_livePoll);clearInterval(_autoPoll);loadLive();
+  _livePoll=setInterval(loadLive,10000);
+  _autoPoll=setInterval(async()=>{try{const r=await api('data');if(r.ok){DATA=await r.json();renderHealth();renderNav();if(TAB!=='visitors'&&TAB!=='orders')render();}}catch{}},45000);}
+function stopPolling(){clearInterval(_livePoll);clearInterval(_autoPoll);}
 function tick(){const c=$('#clock');if(c)c.textContent=new Date().toLocaleString('fr-FR',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});}
 setInterval(tick,1000);tick();tryLoad();
 </script>
