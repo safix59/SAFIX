@@ -32,9 +32,11 @@ function getMargin({ repairId, model, category }) {
   return 25;
 }
 
-// Plafonds de prix (accessoires) : ne JAMAIS dépasser le prix retail Apple.
-// Câbles = 25 € max (prix Apple). Le chargeur secteur sera ajouté plus tard.
-const PRICE_CAP = {
+// Plafonds "prix Apple retail" (accessoires) — NE clampe PAS le prix : si Utopya
+// augmente et que le prix calculé dépasse ce plafond, on laisse le VRAI prix
+// passer et on lève un drapeau `overCeiling` → l'admin alerte le propriétaire
+// qui décide lui-même. (Demande owner : voir la réalité, ne rien masquer.)
+const PRICE_CEILING = {
   cable_usb_c: 25,
   cable_usb_c_lightning: 25,
 };
@@ -46,11 +48,10 @@ export function computeFinal({ basePrice, category, outOfStock, repairId, model 
   }
   const step1 = Math.ceil(basePrice * VAT_MULTIPLIER);
   const margin = getMargin({ repairId, model, category });
-  let final = step1 + margin;
-  const cap = PRICE_CAP[repairId];
-  const capped = cap != null && final > cap;
-  if (capped) final = cap;
-  return { final, outOfStock: false, step1, margin, capped };
+  const final = step1 + margin;
+  const ceiling = PRICE_CEILING[repairId] ?? null;
+  const overCeiling = ceiling != null && final > ceiling;
+  return { final, outOfStock: false, step1, margin, ceiling, overCeiling };
 }
 
 export function parsePriceString(str) {

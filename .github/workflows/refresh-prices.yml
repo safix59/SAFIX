@@ -80,13 +80,13 @@ jobs:
         if: ${{ github.event.inputs.mode != 'login-test' }}
         run: |
           cd "$GITHUB_WORKSPACE"
-          if git diff --quiet -- scraper/prices.json; then
+          if git diff --quiet -- scraper/prices.json scraper/price-history.json; then
             echo "Aucun changement de prix — rien à committer."
           else
             git config user.name "safix-prices-bot"
             git config user.email "actions@users.noreply.github.com"
-            git add scraper/prices.json
+            git add scraper/prices.json scraper/price-history.json
             git commit -m "Auto: rafraîchissement prix Utopya ($(date -u +%Y-%m-%d))"
             git push
-            echo "prices.json publié → Vercel va auto-déployer."
+            echo "prices.json + historique publiés → Vercel va auto-déployer."
           fi

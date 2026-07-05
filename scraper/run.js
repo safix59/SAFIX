@@ -249,6 +249,7 @@ async function run() {
   const links = loadLinks();
   logger.info(`${links.length} liens à traiter.`);
   const prev = loadPrevious();
+  const changeLog = []; // historique persistant des variations (price-history.json)
 
   const limit = pLimit(CONFIG.concurrency);
   const startedAt = new Date().toISOString();
@@ -388,6 +389,21 @@ async function run() {
       ) {
         stats.changed++;
         logger.change(pick.link.repair_id, pick.link.model, before, after);
+        let kind = "price";
+        if (before.outOfStock && !after.outOfStock) kind = "restock";
+        else if (!before.outOfStock && after.outOfStock) kind = "oos";
+        else if (typeof before.final === "number" && typeof after.final === "number")
+          kind = after.final > before.final ? "up" : "down";
+        changeLog.push({
+          t: new Date().toISOString(),
+          repairId: pick.link.repair_id,
+          model: pick.link.model,
+          oldFinal: before.final ?? null,
+          newFinal: after.final ?? null,
+          oldOOS: !!before.outOfStock,
+          newOOS: !!after.outOfStock,
+          kind,
+        });
       }
     }
 
@@ -413,6 +429,25 @@ async function run() {
     prices,
   };
   fs.writeFileSync(CONFIG.outputFile, JSON.stringify(output, null, 2));
+
+  // Historique persistant des variations de prix (lu par l'admin).
+  try {
+    const histFile = path.join(__dirname, "price-history.json");
+    let hist = { changes: [] };
+    if (fs.existsSync(histFile)) {
+      try { hist = JSON.parse(fs.readFileSync(histFile, "utf8")) || { changes: [] }; } catch {}
+    }
+    const merged = [...changeLog, ...(Array.isArray(hist.changes) ? hist.changes : [])].slice(0, 1500);
+    fs.writeFileSync(histFile, JSON.stringify({
+      updatedAt: new Date().toISOString(),
+      count: merged.length,
+      changes: merged,
+    }, null, 0));
+    logger.info(`Historique prix : +${changeLog.length} → ${merged.length} entrées (price-history.json)`);
+  } catch (e) {
+    logger.warn(`price-history.json non écrit : ${e.message}`);
+  }
+
   logger.info(
     `=== Terminé : ${stats.ok} OK | ${stats.oos} rupture | ${stats.fail} KO | ${stats.changed} changements | ${stats.fallback} fallbacks ===`,
   );
