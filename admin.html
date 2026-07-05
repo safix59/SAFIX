@@ -128,11 +128,11 @@ tbody td:first-child{color:var(--text3);font-size:13px}
 .empty .big{font-size:30px;margin-bottom:8px;opacity:.5}
 .soon{font-size:10.5px;color:var(--warn);border:1px solid rgba(255,159,10,.4);border-radius:999px;padding:1px 8px;margin-left:7px;vertical-align:middle}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.bar-row{display:flex;align-items:center;gap:12px;margin:7px 0}
-.bar-row .bl{width:120px;color:var(--text2);font-size:13px;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.bar-row .bt{flex:1;background:var(--surface);border-radius:7px;overflow:hidden;height:20px}
-.bar-row .bf{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:7px;min-width:3px}
-.bar-row .bv{width:46px;text-align:right;font-variant-numeric:tabular-nums;font-size:13px;color:var(--text2)}
+.bar-row{display:flex;align-items:center;gap:14px;margin:12px 0}
+.bar-row .bl{width:150px;color:var(--text2);font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar-row .bt{flex:1;background:var(--surface);border-radius:99px;overflow:hidden;height:6px}
+.bar-row .bf{height:100%;background:var(--accent);border-radius:99px;min-width:3px}
+.bar-row .bv{width:44px;text-align:right;font-variant-numeric:tabular-nums;font-size:13px;color:var(--text)}
 pre.sql{margin:0;white-space:pre-wrap;font:12.5px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--accent2)}
 .scrim{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:35;backdrop-filter:blur(2px)}
 @media(max-width:900px){
@@ -185,6 +185,9 @@ const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
 const SLOTS={morning:'Matin (9h–12h)',afternoon:'Après-midi (14h–18h)',evening:'Soir (18h–20h)'};
 const SRC_LABEL={qr:'Scan QR',search:'Recherche',social:'Réseaux sociaux',direct:'Accès direct',referral:'Autre site',interne:'Navigation interne'};
 const DEV_LABEL={'iPhone':'📱 iPhone','iPad':'📲 iPad','iPod':'📱 iPod','Mac':'💻 Mac','Android':'🤖 Android','Tablette Android':'🤖 Tablette Android','Windows':'🖥️ Windows','Windows Phone':'📱 Windows Phone','Chromebook':'💻 Chromebook','Linux':'🐧 Linux','Autre':'❔ Autre','mobile':'📱 Mobile','tablet':'📲 Tablette','desktop':'🖥️ Ordinateur'};
+const ANDROID_MODELS={'SM-S911B':'Galaxy S23','SM-S916B':'Galaxy S23+','SM-S918B':'Galaxy S23 Ultra','SM-S921B':'Galaxy S24','SM-S926B':'Galaxy S24+','SM-S928B':'Galaxy S24 Ultra','SM-S931B':'Galaxy S25','SM-S936B':'Galaxy S25+','SM-S938B':'Galaxy S25 Ultra','SM-A546B':'Galaxy A54','SM-A356B':'Galaxy A35','SM-A155F':'Galaxy A15','SM-G991B':'Galaxy S21','SM-G998B':'Galaxy S21 Ultra','SM-F946B':'Galaxy Z Fold5','SM-F731B':'Galaxy Z Flip5'};
+function modelName(code){if(!code)return '';return ANDROID_MODELS[code]||code;}
+function deviceFull(device,model){const base=DEV_LABEL[device]||device||'';return model?(base+' · '+modelName(model)):base;}
 const fDate=s=>{try{return new Date(s).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'})}catch{return s}};
 const fDT=s=>{try{return new Date(s).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}catch{return s}};
 let DATA=null, VISITS=null, TAB='home';
@@ -390,7 +393,7 @@ function renderVisitors(){
     <div class="sect-title">En ce moment</div>
     <div class="panel panel-pad" style="margin-bottom:6px">
       <div style="display:flex;align-items:center;gap:11px"><span class="pulse" style="width:11px;height:11px;border-radius:50%;background:${LIVE.online?'var(--ok)':'var(--text3)'};display:inline-block"></span><span style="font-size:23px;font-weight:750">${LIVE.online}</span><span class="muted">personne(s) sur le site maintenant</span></div>
-      ${(LIVE.visitors&&LIVE.visitors.length)?'<div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px">'+LIVE.visitors.map(x=>`<div style="display:flex;gap:10px;padding:5px 0;font-size:13px"><span style="flex:1;color:var(--text2)">${esc(x.path||'/')}</span><span class="muted">${esc(DEV_LABEL[x.device]||x.device||'')}${x.country?(' · '+esc(x.country)):''}</span></div>`).join('')+'</div>':''}
+      ${(LIVE.visitors&&LIVE.visitors.length)?'<div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px">'+LIVE.visitors.map(x=>`<div style="display:flex;gap:10px;padding:6px 0;font-size:13px"><span style="flex:1;color:var(--text2)">${esc(x.path||'/')}</span><span class="muted">${esc(deviceFull(x.device,x.device_model))}${x.city?(' · '+esc(x.city)):(x.country?(' · '+esc(x.country)):'')}</span></div>`).join('')+'</div>':''}
     </div>`:'';
   v.innerHTML=liveBlock+`
     <div class="sect-title">Fréquentation (30 derniers jours)</div>
@@ -407,9 +410,11 @@ function renderVisitors(){
       <div><div class="sect-title">Par appareil</div><div class="panel panel-pad">${d.by_device.length?bars(d.by_device.map(x=>({k:DEV_LABEL[x.k]||x.k,v:x.v}))):'<span class="muted">—</span>'}</div></div>
     </div>
     <div class="two">
-      <div><div class="sect-title">Par pays</div><div class="panel panel-pad">${d.by_country.length?bars(d.by_country.map(x=>({k:x.k,v:x.v}))):'<span class="muted">Aucune donnée pays</span>'}</div></div>
-      <div><div class="sect-title">Pages les plus vues</div><div class="panel panel-pad">${d.by_path.length?bars(d.by_path):'<span class="muted">—</span>'}</div></div>
-    </div>`;
+      <div><div class="sect-title">Par ville</div><div class="panel panel-pad">${(d.by_city&&d.by_city.length)?bars(d.by_city):'<span class="muted">En attente de données (activer la localisation — voir plus bas)</span>'}</div></div>
+      <div><div class="sect-title">Par pays</div><div class="panel panel-pad">${d.by_country.length?bars(d.by_country.map(x=>({k:'🌍 '+x.k,v:x.v}))):'<span class="muted">—</span>'}</div></div>
+    </div>
+    <div class="sect-title">Pages les plus vues</div>
+    <div class="panel panel-pad">${d.by_path.length?bars(d.by_path):'<span class="muted">—</span>'}</div>`;
 }
 let LIVE=null,_livePoll=null,_autoPoll=null;
 async function loadLive(){try{const r=await api('live');LIVE=await r.json();}catch{LIVE=null;}renderLiveBadge();if(TAB==='visitors'&&VISITS&&VISITS.ready)renderVisitors();}

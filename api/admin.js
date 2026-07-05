@@ -73,14 +73,14 @@ export default async function handler(req, res) {
     if (!SUPA || !KEY) return res.status(200).json({ ready: false });
     const since = new Date(Date.now() - 50 * 1000).toISOString(); // fenêtre 50 s
     try {
-      const r = await fetch(`${SUPA}/rest/v1/visits?select=session,path,country,device,ts&ts=gte.${since}&order=ts.desc&limit=800`,
+      const r = await fetch(`${SUPA}/rest/v1/visits?select=*&ts=gte.${since}&order=ts.desc&limit=800`,
         { headers: { apikey: KEY, Authorization: `Bearer ${KEY}` } });
       if (r.status === 404 || !r.ok) return res.status(200).json({ ready: false });
       const rows = await r.json();
       const seen = new Map();
       for (const v of (Array.isArray(rows) ? rows : [])) {
         const key = v.session || v.ts;
-        if (!seen.has(key)) seen.set(key, { path: v.path, country: v.country, device: v.device, ts: v.ts });
+        if (!seen.has(key)) seen.set(key, { path: v.path, country: v.country, city: v.city || null, device: v.device, device_model: v.device_model || null, ts: v.ts });
       }
       return res.status(200).json({ ready: true, online: seen.size, visitors: [...seen.values()].slice(0, 60) });
     } catch { return res.status(200).json({ ready: false }); }
@@ -92,7 +92,7 @@ export default async function handler(req, res) {
     const since = new Date(Date.now() - 30 * 864e5).toISOString();
     let rows;
     try {
-      const r = await fetch(`${SUPA}/rest/v1/visits?select=ts,hour,source,device,country,path,day,kind&ts=gte.${since}&order=ts.desc&limit=20000`,
+      const r = await fetch(`${SUPA}/rest/v1/visits?select=*&ts=gte.${since}&order=ts.desc&limit=20000`,
         { headers: { apikey: KEY, Authorization: `Bearer ${KEY}` } });
       if (r.status === 404) return res.status(200).json({ ready: false, reason: 'table_absente' });
       if (!r.ok) return res.status(200).json({ ready: false, reason: 'http_' + r.status });
@@ -101,7 +101,7 @@ export default async function handler(req, res) {
     if (!Array.isArray(rows)) rows = [];
     const today = new Date().toISOString().slice(0, 10);
     const byHour = Array(24).fill(0);
-    const bySource = {}, byDevice = {}, byCountry = {}, byDay = {}, byPath = {};
+    const bySource = {}, byDevice = {}, byCountry = {}, byDay = {}, byPath = {}, byCity = {};
 
     // Une VISITE = une session unique (peu importe que la ligne soit 'view' ou 'ping').
     // rows est trié du plus récent au plus ancien : on garde 1 entrée par session.
@@ -117,16 +117,22 @@ export default async function handler(req, res) {
       bySource[v.source || 'direct'] = (bySource[v.source || 'direct'] || 0) + 1;
       byDevice[v.device || 'desktop'] = (byDevice[v.device || 'desktop'] || 0) + 1;
       if (v.country) byCountry[v.country] = (byCountry[v.country] || 0) + 1;
+      if (v.city) byCity[v.city + (v.country ? ' (' + v.country + ')' : '')] = (byCity[v.city + (v.country ? ' (' + v.country + ')' : '')] || 0) + 1;
       if (v.day) byDay[v.day] = (byDay[v.day] || 0) + 1;
     }
     // Pages vues : on compte les vraies vues de page (pas les battements).
     for (const v of rows) { if (v.kind === 'ping') continue; const p = v.path || '/'; byPath[p] = (byPath[p] || 0) + 1; }
+    // Points géo pour une éventuelle carte (dernières positions, dédupliquées par session).
+    const geo = [];
+    for (const v of sessions.values()) { if (Number.isFinite(v.lat) && Number.isFinite(v.lng)) geo.push({ lat: v.lat, lng: v.lng, city: v.city || null }); }
 
     const topN = (o, n) => Object.entries(o).sort((a, b) => b[1] - a[1]).slice(0, n).map(([k, v]) => ({ k, v }));
     return res.status(200).json({
       ready: true, total_30d: sessions.size, today: todayCount, by_hour: byHour,
       by_source: topN(bySource, 8), by_device: topN(byDevice, 4), by_country: topN(byCountry, 10),
-      by_path: topN(byPath, 10), by_day: Object.entries(byDay).sort().slice(-30).map(([k, v]) => ({ k, v })),
+      by_city: topN(byCity, 12), by_path: topN(byPath, 10),
+      geo: geo.slice(0, 300),
+      by_day: Object.entries(byDay).sort().slice(-30).map(([k, v]) => ({ k, v })),
     });
   }
 

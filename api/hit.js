@@ -50,6 +50,18 @@ export default async function handler(req, res) {
     else if (refHost.includes('safix59.fr')) source = 'interne';
     else source = 'referral';
 
+    // Géoloc approximative fournie par le réseau Vercel (pas d'IP stockée).
+    const H = req.headers;
+    const dec = (v) => { try { return decodeURIComponent(String(v || '')); } catch { return String(v || ''); } };
+    const city = dec(H['x-vercel-ip-city']).slice(0, 60) || null;
+    const region = dec(H['x-vercel-ip-country-region']).slice(0, 40) || null;
+    const lat = parseFloat(H['x-vercel-ip-latitude']); const lng = parseFloat(H['x-vercel-ip-longitude']);
+
+    // Modèle Android quand présent dans l'UA (Apple ne donne jamais son modèle).
+    let deviceModel = null;
+    const mAnd = (ua || '').match(/android[\d.\s]*;\s*([^);]+?)(?:\s+build|;|\))/i);
+    if (mAnd && mAnd[1]) { const mm = mAnd[1].trim(); if (mm && !/^[a-z]$/i.test(mm)) deviceModel = mm.slice(0, 50); }
+
     const now = new Date();
     const row = {
       ts: now.toISOString(),
@@ -61,17 +73,28 @@ export default async function handler(req, res) {
       source,
       ref_host: refHost.slice(0, 80) || null,
       device: deviceOf(ua),
-      country: (req.headers['x-vercel-ip-country'] || '').slice(0, 4) || null,
+      device_model: deviceModel,
+      country: (H['x-vercel-ip-country'] || '').slice(0, 4) || null,
+      city, region,
+      lat: Number.isFinite(lat) ? lat : null,
+      lng: Number.isFinite(lng) ? lng : null,
       lang: String(b.lang || '').slice(0, 5) || null,
     };
 
-    // On ATTEND l'insertion : sinon la fonction serverless peut être gelée
-    // après la réponse et l'écriture annulée (visites perdues).
-    await fetch(`${SUPA}/rest/v1/visits`, {
+    // On ATTEND l'insertion (sinon la fonction serverless peut être gelée après
+    // la réponse et l'écriture annulée). RÉSILIENT : si les colonnes géo/modèle
+    // n'existent pas encore, on réessaie avec les colonnes de base → jamais de
+    // visite perdue, et la géoloc « s'allume » dès que le SQL des colonnes est passé.
+    const post = (payload) => fetch(`${SUPA}/rest/v1/visits`, {
       method: 'POST',
       headers: { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-      body: JSON.stringify(row),
-    }).catch(() => {});
+      body: JSON.stringify(payload),
+    });
+    let r = await post(row).catch(() => null);
+    if (!r || !r.ok) {
+      const { device_model, city, region, lat, lng, ...base } = row;
+      await post(base).catch(() => {});
+    }
   } catch {}
 
   return res.status(204).end();
