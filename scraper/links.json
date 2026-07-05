@@ -5778,27 +5778,27 @@
     "note": "Bouton power"
   },
   {
-    "url": "https://www.utopya.fr/apple-cable-usb-c-vers-usb-c-2m.html",
+    "url": "https://www.utopya.fr/apple-cable-usb-c-60w-1m.html",
     "repair_id": "cable_usb_c",
-    "model": null,
+    "model": "default",
     "category": "accessory",
     "priority": 1,
-    "note": "Apple USB-C → USB-C"
+    "note": "Apple USB-C → USB-C 60W 1m"
   },
   {
-    "url": "https://www.utopya.fr/apple-adaptateur-secteur-usb-c-70w.html",
+    "url": "https://www.utopya.fr/apple-chargeur-secteur-usb-c-20w.html",
     "repair_id": "adaptateur_secteur_usb_c",
-    "model": null,
+    "model": "default",
     "category": "accessory",
     "priority": 1,
-    "note": "Apple Adaptateur USB-C"
+    "note": "Apple Chargeur secteur USB-C 20W"
   },
   {
-    "url": "https://www.utopya.fr/apple-cable-lightning-1m.html",
+    "url": "https://www.utopya.fr/apple-cable-usb-c-vers-lightning-1m.html",
     "repair_id": "cable_usb_c_lightning",
-    "model": null,
+    "model": "default",
     "category": "accessory",
     "priority": 1,
-    "note": "Apple USB-C → Lightning"
+    "note": "Apple USB-C → Lightning 1m"
   }
 ]

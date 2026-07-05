@@ -32,6 +32,13 @@ function getMargin({ repairId, model, category }) {
   return 25;
 }
 
+// Plafonds de prix (accessoires) : ne JAMAIS dépasser le prix retail Apple.
+// Câbles = 25 € max (prix Apple). Le chargeur secteur sera ajouté plus tard.
+const PRICE_CAP = {
+  cable_usb_c: 25,
+  cable_usb_c_lightning: 25,
+};
+
 export function computeFinal({ basePrice, category, outOfStock, repairId, model }) {
   if (outOfStock) return { final: null, outOfStock: true };
   if (basePrice == null || Number.isNaN(basePrice)) {
@@ -39,8 +46,11 @@ export function computeFinal({ basePrice, category, outOfStock, repairId, model 
   }
   const step1 = Math.ceil(basePrice * VAT_MULTIPLIER);
   const margin = getMargin({ repairId, model, category });
-  const final = step1 + margin;
-  return { final, outOfStock: false, step1, margin };
+  let final = step1 + margin;
+  const cap = PRICE_CAP[repairId];
+  const capped = cap != null && final > cap;
+  if (capped) final = cap;
+  return { final, outOfStock: false, step1, margin, capped };
 }
 
 export function parsePriceString(str) {
