@@ -389,7 +389,7 @@ function renderVisitors(){
     <div class="kpis">
       ${kpi(d.today??0,'Visites aujourd’hui','ac')}
       ${kpi(d.total_30d??0,'Visites sur 30 j')}
-      ${kpi((d.by_device.find(x=>x.k==='mobile')?.v||0),'Depuis mobile','ac')}
+      ${kpi(d.by_device.filter(x=>['iPhone','Android','iPod','mobile','Windows Phone'].includes(x.k)).reduce((s,x)=>s+x.v,0),'Sur mobile','ac')}
       ${kpi(d.by_country.length,'Pays différents')}
     </div>
     <div class="sect-title">Affluence par heure</div>
