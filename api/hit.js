@@ -65,8 +65,9 @@ export default async function handler(req, res) {
       lang: String(b.lang || '').slice(0, 5) || null,
     };
 
-    // Insertion best-effort (ne bloque jamais la réponse)
-    fetch(`${SUPA}/rest/v1/visits`, {
+    // On ATTEND l'insertion : sinon la fonction serverless peut être gelée
+    // après la réponse et l'écriture annulée (visites perdues).
+    await fetch(`${SUPA}/rest/v1/visits`, {
       method: 'POST',
       headers: { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
       body: JSON.stringify(row),
