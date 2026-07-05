@@ -410,7 +410,7 @@ function renderVisitors(){
       <div><div class="sect-title">Par appareil</div><div class="panel panel-pad">${d.by_device.length?bars(d.by_device.map(x=>({k:DEV_LABEL[x.k]||x.k,v:x.v}))):'<span class="muted">—</span>'}</div></div>
     </div>
     <div class="two">
-      <div><div class="sect-title">Par ville</div><div class="panel panel-pad">${(d.by_city&&d.by_city.length)?bars(d.by_city):'<span class="muted">En attente de données (activer la localisation — voir plus bas)</span>'}</div></div>
+      <div><div class="sect-title">Par ville / région</div><div class="panel panel-pad">${(d.by_city&&d.by_city.length)?bars(d.by_city):'<span class="muted">En attente de visites réelles</span>'}</div></div>
       <div><div class="sect-title">Par pays</div><div class="panel panel-pad">${d.by_country.length?bars(d.by_country.map(x=>({k:'🌍 '+x.k,v:x.v}))):'<span class="muted">—</span>'}</div></div>
     </div>
     <div class="sect-title">Pages les plus vues</div>

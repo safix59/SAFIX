@@ -80,7 +80,7 @@ export default async function handler(req, res) {
       const seen = new Map();
       for (const v of (Array.isArray(rows) ? rows : [])) {
         const key = v.session || v.ts;
-        if (!seen.has(key)) seen.set(key, { path: v.path, country: v.country, city: v.city || null, device: v.device, device_model: v.device_model || null, ts: v.ts });
+        if (!seen.has(key)) seen.set(key, { path: v.path, country: v.country, city: v.city || v.region || null, device: v.device, device_model: v.device_model || null, ts: v.ts });
       }
       return res.status(200).json({ ready: true, online: seen.size, visitors: [...seen.values()].slice(0, 60) });
     } catch { return res.status(200).json({ ready: false }); }
@@ -117,7 +117,9 @@ export default async function handler(req, res) {
       bySource[v.source || 'direct'] = (bySource[v.source || 'direct'] || 0) + 1;
       byDevice[v.device || 'desktop'] = (byDevice[v.device || 'desktop'] || 0) + 1;
       if (v.country) byCountry[v.country] = (byCountry[v.country] || 0) + 1;
-      if (v.city) byCity[v.city + (v.country ? ' (' + v.country + ')' : '')] = (byCity[v.city + (v.country ? ' (' + v.country + ')' : '')] || 0) + 1;
+      // Ville si dispo (plan Vercel Pro), sinon région (dispo en gratuit).
+      const place = v.city || v.region;
+      if (place) { const key = place + (v.country ? ' (' + v.country + ')' : ''); byCity[key] = (byCity[key] || 0) + 1; }
       if (v.day) byDay[v.day] = (byDay[v.day] || 0) + 1;
     }
     // Pages vues : on compte les vraies vues de page (pas les battements).
