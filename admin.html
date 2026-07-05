@@ -105,7 +105,7 @@ const SRC_LABEL={qr:'📷 Scan QR',search:'🔍 Recherche',social:'📱 Réseaux
 const DEV_LABEL={mobile:'📱 Mobile',tablet:'📲 Tablette',desktop:'🖥️ Ordinateur'};
 
 async function tryLoad(){
-  const r=await fetch('/api/admin-data',{credentials:'same-origin'});
+  const r=await fetch('/api/admin?action=data',{credentials:'same-origin'});
   if(r.status===401){showLogin();return;}
   DATA=await r.json(); showApp();
 }
@@ -114,12 +114,12 @@ function showApp(){$('#loginView').classList.add('hidden');$('#appView').classLi
 
 $('#loginForm').addEventListener('submit',async e=>{
   e.preventDefault();const b=$('#loginBtn'),er=$('#loginErr');er.textContent='';b.disabled=true;b.textContent='…';
-  try{const r=await fetch('/api/admin-login',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({password:$('#pw').value})});
+  try{const r=await fetch('/api/admin?action=login',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({password:$('#pw').value})});
     if(r.ok){$('#pw').value='';await tryLoad();}else er.textContent='Mot de passe incorrect';}
   catch{er.textContent='Erreur réseau';}
   b.disabled=false;b.textContent='Se connecter';
 });
-$('#logoutBtn').addEventListener('click',async()=>{await fetch('/api/admin-logout',{method:'POST',credentials:'same-origin'});showLogin();});
+$('#logoutBtn').addEventListener('click',async()=>{await fetch('/api/admin?action=logout',{method:'POST',credentials:'same-origin'});showLogin();});
 $('#refreshBtn').addEventListener('click',()=>{VISITS=null;tryLoad();});
 
 function renderTabs(){
@@ -241,7 +241,7 @@ function diag(label,ok,detail){return `<div class="appt"><div class="dt"><span c
 
 async function loadVisits(){
   $('#view').innerHTML='<h2>👥 Visiteurs</h2><div class="empty">Chargement des statistiques…</div>';
-  try{const r=await fetch('/api/admin-visits',{credentials:'same-origin'});VISITS=await r.json();}
+  try{const r=await fetch('/api/admin?action=visits',{credentials:'same-origin'});VISITS=await r.json();}
   catch{VISITS={ready:false,reason:'réseau'};}
   if(TAB==='visitors')renderVisitors();
 }
