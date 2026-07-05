@@ -5619,21 +5619,21 @@ header { padding-left: max(20px, env(safe-area-inset-left));
         </div>
 
         <div class="story-scene story-scene-1" data-scene="1">
-          <p class="hero-eyebrow" style="color:var(--accent); margin-bottom:18px;">Notre promesse</p>
-          <h2 class="story-title">Un iPhone,<br>c'est <em>précieux</em>.</h2>
-          <p class="story-sub">Photos. Messages. Souvenirs. Travail. Famille.<br>Tout est là, dans votre poche.</p>
+          <p class="hero-eyebrow" style="color:var(--accent); margin-bottom:18px;" data-i18n="story.s1_eyebrow">Notre promesse</p>
+          <h2 class="story-title" data-i18n="story.s1_title">Un iPhone,<br>c'est <em>précieux</em>.</h2>
+          <p class="story-sub" data-i18n="story.s1_sub">Photos. Messages. Souvenirs. Travail. Famille.<br>Tout est là, dans votre poche.</p>
         </div>
 
         <div class="story-scene story-scene-2" data-scene="2">
-          <p class="hero-eyebrow" style="color:#FF3B30; margin-bottom:18px;">Quand il casse</p>
-          <h2 class="story-title">Tout <em>s'arrête</em>.</h2>
-          <p class="story-sub">Un écran fissuré, une batterie HS. Et soudain,<br>votre quotidien se met sur pause.</p>
+          <p class="hero-eyebrow" style="color:#FF3B30; margin-bottom:18px;" data-i18n="story.s2_eyebrow">Quand il casse</p>
+          <h2 class="story-title" data-i18n="story.s2_title">Tout <em>s'arrête</em>.</h2>
+          <p class="story-sub" data-i18n="story.s2_sub">Un écran fissuré, une batterie HS. Et soudain,<br>votre quotidien se met sur pause.</p>
         </div>
 
         <div class="story-scene story-scene-3" data-scene="3">
-          <p class="hero-eyebrow" style="color:#30D158; margin-bottom:18px;">Avec SAFIX</p>
-          <h2 class="story-title">En 48 h, il <em>revit</em>.</h2>
-          <p class="story-sub">Pièces sélectionnées, livraison incluse.<br>Votre iPhone à nouveau fonctionnel.</p>
+          <p class="hero-eyebrow" style="color:#30D158; margin-bottom:18px;" data-i18n="story.s3_eyebrow">Avec SAFIX</p>
+          <h2 class="story-title" data-i18n="story.s3_title">En 48 h, il <em>revit</em>.</h2>
+          <p class="story-sub" data-i18n="story.s3_sub">Pièces sélectionnées, livraison incluse.<br>Votre iPhone à nouveau fonctionnel.</p>
         </div>
       </div>
     </div>
@@ -9747,6 +9747,15 @@ const I18N = {
     'detail.eyebrow':'Réparation iPhone',
     'detail.desc':'Sélectionnez votre réparation. Disponibilité vérifiée en temps réel chez notre fournisseur.',
     'detail.heading':'Nos services',
+    'story.s1_eyebrow':'Notre promesse',
+    'story.s1_title':'Un iPhone,<br>c\'est <em>précieux</em>.',
+    'story.s1_sub':'Photos. Messages. Souvenirs. Travail. Famille.<br>Tout est là, dans votre poche.',
+    'story.s2_eyebrow':'Quand il casse',
+    'story.s2_title':'Tout <em>s\'arrête</em>.',
+    'story.s2_sub':'Un écran fissuré, une batterie HS. Et soudain,<br>votre quotidien se met sur pause.',
+    'story.s3_eyebrow':'Avec SAFIX',
+    'story.s3_title':'En 48 h, il <em>revit</em>.',
+    'story.s3_sub':'Pièces sélectionnées, livraison incluse.<br>Votre iPhone à nouveau fonctionnel.',
     'detail.sub':'Toutes les réparations disponibles pour ce modèle.',
     'cart.empty':'Aucune réparation',
     'cart.empty_title':'Panier vide','cart.empty_sub':'Sélectionnez des réparations',
@@ -9958,6 +9967,15 @@ const I18N = {
     'detail.eyebrow':'iPhone Repair',
     'detail.desc':'Pick a repair. Part availability is checked live with our supplier.',
     'detail.heading':'Our services',
+    'story.s1_eyebrow':'Our promise',
+    'story.s1_title':'An iPhone<br>is <em>precious</em>.',
+    'story.s1_sub':'Photos. Messages. Memories. Work. Family.<br>It\'s all there, in your pocket.',
+    'story.s2_eyebrow':'When it breaks',
+    'story.s2_title':'Everything <em>stops</em>.',
+    'story.s2_sub':'A cracked screen, a dead battery. And suddenly,<br>your daily life is put on hold.',
+    'story.s3_eyebrow':'With SAFIX',
+    'story.s3_title':'In 48 h, it <em>comes back to life</em>.',
+    'story.s3_sub':'Selected parts, delivery included.<br>Your iPhone working again.',
     'detail.sub':'All available repairs for this model.',
     'cart.empty':'No repair selected',
     'cart.empty_title':'Empty cart','cart.empty_sub':'Pick a few repairs',
@@ -10519,6 +10537,10 @@ function applyI18n() {
   if (repairsHd) repairsHd.textContent = t('detail.heading');
   const repairsSub = document.getElementById('repairsSub');
   if (repairsSub && !cart.length) repairsSub.textContent = t('detail.sub');
+  // CTA des cartes modèles : retraduire en direct lors de la bascule de langue
+  document.querySelectorAll('.card-cta').forEach(el => {
+    el.textContent = currentLang === 'en' ? 'View repairs →' : 'Voir les réparations →';
+  });
   const recentsLabel = document.querySelector('.recents-label');
   if (recentsLabel) recentsLabel.textContent = t('recents');
   // Le navTitle n'est utilisé qu'en page detail (modèle iPhone) — pas de traduction nécessaire
