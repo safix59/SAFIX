@@ -4,12 +4,14 @@
   "outputDirectory": ".",
   "rewrites": [
     { "source": "/api/:path*", "destination": "/api/:path*" },
-    { "source": "/admin", "destination": "/admin.html" }
+    { "source": "/admin", "destination": "/admin/index.html" }
   ],
   "crons": [
     { "path": "/api/keepalive", "schedule": "0 6 * * *" }
   ],
   "redirects": [
+    { "source": "/admin-next", "destination": "/admin", "permanent": false },
+    { "source": "/admin-next/(.*)", "destination": "/admin", "permanent": false },
     { "source": "/api/(.*)\\.(js|mjs|json|md)", "destination": "/", "permanent": false },
     { "source": "/vercel.json", "destination": "/", "permanent": false },
     { "source": "/.vercelignore", "destination": "/", "permanent": false }
@@ -38,7 +40,7 @@
       ]
     },
     {
-      "source": "/admin.html",
+      "source": "/admin(.*)",
       "headers": [
         { "key": "X-Robots-Tag",  "value": "noindex, nofollow, nosnippet, noarchive" },
         { "key": "Cache-Control", "value": "no-store, max-age=0, must-revalidate" }

@@ -2822,20 +2822,21 @@ header {
 ═══════════════════════════════════════════════════ */
 .toast {
   position:fixed; bottom:116px; left:50%; transform:translateX(-50%) translateY(40px);
-  background:var(--bg2);
-  border:1px solid var(--border2);
+  /* Surface STRICTEMENT identique à la .float-bar située juste en dessous
+     (même couleur, même opacité, même flou, même bordure) → cohérence parfaite. */
+  background:rgba(0,0,0,.25);
+  border:1px solid rgba(255,255,255,.10);
   border-radius:50px; padding:12px 20px;
   font-size:14px; font-weight:600; color:var(--text);
   z-index:9999; white-space:nowrap;
-  backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
-  box-shadow:var(--sh);
+  backdrop-filter:saturate(200%) blur(30px); -webkit-backdrop-filter:saturate(200%) blur(30px);
+  box-shadow:0 20px 60px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.05);
   transition:transform .4s var(--spring), opacity .3s;
   opacity:0; display:flex; align-items:center; gap:8px;
 }
 [data-theme="light"] .toast {
-  background:rgba(255,255,255,.96);
-  border-color:rgba(0,0,0,.1);
-  box-shadow:0 16px 40px rgba(0,0,0,.18);
+  background:rgba(255,255,255,.25);
+  border-color:rgba(0,0,0,.08);
 }
 .toast.show { transform:translateX(-50%) translateY(0); opacity:1; }
 .toast-icon { font-size:16px; }
@@ -7219,7 +7220,7 @@ const sunSVG  = `<circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.
 
 function applyTheme(t) {
   document.documentElement.setAttribute('data-theme', t);
-  if (themeIcon) themeIcon.innerHTML = t==='dark' ? moonSVG : sunSVG;   // null-guard : sinon throw → tout le script meurt
+  if (themeIcon) themeIcon.innerHTML = t==='dark' ? sunSVG : moonSVG;   // dark → soleil, clair → lune (l'icône montre l'action possible)
   try { localStorage.setItem(THEME_KEY, t); } catch {}
   // Propage le thème à l'iframe du viewer 3D (pour adapter le style de la pill swatches)
   syncThemeToHeroIframe(t);
