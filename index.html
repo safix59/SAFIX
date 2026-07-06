@@ -558,12 +558,17 @@ header {
   box-shadow:0 18px 44px rgba(0,0,0,.18), 0 4px 12px rgba(0,0,0,.10);
 }
 .cart-badge {
-  position:absolute; top:0; right:0;
+  position:absolute; top:-3px; right:-3px;
   background:var(--accent); color:#fff;
-  font-size:9px; font-weight:800;
-  min-width:17px; height:17px; border-radius:9px;
+  font-size:9.5px; font-weight:800; line-height:1;
+  min-width:18px; height:18px; border-radius:9px;
   display:none; align-items:center; justify-content:center;
-  padding:0 4px; border:2px solid var(--bg);
+  padding:0 4px; overflow:hidden;
+  background-clip:padding-box;
+  /* Anneau de séparation en box-shadow (PAS de border) : évite l'artefact
+     « carré » sur iOS/Safari quand l'élément arrondi est mis à l'échelle
+     par l'animation badgePop. Rendu parfaitement rond et net partout. */
+  box-shadow:0 0 0 2px var(--bg);
   animation:badgePop .35s var(--spring) both;
 }
 .cart-badge.show { display:flex; }
@@ -2940,10 +2945,11 @@ header {
   position:fixed; z-index:850;
   right:20px; bottom:calc(24px + env(safe-area-inset-bottom));
   width:56px; height:56px; border-radius:50%; border:none;
-  background:var(--accent); color:#fff; cursor:pointer;
+  /* Exactement le bleu du site : même dégradé signature que les CTA / badges. */
+  background:linear-gradient(135deg, var(--accent) 0%, #5AC8FA 100%); color:#fff; cursor:pointer;
   display:flex; align-items:center; justify-content:center;
   box-shadow:0 10px 30px rgba(var(--accent-rgb),.45), 0 2px 8px rgba(0,0,0,.2);
-  transition:transform .25s var(--spring), box-shadow .25s;
+  transition:transform .25s var(--spring), box-shadow .25s, bottom .32s var(--ease);
 }
 .chat-fab:hover { transform:translateY(-2px) scale(1.04); }
 .chat-fab:active { transform:scale(.94); }
@@ -2973,7 +2979,7 @@ body.chat-open .chat-fab .chat-fab-close { opacity:1; transform:none; }
 body.chat-open .chat-panel { opacity:1; transform:none; pointer-events:all; }
 .chat-head {
   display:flex; align-items:center; gap:11px; padding:14px 16px; flex-shrink:0;
-  background:linear-gradient(135deg, var(--accent), var(--accent2));
+  background:linear-gradient(135deg, var(--accent) 0%, #5AC8FA 100%);
   color:#fff;
 }
 .chat-head-av { width:38px; height:38px; border-radius:50%; background:rgba(255,255,255,.22); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:16px; }
@@ -2998,7 +3004,7 @@ body.chat-open .chat-panel { opacity:1; transform:none; pointer-events:all; }
 .chat-input { display:flex; gap:8px; padding:12px; border-top:1px solid var(--border); background:var(--bg2); flex-shrink:0; }
 .chat-input input { flex:1; padding:11px 15px; border-radius:22px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-size:14px; font-family:inherit; outline:none; transition:border-color .2s; }
 .chat-input input:focus { border-color:var(--accent); }
-.chat-send { width:42px; height:42px; border-radius:50%; border:none; background:var(--accent); color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:transform .15s, filter .2s; }
+.chat-send { width:42px; height:42px; border-radius:50%; border:none; background:linear-gradient(135deg, var(--accent) 0%, #5AC8FA 100%); color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:transform .15s, filter .2s; }
 .chat-send:hover { filter:brightness(1.1); }
 .chat-send:active { transform:scale(.9); }
 .chat-send:disabled { opacity:.5; pointer-events:none; }
@@ -3006,6 +3012,13 @@ body.chat-open .chat-panel { opacity:1; transform:none; pointer-events:all; }
 @media (max-width:480px) {
   .chat-panel { right:12px; left:12px; width:auto; max-width:none; bottom:calc(84px + env(safe-area-inset-bottom)); height:min(72vh, calc(100vh - 120px)); }
   .chat-fab { right:16px; bottom:calc(20px + env(safe-area-inset-bottom)); }
+}
+/* La bulle chat monte au-dessus de la barre panier flottante quand elle
+   apparaît (mobile/tablette) → jamais de chevauchement. Desktop : la barre
+   est centrée, aucun conflit. */
+@media (max-width:900px) {
+  body.sfx-floatbar .chat-fab { bottom:calc(96px + env(safe-area-inset-bottom)); }
+  body.sfx-floatbar .chat-panel { bottom:calc(160px + env(safe-area-inset-bottom)); }
 }
 
 /* ═══════════════════════════════════════════════════
@@ -13899,6 +13912,14 @@ setInterval(refreshDeliveryAvailability, 60000); // ré-évalue chaque minute (c
       .then(function(){ sending=false; return load(); })
       .catch(function(){ sending=false; });
   });
+  // La bulle chat s'écarte de la barre panier flottante quand elle apparaît.
+  (function(){
+    var fb=document.getElementById('floatBar'); if(!fb) return;
+    var sync=function(){ document.body.classList.toggle('sfx-floatbar', fb.classList.contains('show')); };
+    sync();
+    try { new MutationObserver(sync).observe(fb, { attributes:true, attributeFilter:['class'] }); } catch(e){}
+  })();
+
   // Détection discrète des réponses non lues au chargement (badge), sans polling inutile.
   setTimeout(function(){ load().then(function(){ if(msgs.length){ refreshBadge(); slowPoll(); } }); }, 3500);
 })();
