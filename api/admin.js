@@ -107,12 +107,43 @@ export default async function handler(req, res) {
     } catch (e) { return res.status(200).json({ ready: false, messages: [] }); }
   }
 
+  // ── PRÉSENCE ADMIN (PUBLIC) : le widget de chat sait si l'admin est en messagerie ──
+  if (action === 'presence') {
+    const S = process.env.SUPABASE_URL, K = process.env.SUPABASE_SERVICE_ROLE;
+    if (!S || !K) return res.status(200).json({ online: false });
+    try {
+      const r = await fetch(`${S}/rest/v1/settings?select=updated_at&key=eq.admin_presence`,
+        { headers: { apikey: K, Authorization: `Bearer ${K}` } });
+      if (r.ok) {
+        const rows = await r.json();
+        if (Array.isArray(rows) && rows[0] && rows[0].updated_at) {
+          const age = Date.now() - new Date(rows[0].updated_at).getTime();
+          return res.status(200).json({ online: age < 70000 }); // vu il y a moins de 70 s
+        }
+      }
+    } catch { /* défaut hors ligne */ }
+    return res.status(200).json({ online: false });
+  }
+
   // ── (tout le reste exige l'authentification) ──
   if (!requireAuth(req)) return res.status(401).json({ error: 'unauthorized' });
 
   const SUPA = process.env.SUPABASE_URL, KEY = process.env.SUPABASE_SERVICE_ROLE;
 
   // ── SUPPRIMER UNE COMMANDE (nettoyage des tests, contrôle propriétaire) ──
+  // ── PRÉSENCE ADMIN (battement) : marque l'admin « en ligne » depuis la messagerie ──
+  if (action === 'admin-ping') {
+    if (!SUPA || !KEY) return res.status(200).json({ ok: false });
+    try {
+      const r = await fetch(`${SUPA}/rest/v1/settings?on_conflict=key`, {
+        method: 'POST',
+        headers: { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify({ key: 'admin_presence', value: {}, updated_at: new Date().toISOString() }),
+      });
+      return res.status(200).json({ ok: r.ok });
+    } catch (e) { return res.status(200).json({ ok: false }); }
+  }
+
   // ── MESSAGERIE ADMIN — liste des conversations (groupées par session) ──
   if (action === 'msg-threads') {
     if (!SUPA || !KEY) return res.status(200).json({ ready: false, threads: [], total_unread: 0 });

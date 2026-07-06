@@ -39,6 +39,13 @@ export function Messages() {
     const t = setInterval(() => void loadThreads(), 10000);
     return () => clearInterval(t);
   }, []);
+  // Présence : tant que l'admin est sur cette page, il est marqué « en ligne »
+  // pour les visiteurs (heartbeat). S'arrête dès qu'il quitte la page.
+  useEffect(() => {
+    void api.adminPing();
+    const t = setInterval(() => void api.adminPing(), 25000);
+    return () => clearInterval(t);
+  }, []);
   useEffect(() => {
     if (!active) return;
     void loadThread(active, true);

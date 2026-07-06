@@ -155,7 +155,7 @@ let devAuthed = false;
 let devGeo: GeoConfig = { enabled: true, lat: 51.0344, lng: 2.3768, radiusKm: 30, city: 'Dunkerque' };
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 async function devCall<T>(
-  kind: 'login' | 'logout' | 'data' | 'live' | 'visits' | 'sessions' | 'del' | 'geo' | 'geo-set' | 'msg-threads' | 'msg-thread' | 'msg-reply',
+  kind: 'login' | 'logout' | 'data' | 'live' | 'visits' | 'sessions' | 'del' | 'geo' | 'geo-set' | 'msg-threads' | 'msg-thread' | 'msg-reply' | 'admin-ping',
   pw?: string,
   payload?: unknown,
 ): Promise<Res<T>> {
@@ -170,6 +170,7 @@ async function devCall<T>(
   if (kind === 'msg-threads') return { status: 200, data: m.mockThreads() as unknown as T };
   if (kind === 'msg-thread') return { status: 200, data: { messages: m.mockThread(String((payload as { session: string }).session)) } as unknown as T };
   if (kind === 'msg-reply') { const p = payload as { session: string; body: string }; m.mockReply(p.session, p.body); return { status: 200, data: { ok: true } as unknown as T }; }
+  if (kind === 'admin-ping') return { status: 200, data: { ok: true } as unknown as T };
   if (kind === 'data') return { status: 200, data: m.MOCK_DATA as unknown as T };
   if (kind === 'live') return { status: 200, data: m.MOCK_LIVE as unknown as T };
   if (kind === 'sessions') return { status: 200, data: m.mockSessions() as unknown as T };
@@ -192,6 +193,7 @@ export const api = {
     DEV ? devCall('msg-thread', undefined, { session }) : call(`msg-thread&session=${encodeURIComponent(session)}`),
   msgReply: (session: string, body: string): Promise<Res<{ ok: boolean }>> =>
     DEV ? devCall('msg-reply', undefined, { session, body }) : call('msg-reply', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ session, body }) }),
+  adminPing: (): Promise<Res<{ ok: boolean }>> => (DEV ? devCall('admin-ping') : call('admin-ping', { method: 'POST' })),
   deleteOrder: (id: number): Promise<Res<{ ok: boolean }>> =>
     DEV ? devCall('del') : call(`order-del&id=${encodeURIComponent(id)}`, { method: 'POST' }),
 };

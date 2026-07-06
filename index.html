@@ -2987,13 +2987,13 @@ body.chat-open .chat-panel { opacity:1; transform:none; pointer-events:all; }
 .chat-head-title { font-size:15px; font-weight:700; }
 .chat-head-sub { font-size:11.5px; opacity:.92; display:flex; align-items:center; gap:5px; }
 .chat-dot { width:7px; height:7px; border-radius:50%; background:#30d158; animation:chatDot 2s infinite; }
+.chat-dot.off { background:rgba(255,255,255,.55); animation:none; box-shadow:none; }
 @keyframes chatDot { 0%{box-shadow:0 0 0 0 rgba(48,209,88,.5);} 70%{box-shadow:0 0 0 6px rgba(48,209,88,0);} 100%{box-shadow:0 0 0 0 rgba(48,209,88,0);} }
 .chat-head-close { margin-left:auto; background:rgba(255,255,255,.16); border:none; color:#fff; width:30px; height:30px; border-radius:50%; cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center; transition:background .2s; }
 .chat-head-close:hover { background:rgba(255,255,255,.3); }
 .chat-body { flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:9px; background:var(--bg); }
-.chat-welcome { display:flex; gap:10px; align-items:flex-start; }
-.chat-welcome-av { width:30px; height:30px; border-radius:50%; background:var(--accent); color:#fff; font-weight:800; font-size:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-.chat-welcome p { margin:0; font-size:13px; line-height:1.5; color:var(--text2); background:var(--surface); padding:10px 13px; border-radius:4px 14px 14px 14px; }
+.chat-welcome { margin-bottom:2px; }
+.chat-welcome p { margin:0; font-size:13px; line-height:1.5; color:var(--text2); background:var(--surface); padding:11px 14px; border-radius:14px; }
 .chat-name-field { margin-top:4px; }
 .chat-name-field input { width:100%; padding:9px 13px; border-radius:11px; border:1px solid var(--border); background:var(--bg2); color:var(--text); font-size:13px; font-family:inherit; outline:none; transition:border-color .2s; }
 .chat-name-field input:focus { border-color:var(--accent); }
@@ -13817,17 +13817,14 @@ setInterval(refreshDeliveryAvailability, 60000); // ré-évalue chaque minute (c
     <div class="chat-head-av">S</div>
     <div class="chat-head-info">
       <div class="chat-head-title">SAFIX</div>
-      <div class="chat-head-sub"><span class="chat-dot"></span> <span id="chatStatus">Réponse rapide</span></div>
+      <div class="chat-head-sub"><span class="chat-dot" id="chatDot"></span> <span id="chatStatus">Hors ligne</span></div>
     </div>
     <button class="chat-head-close" id="chatClose" aria-label="Fermer">✕</button>
   </div>
   <div class="chat-body" id="chatBody">
     <div class="chat-welcome" id="chatWelcome">
-      <div class="chat-welcome-av">S</div>
-      <div>
-        <p id="chatWelcomeText">Bonjour 👋 Une question sur votre réparation ? Écrivez-nous, on vous répond au plus vite.</p>
-        <div class="chat-name-field" id="chatNameField"><input type="text" id="chatName" placeholder="Votre prénom (optionnel)" autocomplete="given-name" maxlength="80"></div>
-      </div>
+      <p id="chatWelcomeText">Bonjour 👋 Une question sur votre réparation ? Écrivez-nous, on vous répond au plus vite.</p>
+      <div class="chat-name-field" id="chatNameField"><input type="text" id="chatName" placeholder="Votre prénom (optionnel)" autocomplete="given-name" maxlength="80"></div>
     </div>
   </div>
   <form class="chat-input" id="chatForm" autocomplete="off">
@@ -13846,11 +13843,24 @@ setInterval(refreshDeliveryAvailability, 60000); // ré-évalue chaque minute (c
 
   var EN=(typeof currentLang!=='undefined'&&currentLang==='en');
   var T=EN
-    ? {status:'Fast reply', welcome:"Hi 👋 A question about your repair? Message us — we'll reply shortly.", ph:'Your message…', name:'Your first name (optional)'}
-    : {status:'Réponse rapide', welcome:'Bonjour 👋 Une question sur votre réparation ? Écrivez-nous, on vous répond au plus vite.', ph:'Votre message…', name:'Votre prénom (optionnel)'};
-  var stEl=document.getElementById('chatStatus'), wEl=document.getElementById('chatWelcomeText');
-  if(stEl) stEl.textContent=T.status; if(wEl) wEl.textContent=T.welcome;
+    ? {online:'Online', offline:'Offline', welcome:"Hi 👋 A question about your repair? Message us — we'll reply shortly.", ph:'Your message…', name:'Your first name (optional)'}
+    : {online:'En ligne', offline:'Hors ligne', welcome:'Bonjour 👋 Une question sur votre réparation ? Écrivez-nous, on vous répond au plus vite.', ph:'Votre message…', name:'Votre prénom (optionnel)'};
+  var stEl=document.getElementById('chatStatus'), wEl=document.getElementById('chatWelcomeText'), dotEl=document.getElementById('chatDot');
+  if(wEl) wEl.textContent=T.welcome;
   input.placeholder=T.ph; if(nameInput) nameInput.placeholder=T.name;
+
+  // Présence admin : « En ligne » UNIQUEMENT si l'admin est sur la messagerie
+  // du Dashboard (heartbeat récent), sinon « Hors ligne ».
+  function setPresence(on){ if(stEl) stEl.textContent = on ? T.online : T.offline; if(dotEl) dotEl.classList.toggle('off', !on); }
+  setPresence(false);
+  function checkPresence(){
+    fetch('/api/admin?action=presence',{cache:'no-store'})
+      .then(function(r){ return r.ok?r.json():null; })
+      .then(function(j){ setPresence(!!(j&&j.online)); })
+      .catch(function(){});
+  }
+  checkPresence();
+  setInterval(checkPresence, 30000);
 
   var sid;
   try{ sid=localStorage.getItem('sfx_chat_sid'); if(!sid){ sid='c'+Date.now().toString(36)+Math.random().toString(36).slice(2,8); localStorage.setItem('sfx_chat_sid',sid); } }catch(e){ sid='c'+Date.now().toString(36); }
@@ -13887,7 +13897,7 @@ setInterval(refreshDeliveryAvailability, 60000); // ré-évalue chaque minute (c
   function slowPoll(){ if(slowT) clearInterval(slowT); slowT=setInterval(function(){ if(!open) load(); },30000); }
   function openChat(){
     open=true; document.body.classList.add('chat-open'); panel.setAttribute('aria-hidden','false');
-    render(); load(); setTimeout(function(){ input.focus(); },80);
+    render(); load(); checkPresence(); setTimeout(function(){ input.focus(); },80);
     if(pollT) clearInterval(pollT); pollT=setInterval(load,6000);
   }
   function closeChat(){
