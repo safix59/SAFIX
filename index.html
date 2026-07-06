@@ -2267,6 +2267,52 @@ header {
 .cal-day.cal-day-selected:hover { background:var(--accent2); }
 
 /* Adresse de dépôt iPhone (avant le calendrier) */
+/* ─── RDV : étapes numérotées · dates rapides · récapitulatif en direct ─── */
+.appt-step {
+  display:flex; align-items:center; gap:8px; margin:16px 0 9px;
+  font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--text3);
+}
+.appt-step-n {
+  width:18px; height:18px; border-radius:50%; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  font-size:10px; font-weight:700;
+  background:rgba(var(--accent-rgb),.12); color:var(--accent);
+}
+.appt-quick {
+  display:flex; gap:7px; overflow-x:auto; padding-bottom:3px; margin-bottom:9px;
+  scrollbar-width:none; -webkit-overflow-scrolling:touch;
+}
+.appt-quick::-webkit-scrollbar { display:none; }
+.appt-chip {
+  flex-shrink:0; padding:9px 13px; border-radius:11px;
+  background:var(--bg2); border:1.5px solid var(--border); color:var(--text);
+  font-size:12.5px; font-weight:600; font-family:inherit; cursor:pointer;
+  white-space:nowrap; transition:border-color .2s, background .2s, color .2s;
+  display:flex; align-items:center; gap:6px; line-height:1;
+}
+.appt-chip:hover { border-color:var(--border2); }
+.appt-chip.sel { border-color:var(--accent); background:rgba(var(--accent-rgb),.1); color:var(--accent); }
+.appt-chip-more { color:var(--text2); }
+.appt-chip-more svg { width:15px; height:15px; }
+.appt-recap {
+  display:flex; align-items:center; gap:11px; margin-top:15px;
+  padding:12px 14px; border-radius:13px;
+  background:rgba(var(--accent-rgb),.06); border:1px solid rgba(var(--accent-rgb),.22);
+  animation:apptRecapIn .3s cubic-bezier(.22,1,.36,1);
+}
+@keyframes apptRecapIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+.appt-recap-ic {
+  width:34px; height:34px; border-radius:50%; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  background:var(--accent); color:#fff;
+}
+.appt-recap-ic svg { width:18px; height:18px; }
+.appt-recap-body { flex:1; min-width:0; }
+.appt-recap-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--accent); }
+.appt-recap-text { font-size:13px; font-weight:600; color:var(--text); margin-top:2px; line-height:1.35; }
+.appt-recap-text .sep { color:var(--text3); margin:0 4px; font-weight:400; }
+.appt-recap-text .pending { color:var(--text3); font-weight:500; }
+
 .appointment-address { margin:0 0 14px; }
 .appointment-address-options {
   display:grid; grid-template-columns:1fr 1fr; gap:8px;
@@ -5873,6 +5919,7 @@ header { padding-left: max(20px, env(safe-area-inset-left));
       <p class="cart-section-hint" data-i18n="appointment.hint">Choisissez votre date et créneau pour déposer votre iPhone. Vous recevrez une confirmation par e-mail (ou une proposition d'horaire alternative).</p>
 
       <!-- Adresse de dépôt -->
+      <div class="appt-step"><span class="appt-step-n">1</span><span data-i18n="appointment.step_place">Lieu de dépôt</span></div>
       <div class="appointment-address">
         <div class="appointment-address-options">
           <label class="appointment-address-option">
@@ -5907,6 +5954,8 @@ header { padding-left: max(20px, env(safe-area-inset-left));
       </div>
 
       <!-- Date picker custom (premium, remplace l'input natif moche) -->
+      <div class="appt-step"><span class="appt-step-n">2</span><span data-i18n="appointment.step_date">Date</span></div>
+      <div class="appt-quick" id="appointmentQuickDates" role="group" aria-label="Dates rapides"></div>
       <div class="appointment-date-picker">
         <button type="button" class="appointment-date-trigger" id="appointmentDateTrigger" aria-haspopup="dialog" aria-expanded="false">
           <svg class="appointment-date-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -5940,6 +5989,7 @@ header { padding-left: max(20px, env(safe-area-inset-left));
         <input type="hidden" id="appointmentDate">
       </div>
 
+      <div class="appt-step"><span class="appt-step-n">3</span><span data-i18n="appointment.step_slot">Créneau</span></div>
       <div class="appointment-slots" role="radiogroup" aria-label="Créneau horaire">
         <label class="appointment-slot">
           <input type="radio" name="appointmentSlot" value="morning">
@@ -5985,6 +6035,15 @@ header { padding-left: max(20px, env(safe-area-inset-left));
             <span class="appointment-slot-time">18h – 20h</span>
           </span>
         </label>
+      </div>
+
+      <!-- Récapitulatif en direct du rendez-vous -->
+      <div class="appt-recap" id="appointmentRecap" hidden>
+        <span class="appt-recap-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16" rx="2.5"/><line x1="3" y1="9.5" x2="21" y2="9.5"/><line x1="8" y1="2.5" x2="8" y2="6.5"/><line x1="16" y1="2.5" x2="16" y2="6.5"/></svg></span>
+        <div class="appt-recap-body">
+          <div class="appt-recap-label" data-i18n="appointment.recap_title">Votre rendez-vous</div>
+          <div class="appt-recap-text" id="appointmentRecapText"></div>
+        </div>
       </div>
     </div>
 
@@ -10151,6 +10210,10 @@ const I18N = {
     'appointment.addr_other_hint':'Sur arrangement — nous vous recontactons pour fixer le lieu',
     'appointment.addr_other_note':"Vous serez recontacté(e) par e-mail ou Snap pour convenir d'un point de dépôt adapté à votre situation.",
     'appointment.title':'Rendez-vous',
+    'appointment.step_place':'Lieu de dépôt',
+    'appointment.step_date':'Date',
+    'appointment.step_slot':'Créneau',
+    'appointment.recap_title':'Votre rendez-vous',
     'appointment.badge':'Sous réserve',
     'appointment.choose_date':'Choisir une date',
     'appointment.hint':"Choisissez votre date et créneau pour déposer votre iPhone. Vous recevrez une confirmation par e-mail (ou une proposition d'horaire alternative).",
@@ -10378,6 +10441,10 @@ const I18N = {
     'appointment.addr_other_hint':"On arrangement — we'll get back to you to set the location",
     'appointment.addr_other_note':"You will be contacted by e-mail or Snap to agree on a drop-off location that suits you.",
     'appointment.title':'Appointment',
+    'appointment.step_place':'Drop-off location',
+    'appointment.step_date':'Date',
+    'appointment.step_slot':'Time slot',
+    'appointment.recap_title':'Your appointment',
     'appointment.badge':'Pending confirmation',
     'appointment.choose_date':'Choose a date',
     'appointment.hint':'Choose the date and time slot to drop off your iPhone. You will receive an e-mail confirmation (or an alternative time suggestion).',
@@ -11053,6 +11120,8 @@ const DELIVERY_COSTS = { standard: 6, express: 8 };
     trigger.classList.remove('flash-error');
     renderGrid();
     refreshCheckoutState();
+    syncQuick();
+    updateRecap();
     setTimeout(closeCal, 120);
   }
 
@@ -11096,6 +11165,7 @@ const DELIVERY_COSTS = { standard: 6, express: 8 };
     r.addEventListener('change', () => {
       appointmentSlot = r.value;
       refreshCheckoutState();
+      updateRecap();
     });
   });
 
@@ -11106,8 +11176,68 @@ const DELIVERY_COSTS = { standard: 6, express: 8 };
     r.addEventListener('change', () => {
       appointmentAddress = r.value;
       if (addrNote) addrNote.hidden = (r.value !== 'other');
+      updateRecap();
     });
   });
+
+  // ═══ Dates rapides (réserver en 1 tap) + récapitulatif en direct ═══
+  const EN = () => (typeof currentLang !== 'undefined' && currentLang === 'en');
+  const quickWrap = document.getElementById('appointmentQuickDates');
+  const recap = document.getElementById('appointmentRecap');
+  const recapText = document.getElementById('appointmentRecapText');
+
+  function buildQuick() {
+    if (!quickWrap) return;
+    quickWrap.innerHTML = '';
+    for (let i = 0; i < 5; i++) {
+      const d = new Date(minDate); d.setDate(minDate.getDate() + i);
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'appt-chip';
+      chip.dataset.date = fmt(d);
+      const wd = d.toLocaleDateString(EN() ? 'en-US' : 'fr-FR', { weekday: 'short' }).replace('.', '');
+      chip.textContent = i === 0 ? (EN() ? 'Tomorrow' : 'Demain') : `${wd} ${d.getDate()}`;
+      chip.addEventListener('click', () => selectDate(d));
+      quickWrap.appendChild(chip);
+    }
+    const more = document.createElement('button');
+    more.type = 'button';
+    more.className = 'appt-chip appt-chip-more';
+    more.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16" rx="2.5"/><line x1="3" y1="9.5" x2="21" y2="9.5"/><line x1="8" y1="2.5" x2="8" y2="6.5"/><line x1="16" y1="2.5" x2="16" y2="6.5"/></svg><span>' + (EN() ? 'Other' : 'Autre') + '</span>';
+    more.addEventListener('click', () => openCal());
+    quickWrap.appendChild(more);
+    syncQuick();
+  }
+  function syncQuick() {
+    quickWrap && quickWrap.querySelectorAll('.appt-chip').forEach(c => {
+      c.classList.toggle('sel', !!c.dataset.date && c.dataset.date === appointmentDate);
+    });
+  }
+  function cap(s) { return (typeof s === 'string' && s && s[0] !== '<') ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+  function updateRecap() {
+    if (!recap || !recapText) return;
+    if (!appointmentDate && !appointmentSlot) { recap.hidden = true; return; }
+    recap.hidden = false;
+    const en = EN();
+    let dateLbl;
+    if (appointmentDate) {
+      const [Y, M, D] = appointmentDate.split('-').map(Number);
+      dateLbl = cap(new Date(Y, M - 1, D).toLocaleDateString(en ? 'en-US' : 'fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }));
+    } else {
+      dateLbl = `<span class="pending">${en ? 'date to pick' : 'date à choisir'}</span>`;
+    }
+    const slotMap = en
+      ? { morning: 'Morning · 9am–12pm', afternoon: 'Afternoon · 2–6pm', evening: 'Evening · 6–8pm' }
+      : { morning: 'Matin · 9h–12h', afternoon: 'Après-midi · 14h–18h', evening: 'Soir · 18h–20h' };
+    const slotLbl = appointmentSlot ? slotMap[appointmentSlot] : `<span class="pending">${en ? 'time to pick' : 'créneau à choisir'}</span>`;
+    const placeLbl = appointmentAddress === 'other'
+      ? (en ? 'Address to arrange' : 'Adresse à convenir')
+      : (en ? 'Drop-off · Dunkirk' : 'Dépôt · Dunkerque');
+    recapText.innerHTML = `${dateLbl}<span class="sep">·</span>${slotLbl}<span class="sep">·</span>${placeLbl}`;
+  }
+
+  buildQuick();
+  updateRecap();
 })();
 
 // ═══ Header overflow : range automatiquement les icônes dans un menu (kebab)
