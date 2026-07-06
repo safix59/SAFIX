@@ -5193,9 +5193,9 @@ body.premium-mode .iphone-card:hover .card-shine { opacity:1; }
    interne à un SVG, et AUCUN filter (qui rognerait au bord sur Safari). */
 .hero-3d-swipe {
   position:absolute;
-  /* Descendu sous le centre : évite le chevauchement avec le bloc caméra du
-     modèle 3D → indication toujours dégagée et parfaitement lisible. */
-  top:62%; left:50%;
+  /* Descendu nettement sous le centre : dégagé du bloc caméra du modèle 3D,
+     bien visible dans la partie basse → lisibilité parfaite. */
+  top:74%; left:50%;
   transform:translate(-50%,-50%);
   pointer-events:none;          /* ne bloque JAMAIS le drag du modèle */
   z-index:6;
