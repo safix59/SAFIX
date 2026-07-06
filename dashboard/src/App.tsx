@@ -14,8 +14,9 @@ import { Visitors } from './pages/Visitors';
 import { Catalog } from './pages/Catalog';
 import { History } from './pages/History';
 import { System } from './pages/System';
+import { Settings } from './pages/Settings';
 
-type Section = 'home' | 'orders' | 'finance' | 'visitors' | 'catalog' | 'history' | 'system';
+type Section = 'home' | 'orders' | 'finance' | 'visitors' | 'catalog' | 'history' | 'system' | 'settings';
 
 const NAV: { key: Section; label: string; icon: IconName; sub: string }[] = [
   { key: 'home', label: "Vue d'ensemble", icon: 'overview', sub: "Résumé de l'activité" },
@@ -25,12 +26,13 @@ const NAV: { key: Section; label: string; icon: IconName; sub: string }[] = [
   { key: 'catalog', label: 'Catalogue & prix', icon: 'catalog', sub: 'Stock, couverture et tarifs' },
   { key: 'history', label: 'Historique prix', icon: 'history', sub: 'Mouvements de prix' },
   { key: 'system', label: 'Système & santé', icon: 'system', sub: 'État technique et alertes' },
+  { key: 'settings', label: 'Réglages', icon: 'gear', sub: 'Zone d’intervention et préférences' },
 ];
 const NAV_GROUPS: { title: string; keys: Section[] }[] = [
   { title: 'Pilotage', keys: ['home'] },
   { title: 'Activité', keys: ['orders', 'finance', 'visitors'] },
   { title: 'Catalogue', keys: ['catalog', 'history'] },
-  { title: 'Système', keys: ['system'] },
+  { title: 'Système', keys: ['system', 'settings'] },
 ];
 
 type Theme = 'dark' | 'light';
@@ -235,8 +237,10 @@ function Shell() {
             <Catalog data={data} />
           ) : section === 'history' ? (
             <History data={data} />
-          ) : (
+          ) : section === 'system' ? (
             <System data={data} serverTime={data.serverTime} />
+          ) : (
+            <Settings />
           )}
         </main>
       </div>

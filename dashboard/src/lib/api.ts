@@ -126,6 +126,14 @@ export interface SessionsData {
   sessions: VisitorSession[];
 }
 
+export interface GeoConfig {
+  enabled: boolean;
+  lat: number;
+  lng: number;
+  radiusKm: number;
+  city: string;
+}
+
 export type Res<T> = { status: number; data: T | null };
 
 const BASE = '/api/admin';
@@ -140,14 +148,21 @@ async function call<T>(action: string, init?: RequestInit): Promise<Res<T>> {
 
 // ─── Couche de démonstration (dev uniquement) ───
 let devAuthed = false;
+let devGeo: GeoConfig = { enabled: true, lat: 51.0344, lng: 2.3768, radiusKm: 30, city: 'Dunkerque' };
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
-async function devCall<T>(kind: 'login' | 'logout' | 'data' | 'live' | 'visits' | 'sessions' | 'del', pw?: string): Promise<Res<T>> {
+async function devCall<T>(
+  kind: 'login' | 'logout' | 'data' | 'live' | 'visits' | 'sessions' | 'del' | 'geo' | 'geo-set',
+  pw?: string,
+  payload?: unknown,
+): Promise<Res<T>> {
   const m = await import('./mock');
   await wait(kind === 'data' ? 480 : 220);
   if (kind === 'login') { devAuthed = (pw || '').length > 0; return { status: devAuthed ? 200 : 401, data: { ok: devAuthed } as unknown as T }; }
   if (kind === 'logout') { devAuthed = false; return { status: 200, data: { ok: true } as unknown as T }; }
+  if (kind === 'geo') return { status: 200, data: { ok: true, geo: devGeo } as unknown as T };
   if (kind === 'del') return { status: 200, data: { ok: true } as unknown as T };
   if (!devAuthed) return { status: 401, data: null };
+  if (kind === 'geo-set') { devGeo = { ...devGeo, ...(payload as Partial<GeoConfig>) }; return { status: 200, data: { ok: true, geo: devGeo } as unknown as T }; }
   if (kind === 'data') return { status: 200, data: m.MOCK_DATA as unknown as T };
   if (kind === 'live') return { status: 200, data: m.MOCK_LIVE as unknown as T };
   if (kind === 'sessions') return { status: 200, data: m.mockSessions() as unknown as T };
@@ -162,6 +177,9 @@ export const api = {
   live: (): Promise<Res<LiveData>> => (DEV ? devCall('live') : call('live')),
   visits: (): Promise<Res<VisitsData>> => (DEV ? devCall('visits') : call('visits')),
   sessions: (): Promise<Res<SessionsData>> => (DEV ? devCall('sessions') : call('sessions')),
+  geo: (): Promise<Res<{ ok: boolean; geo: GeoConfig }>> => (DEV ? devCall('geo') : call('geo')),
+  geoSet: (cfg: GeoConfig): Promise<Res<{ ok: boolean; geo: GeoConfig }>> =>
+    DEV ? devCall('geo-set', undefined, cfg) : call('geo-set', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cfg) }),
   deleteOrder: (id: number): Promise<Res<{ ok: boolean }>> =>
     DEV ? devCall('del') : call(`order-del&id=${encodeURIComponent(id)}`, { method: 'POST' }),
 };

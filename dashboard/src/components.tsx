@@ -261,6 +261,33 @@ export function IconButton({
   );
 }
 
+// ─── Interrupteur ───
+export function Switch({
+  checked,
+  onChange,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className={`relative inline-flex h-6 w-[42px] items-center rounded-full transition-colors focus-visible:outline-none focus-visible:shadow-focus ${
+        checked ? 'bg-accent' : 'bg-fg/[0.16]'
+      }`}
+    >
+      <span
+        className={`inline-block h-5 w-5 rounded-full bg-white shadow-soft transition-transform duration-200 ${
+          checked ? 'translate-x-[19px]' : 'translate-x-0.5'
+        }`}
+      />
+    </button>
+  );
+}
+
 // ─── Segmented control ───
 export function Segmented<T extends string>({
   value,

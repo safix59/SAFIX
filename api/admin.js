@@ -50,6 +50,24 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true });
   }
 
+  // ── GÉO-ZONE (PUBLIC, lecture) : le site client lit la config de zone ──
+  // d'intervention (centre + rayon). Aucune donnée sensible → pas d'auth.
+  if (action === 'geo') {
+    const def = { enabled: true, lat: 51.0344, lng: 2.3768, radiusKm: 30, city: 'Dunkerque' };
+    const S = process.env.SUPABASE_URL, K = process.env.SUPABASE_SERVICE_ROLE;
+    if (!S || !K) return res.status(200).json({ ok: true, geo: def });
+    try {
+      const r = await fetch(`${S}/rest/v1/settings?select=value&key=eq.geozone`,
+        { headers: { apikey: K, Authorization: `Bearer ${K}` } });
+      if (r.ok) {
+        const rows = await r.json();
+        if (Array.isArray(rows) && rows[0] && rows[0].value)
+          return res.status(200).json({ ok: true, geo: Object.assign(def, rows[0].value) });
+      }
+    } catch { /* table absente / réseau → défauts */ }
+    return res.status(200).json({ ok: true, geo: def });
+  }
+
   // ── (tout le reste exige l'authentification) ──
   if (!requireAuth(req)) return res.status(401).json({ error: 'unauthorized' });
 
@@ -65,6 +83,28 @@ export default async function handler(req, res) {
       const r = await fetch(`${SUPA}/rest/v1/orders?id=eq.${encodeURIComponent(id)}`,
         { method: 'DELETE', headers: { apikey: KEY, Authorization: `Bearer ${KEY}` } });
       return res.status(r.ok ? 200 : 500).json({ ok: r.ok });
+    } catch (e) { return res.status(500).json({ error: e.message }); }
+  }
+
+  // ── GÉO-ZONE (écriture, réservé admin) : enregistre centre + rayon ──
+  if (action === 'geo-set') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+    if (!SUPA || !KEY) return res.status(500).json({ error: 'supabase_absent' });
+    const b = req.body || {};
+    const value = {
+      enabled: !!b.enabled,
+      lat: Number.isFinite(+b.lat) ? +b.lat : 51.0344,
+      lng: Number.isFinite(+b.lng) ? +b.lng : 2.3768,
+      radiusKm: Math.max(1, Math.min(2000, +b.radiusKm || 30)),
+      city: String(b.city || 'Dunkerque').slice(0, 60),
+    };
+    try {
+      const r = await fetch(`${SUPA}/rest/v1/settings?on_conflict=key`, {
+        method: 'POST',
+        headers: { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify({ key: 'geozone', value, updated_at: new Date().toISOString() }),
+      });
+      return res.status(r.ok ? 200 : 500).json({ ok: r.ok, geo: value });
     } catch (e) { return res.status(500).json({ error: e.message }); }
   }
 

@@ -23,7 +23,7 @@
         { "key": "X-DNS-Prefetch-Control", "value": "off" },
         { "key": "Referrer-Policy",        "value": "strict-origin-when-cross-origin" },
         { "key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains; preload" },
-        { "key": "Permissions-Policy",     "value": "geolocation=(), microphone=(), camera=(), payment=(self \"https://js.stripe.com\" \"https://www.paypal.com\" \"https://pay.google.com\"), interest-cohort=(), browsing-topics=(), accelerometer=(), gyroscope=(), magnetometer=(), usb=(), midi=(), display-capture=(), fullscreen=(self), encrypted-media=()" },
+        { "key": "Permissions-Policy",     "value": "geolocation=(self), microphone=(), camera=(), payment=(self \"https://js.stripe.com\" \"https://www.paypal.com\" \"https://pay.google.com\"), interest-cohort=(), browsing-topics=(), accelerometer=(), gyroscope=(), magnetometer=(), usb=(), midi=(), display-capture=(), fullscreen=(self), encrypted-media=()" },
         { "key": "X-Robots-Tag",           "value": "index, follow, noarchive, nosnippet, noimageindex, max-snippet:120, max-image-preview:none" },
         { "key": "X-Permitted-Cross-Domain-Policies", "value": "none" },
         { "key": "Origin-Agent-Cluster",   "value": "?1" },

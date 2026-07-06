@@ -1857,6 +1857,57 @@ header {
 /* ═══════════════════════════════════════════════════
    LEGAL / ABOUT MODALES — contenu long, défilement interne
 ═══════════════════════════════════════════════════ */
+/* ═══ Vérification de zone / localisation (popups premium) ═══ */
+.geo-modal { max-width:404px; text-align:center; }
+.geo-badge {
+  width:74px; height:74px; margin:2px auto 20px; border-radius:23px;
+  display:flex; align-items:center; justify-content:center; position:relative;
+  background:linear-gradient(150deg, rgba(var(--accent-rgb),.24), rgba(var(--accent-rgb),.05));
+  border:1px solid rgba(var(--accent-rgb),.32); color:var(--accent2);
+}
+.geo-badge svg { width:33px; height:33px; }
+.geo-badge::after {
+  content:''; position:absolute; inset:-7px; border-radius:28px;
+  border:1.5px solid rgba(var(--accent-rgb),.4);
+  animation:geoPulse 2.6s var(--ease) infinite;
+}
+@keyframes geoPulse { 0%{transform:scale(.88);opacity:.75} 80%,100%{transform:scale(1.45);opacity:0} }
+.geo-badge--warn {
+  background:linear-gradient(150deg, rgba(255,159,10,.22), rgba(255,159,10,.04));
+  border-color:rgba(255,159,10,.4); color:#ff9f0a;
+}
+.geo-badge--warn::after { border-color:rgba(255,159,10,.4); }
+.geo-title { font-size:21px; font-weight:750; letter-spacing:-.02em; margin:0 0 9px; color:var(--text); line-height:1.25; }
+.geo-text { font-size:14px; line-height:1.62; color:var(--text2); margin:0 0 16px; }
+.geo-text strong { color:var(--text); font-weight:650; }
+.geo-dist {
+  display:inline-flex; align-items:center; gap:7px; margin:0 auto 15px;
+  padding:7px 13px; border-radius:999px; font-size:12.5px; font-weight:650;
+  background:rgba(255,159,10,.12); color:#ff9f0a; border:1px solid rgba(255,159,10,.28);
+}
+.geo-dist svg { width:14px; height:14px; }
+.geo-reassure {
+  display:flex; align-items:center; gap:8px; justify-content:center; text-align:left;
+  font-size:12px; line-height:1.4; color:var(--text3); margin:0 0 22px;
+}
+.geo-reassure svg { width:15px; height:15px; flex-shrink:0; color:var(--text2); }
+.geo-actions { display:flex; flex-direction:column; gap:10px; }
+.geo-btn {
+  width:100%; padding:14px 18px; border-radius:14px; font-size:15px; font-weight:650;
+  cursor:pointer; border:1px solid transparent; font-family:inherit; color:var(--text);
+  display:flex; align-items:center; justify-content:center; gap:9px;
+  transition:transform .15s var(--ease), filter .18s var(--ease), background .2s var(--ease);
+}
+.geo-btn svg { width:18px; height:18px; }
+.geo-btn--primary { background:var(--accent); color:#fff; box-shadow:0 8px 30px rgba(var(--accent-rgb),.42); }
+.geo-btn--primary:hover { filter:brightness(1.08); transform:translateY(-1px); }
+.geo-btn--primary:active { transform:scale(.98); }
+.geo-btn--ghost { background:var(--surface); color:var(--text2); border-color:var(--border); }
+.geo-btn--ghost:hover { background:var(--surface2); color:var(--text); }
+.geo-btn[disabled] { opacity:.65; pointer-events:none; }
+.geo-spinner { width:18px; height:18px; border:2px solid rgba(255,255,255,.35); border-top-color:#fff; border-radius:50%; animation:geoSpin .7s linear infinite; }
+@keyframes geoSpin { to { transform:rotate(360deg); } }
+
 .gm-overlay--long .gm-modal {
   max-width:560px; max-height:88vh;
   text-align:left;
@@ -6058,6 +6109,51 @@ header { padding-left: max(20px, env(safe-area-inset-left));
   </div>
 </div>
 
+<!-- ═══ LOCALISATION — demande d'autorisation (vérification zone d'intervention) ═══ -->
+<div class="gm-overlay" id="geoConsentOverlay">
+  <div class="gm-modal geo-modal" role="dialog" aria-modal="true" aria-labelledby="geoConsentTitle">
+    <div class="geo-badge" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+      </svg>
+    </div>
+    <h3 class="geo-title" id="geoConsentTitle">Vérifions votre zone</h3>
+    <p class="geo-text">Nos réparations sont réalisées à <strong>Dunkerque et dans les communes environnantes</strong>. Autorisez l'accès à votre position pour vérifier en un instant que nous pouvons vous prendre en charge — c'est immédiat.</p>
+    <div class="geo-reassure">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+      <span>Utilisé uniquement pour cette vérification. Votre position n'est jamais enregistrée.</span>
+    </div>
+    <div class="geo-actions">
+      <button class="geo-btn geo-btn--primary" id="geoConsentAllow" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        <span>Autoriser ma position</span>
+      </button>
+      <button class="geo-btn geo-btn--ghost" id="geoConsentSkip" type="button">Continuer sans</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ LOCALISATION — confirmation si visiteur éloigné de la zone ═══ -->
+<div class="gm-overlay" id="geoConfirmOverlay">
+  <div class="gm-modal geo-modal" role="dialog" aria-modal="true" aria-labelledby="geoConfirmTitle">
+    <div class="geo-badge geo-badge--warn" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/>
+      </svg>
+    </div>
+    <h3 class="geo-title" id="geoConfirmTitle">Êtes-vous certain de vouloir continuer ?</h3>
+    <div class="geo-dist" id="geoConfirmDist" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+      <span></span>
+    </div>
+    <p class="geo-text">Votre position semble <strong>éloignée de notre zone habituelle d'intervention</strong> (Dunkerque et ses alentours). Les réparations sont réalisées uniquement à Dunkerque ou dans les communes avoisinantes. Si vous confirmez, vous devrez <strong>vous déplacer jusqu'à notre point de réparation</strong>.</p>
+    <div class="geo-actions">
+      <button class="geo-btn geo-btn--primary" id="geoConfirmContinue" type="button">Continuer la commande</button>
+      <button class="geo-btn geo-btn--ghost" id="geoConfirmEdit" type="button">Modifier mon adresse</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ PAYPAL DIRECT MODAL — Affiché si PayPal Business configuré ═══ -->
 <!-- Reçoit les boutons PayPal SDK rendus dynamiquement quand l'utilisateur clique
      sur la bulle PayPal jaune. Économise les frais Stripe d'orchestration. -->
@@ -9318,6 +9414,97 @@ function showCheckoutSuccess(d) {
   openModal('checkoutSuccessOverlay');
 }
 
+/* ═══════════════════════════════════════════════════
+   VÉRIFICATION DE ZONE D'INTERVENTION (localisation)
+   Deux popups premium : (A) demande d'autorisation de position,
+   (B) confirmation si le client est loin de Dunkerque.
+   Non bloquant : ne bloque JAMAIS la commande sur un refus ou une erreur.
+   Seuil/centre configurables depuis le Dashboard (/api/admin?action=geo).
+═══════════════════════════════════════════════════ */
+var SAFIX_GEO = { enabled:true, lat:51.0344, lng:2.3768, radiusKm:30, city:'Dunkerque' };
+(function loadGeoCfg(){
+  try {
+    fetch('/api/admin?action=geo', { cache:'no-store' })
+      .then(r => r.ok ? r.json() : null)
+      .then(c => { if (c && c.ok && c.geo) SAFIX_GEO = Object.assign(SAFIX_GEO, c.geo); })
+      .catch(()=>{});
+  } catch(_) {}
+})();
+var _geoDecision = null, _geoPos = null, _geoBtnHTML = '';
+var _geoConsentResolve = null, _geoConfirmResolve = null;
+
+function _haversineKm(aLat, aLng, bLat, bLng){
+  var R = 6371, toR = function(x){ return x*Math.PI/180; };
+  var dLat = toR(bLat-aLat), dLng = toR(bLng-aLng);
+  var s = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(toR(aLat))*Math.cos(toR(bLat))*Math.sin(dLng/2)*Math.sin(dLng/2);
+  return 2*R*Math.asin(Math.min(1, Math.sqrt(s)));
+}
+function _geoGetPosition(){
+  return new Promise(function(resolve){
+    if (!('geolocation' in navigator)) return resolve(null);
+    var done = false;
+    var ok  = function(p){ if(done) return; done=true; resolve({ lat:p.coords.latitude, lng:p.coords.longitude }); };
+    var err = function(){ if(done) return; done=true; resolve(null); };
+    try { navigator.geolocation.getCurrentPosition(ok, err, { enableHighAccuracy:false, timeout:9000, maximumAge:300000 }); }
+    catch(_) { resolve(null); }
+  });
+}
+function _geoResetConsentBtn(){
+  var btn = document.getElementById('geoConsentAllow');
+  if (btn && _geoBtnHTML) { btn.disabled = false; btn.innerHTML = _geoBtnHTML; }
+}
+function _showGeoConsent(){
+  return new Promise(function(resolve){ _geoConsentResolve = resolve; _geoResetConsentBtn(); openModal('geoConsentOverlay'); });
+}
+function _showGeoConfirm(distKm){
+  return new Promise(function(resolve){
+    _geoConfirmResolve = resolve;
+    var chip = document.getElementById('geoConfirmDist');
+    if (chip) { chip.hidden = false; var sp = chip.querySelector('span'); if (sp) sp.textContent = '≈ ' + Math.round(distKm) + ' km de ' + (SAFIX_GEO.city || 'Dunkerque'); }
+    openModal('geoConfirmOverlay');
+  });
+}
+/* Retourne true = poursuivre la commande, false = revenir modifier l'adresse. */
+async function runZoneCheck(){
+  try {
+    if (!SAFIX_GEO || !SAFIX_GEO.enabled) return true;
+    if (_geoDecision === 'proceed') return true;
+    if (!('geolocation' in navigator)) return true;
+    var pos = _geoPos;
+    if (!pos) {
+      var consent = await _showGeoConsent();
+      if (consent !== 'allow') { _geoDecision = 'proceed'; return true; }   // refus/ignoré → non bloquant
+      var btn = document.getElementById('geoConsentAllow');
+      if (btn) { btn.disabled = true; btn.innerHTML = '<span class="geo-spinner"></span><span>Localisation…</span>'; }
+      pos = await _geoGetPosition();
+      closeModal('geoConsentOverlay');
+      _geoResetConsentBtn();
+      if (!pos) { _geoDecision = 'proceed'; return true; }                  // refus navigateur / erreur → non bloquant
+      _geoPos = pos;
+    }
+    var dist = _haversineKm(pos.lat, pos.lng, SAFIX_GEO.lat, SAFIX_GEO.lng);
+    if (dist <= (SAFIX_GEO.radiusKm || 30)) { _geoDecision = 'proceed'; return true; }  // dans la zone
+    var choice = await _showGeoConfirm(dist);
+    closeModal('geoConfirmOverlay');
+    if (choice === 'continue') { _geoDecision = 'proceed'; return true; }
+    return false;                                                            // « Modifier mon adresse »
+  } catch(e) { try { console.warn('[SAFIX] zone check', e); } catch(_){} return true; }  // jamais bloquer sur bug
+}
+(function wireGeo(){
+  var allow = document.getElementById('geoConsentAllow');
+  if (allow) { _geoBtnHTML = allow.innerHTML; allow.addEventListener('click', function(){ var r=_geoConsentResolve; _geoConsentResolve=null; if(r) r('allow'); }); }
+  var skip = document.getElementById('geoConsentSkip');
+  if (skip) skip.addEventListener('click', function(){ closeModal('geoConsentOverlay'); var r=_geoConsentResolve; _geoConsentResolve=null; if(r) r('skip'); });
+  var cont = document.getElementById('geoConfirmContinue');
+  if (cont) cont.addEventListener('click', function(){ var r=_geoConfirmResolve; _geoConfirmResolve=null; if(r) r('continue'); });
+  var edit = document.getElementById('geoConfirmEdit');
+  if (edit) edit.addEventListener('click', function(){ closeModal('geoConfirmOverlay'); var r=_geoConfirmResolve; _geoConfirmResolve=null; if(r) r('edit'); });
+  var ov1 = document.getElementById('geoConsentOverlay');
+  if (ov1) ov1.addEventListener('click', function(e){ if(e.target===ov1){ closeModal('geoConsentOverlay'); var r=_geoConsentResolve; _geoConsentResolve=null; if(r) r('skip'); } });
+  var ov2 = document.getElementById('geoConfirmOverlay');
+  if (ov2) ov2.addEventListener('click', function(e){ if(e.target===ov2){ closeModal('geoConfirmOverlay'); var r=_geoConfirmResolve; _geoConfirmResolve=null; if(r) r('edit'); } });
+})();
+
 document.getElementById('checkoutBtn')?.addEventListener('click', async () => {
   if (!cart.length) return;
   // Anti double-soumission : un 2e tap (mobile/4G lente) créait une 2e
@@ -9332,6 +9519,15 @@ document.getElementById('checkoutBtn')?.addEventListener('click', async () => {
   if (!ok) {
     firstMissing?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     showToast('⚠️', currentLang === 'en' ? 'Please complete the required fields' : 'Veuillez remplir les champs obligatoires');
+    return;
+  }
+
+  // ═══ Vérification intelligente de la zone d'intervention (non bloquante)
+  const zoneOK = await runZoneCheck();
+  if (!zoneOK) {
+    const addrBlock = document.querySelector('.appointment-address');
+    if (addrBlock) addrBlock.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    showToast('📍', currentLang === 'en' ? 'Update your address or drop-off point' : 'Modifiez votre adresse ou votre point de dépôt');
     return;
   }
 

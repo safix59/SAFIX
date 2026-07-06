@@ -2,6 +2,18 @@ import type { Order } from './api';
 
 export const dayKey = (d: Date): string => d.toISOString().slice(0, 10);
 
+// Distance à vol d'oiseau (km) entre deux points — formule de Haversine.
+export function haversineKm(aLat: number, aLng: number, bLat: number, bLng: number): number {
+  const R = 6371;
+  const toR = (x: number) => (x * Math.PI) / 180;
+  const dLat = toR(bLat - aLat);
+  const dLng = toR(bLng - aLng);
+  const s =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toR(aLat)) * Math.cos(toR(bLat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(s)));
+}
+
 export interface DailySeries {
   days: string[];
   revenue: number[]; // cents
