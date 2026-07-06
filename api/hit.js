@@ -23,6 +23,28 @@ function deviceOf(ua) {
 function isBot(ua) {
   return /bot|crawl|spider|slurp|bingpreview|facebookexternalhit|embedly|quora|pinterest\/|preview|monitor|lighthouse|headless|dataprovider|ahrefs|semrush|python-requests|curl\//i.test(ua || '');
 }
+// Navigateur & système depuis l'UA (déductions non identifiantes, comme device).
+function browserOf(ua) {
+  const u = (ua || '').toLowerCase();
+  if (/edg(a|ios)?\//.test(u)) return 'Edge';
+  if (/opr\/|opera/.test(u)) return 'Opera';
+  if (/samsungbrowser/.test(u)) return 'Samsung Internet';
+  if (/firefox|fxios/.test(u)) return 'Firefox';
+  if (/crios|chrome/.test(u)) return 'Chrome';
+  if (/safari/.test(u)) return 'Safari';
+  return 'Autre';
+}
+function osOf(ua) {
+  const u = (ua || '').toLowerCase();
+  if (/iphone|ipad|ipod/.test(u)) return 'iOS';
+  if (/android/.test(u)) return 'Android';
+  if (/cros/.test(u)) return 'ChromeOS';
+  if (/windows nt 10/.test(u)) return 'Windows 10/11';
+  if (/windows/.test(u)) return 'Windows';
+  if (/mac os x/.test(u)) return 'macOS';
+  if (/linux/.test(u)) return 'Linux';
+  return 'Autre';
+}
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -74,6 +96,8 @@ export default async function handler(req, res) {
       ref_host: refHost.slice(0, 80) || null,
       device: deviceOf(ua),
       device_model: deviceModel,
+      browser: browserOf(ua),
+      os: osOf(ua),
       country: (H['x-vercel-ip-country'] || '').slice(0, 4) || null,
       city, region,
       lat: Number.isFinite(lat) ? lat : null,
@@ -92,7 +116,7 @@ export default async function handler(req, res) {
     });
     let r = await post(row).catch(() => null);
     if (!r || !r.ok) {
-      const { device_model, city, region, lat, lng, ...base } = row;
+      const { device_model, city, region, lat, lng, browser, os, ...base } = row;
       await post(base).catch(() => {});
     }
   } catch {}

@@ -50,6 +50,10 @@ export default {
           from: { opacity: '0', transform: 'translateY(14px)' },
           to: { opacity: '1', transform: 'none' },
         },
+        'slide-in-right': {
+          from: { opacity: '0', transform: 'translateX(28px)' },
+          to: { opacity: '1', transform: 'none' },
+        },
         shimmer: { '100%': { transform: 'translateX(100%)' } },
         pulse2: { '0%,100%': { opacity: '1' }, '50%': { opacity: '0.4' } },
         'draw': { from: { 'stroke-dashoffset': '1' }, to: { 'stroke-dashoffset': '0' } },
@@ -62,6 +66,7 @@ export default {
         'fade-in': 'fade-in 0.5s var(--ease) both',
         'scale-in': 'scale-in 0.28s var(--ease) both',
         'slide-up': 'slide-up 0.35s var(--ease) both',
+        'slide-in-right': 'slide-in-right 0.32s var(--ease) both',
         shimmer: 'shimmer 1.5s infinite',
         pulse2: 'pulse2 2s ease-in-out infinite',
         'ring-ping': 'ring-ping 2s ease-out infinite',

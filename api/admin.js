@@ -86,6 +86,67 @@ export default async function handler(req, res) {
     } catch { return res.status(200).json({ ready: false }); }
   }
 
+  // ── SESSIONS (supervision temps réel : une fiche par visiteur + parcours) ──
+  if (action === 'sessions') {
+    if (!SUPA || !KEY) return res.status(200).json({ ready: false, reason: 'supabase_absent' });
+    const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString(); // fenêtre 24 h
+    let rows;
+    try {
+      const r = await fetch(`${SUPA}/rest/v1/visits?select=*&ts=gte.${since}&order=ts.asc&limit=20000`,
+        { headers: { apikey: KEY, Authorization: `Bearer ${KEY}` } });
+      if (r.status === 404) return res.status(200).json({ ready: false, reason: 'table_absente' });
+      if (!r.ok) return res.status(200).json({ ready: false, reason: 'http_' + r.status });
+      rows = await r.json();
+    } catch (e) { return res.status(200).json({ ready: false, reason: e.message }); }
+    if (!Array.isArray(rows)) rows = [];
+    const now = Date.now();
+    const KEEP = ['country', 'region', 'city', 'device', 'device_model', 'source', 'browser', 'os', 'lang', 'ref_host'];
+    const map = new Map();
+    for (const v of rows) {
+      const sid = v.session || ('_' + v.ts);
+      let s = map.get(sid);
+      if (!s) {
+        s = { id: sid, first: v.ts, last: v.ts, hits: 0, pages: new Set(), journey: [], lat: null, lng: null };
+        for (const k of KEEP) s[k] = null;
+        map.set(sid, s);
+      }
+      s.hits++;
+      if (v.ts < s.first) s.first = v.ts;
+      if (v.ts > s.last) s.last = v.ts;
+      for (const k of KEEP) if (v[k] != null && v[k] !== '') s[k] = v[k];
+      if (Number.isFinite(v.lat)) s.lat = v.lat;
+      if (Number.isFinite(v.lng)) s.lng = v.lng;
+      if (v.kind !== 'ping') {
+        const p = v.path || '/';
+        s.pages.add(p);
+        if (s.journey.length < 80) {
+          const prev = s.journey[s.journey.length - 1];
+          if (!prev || prev.path !== p) s.journey.push({ path: p, ts: v.ts });
+        }
+      }
+    }
+    const sessions = [...map.values()].map((s) => {
+      const out = {
+        id: s.id, lat: s.lat, lng: s.lng,
+        first_ts: s.first, last_ts: s.last,
+        duration_s: Math.max(0, Math.round((new Date(s.last).getTime() - new Date(s.first).getTime()) / 1000)),
+        page_count: s.pages.size, hits: s.hits,
+        live: now - new Date(s.last).getTime() < 60000,
+        journey: s.journey,
+      };
+      for (const k of KEEP) out[k] = s[k];
+      return out;
+    });
+    sessions.sort((a, b) => new Date(b.last_ts) - new Date(a.last_ts));
+    return res.status(200).json({
+      ready: true,
+      now: new Date().toISOString(),
+      online: sessions.filter((s) => s.live).length,
+      total: sessions.length,
+      sessions: sessions.slice(0, 600),
+    });
+  }
+
   // ── VISITS ──
   if (action === 'visits') {
     if (!SUPA || !KEY) return res.status(200).json({ ready: false, reason: 'supabase_absent' });

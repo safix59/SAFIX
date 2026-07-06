@@ -94,6 +94,38 @@ export interface VisitsData {
   by_day: { k: string; v: number }[];
 }
 
+export interface JourneyStep { path: string; ts: string; }
+export interface VisitorSession {
+  id: string;
+  lat: number | null;
+  lng: number | null;
+  first_ts: string;
+  last_ts: string;
+  duration_s: number;
+  page_count: number;
+  hits: number;
+  live: boolean;
+  journey: JourneyStep[];
+  country: string | null;
+  region: string | null;
+  city: string | null;
+  device: string | null;
+  device_model: string | null;
+  source: string | null;
+  browser: string | null;
+  os: string | null;
+  lang: string | null;
+  ref_host: string | null;
+}
+export interface SessionsData {
+  ready: boolean;
+  reason?: string;
+  now?: string;
+  online?: number;
+  total?: number;
+  sessions: VisitorSession[];
+}
+
 export type Res<T> = { status: number; data: T | null };
 
 const BASE = '/api/admin';
@@ -109,7 +141,7 @@ async function call<T>(action: string, init?: RequestInit): Promise<Res<T>> {
 // ─── Couche de démonstration (dev uniquement) ───
 let devAuthed = false;
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
-async function devCall<T>(kind: 'login' | 'logout' | 'data' | 'live' | 'visits' | 'del', pw?: string): Promise<Res<T>> {
+async function devCall<T>(kind: 'login' | 'logout' | 'data' | 'live' | 'visits' | 'sessions' | 'del', pw?: string): Promise<Res<T>> {
   const m = await import('./mock');
   await wait(kind === 'data' ? 480 : 220);
   if (kind === 'login') { devAuthed = (pw || '').length > 0; return { status: devAuthed ? 200 : 401, data: { ok: devAuthed } as unknown as T }; }
@@ -118,6 +150,7 @@ async function devCall<T>(kind: 'login' | 'logout' | 'data' | 'live' | 'visits' 
   if (!devAuthed) return { status: 401, data: null };
   if (kind === 'data') return { status: 200, data: m.MOCK_DATA as unknown as T };
   if (kind === 'live') return { status: 200, data: m.MOCK_LIVE as unknown as T };
+  if (kind === 'sessions') return { status: 200, data: m.mockSessions() as unknown as T };
   return { status: 200, data: m.MOCK_VISITS as unknown as T };
 }
 
@@ -128,6 +161,7 @@ export const api = {
   data: (): Promise<Res<DashboardData>> => (DEV ? devCall('data') : call('data')),
   live: (): Promise<Res<LiveData>> => (DEV ? devCall('live') : call('live')),
   visits: (): Promise<Res<VisitsData>> => (DEV ? devCall('visits') : call('visits')),
+  sessions: (): Promise<Res<SessionsData>> => (DEV ? devCall('sessions') : call('sessions')),
   deleteOrder: (id: number): Promise<Res<{ ok: boolean }>> =>
     DEV ? devCall('del') : call(`order-del&id=${encodeURIComponent(id)}`, { method: 'POST' }),
 };

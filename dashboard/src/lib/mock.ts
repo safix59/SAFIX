@@ -8,6 +8,8 @@ import type {
   LiveData,
   Order,
   VisitsData,
+  VisitorSession,
+  SessionsData,
 } from './api';
 
 const MODELS = [
@@ -246,3 +248,89 @@ export const MOCK_VISITS: VisitsData = {
     return { k: d.toISOString().slice(0, 10), v: Math.round(base + rnd() * 14) };
   }),
 };
+
+// ─── Sessions visiteurs internationales (démo) ───
+type Place = { city: string; region: string; country: string; lat: number | null; lng: number | null };
+const PLACES: Place[] = [
+  { city: 'Lille', region: 'Hauts-de-France', country: 'FR', lat: 50.63, lng: 3.06 },
+  { city: 'Roubaix', region: 'Hauts-de-France', country: 'FR', lat: 50.69, lng: 3.18 },
+  { city: 'Paris', region: 'Île-de-France', country: 'FR', lat: 48.85, lng: 2.35 },
+  { city: 'Lyon', region: 'Auvergne-Rhône-Alpes', country: 'FR', lat: 45.76, lng: 4.84 },
+  { city: 'Marseille', region: "Provence-Alpes-Côte d'Azur", country: 'FR', lat: 43.3, lng: 5.37 },
+  { city: 'Bruxelles', region: 'Bruxelles', country: 'BE', lat: 50.85, lng: 4.35 },
+  { city: 'Genève', region: 'Genève', country: 'CH', lat: 46.2, lng: 6.14 },
+  { city: 'Londres', region: 'England', country: 'GB', lat: 51.5, lng: -0.12 },
+  { city: 'Berlin', region: 'Berlin', country: 'DE', lat: 52.52, lng: 13.4 },
+  { city: 'Madrid', region: 'Madrid', country: 'ES', lat: 40.42, lng: -3.7 },
+  { city: 'Milan', region: 'Lombardia', country: 'IT', lat: 45.46, lng: 9.19 },
+  { city: 'Lisbonne', region: 'Lisboa', country: 'PT', lat: 38.72, lng: -9.14 },
+  { city: 'Casablanca', region: 'Casablanca-Settat', country: 'MA', lat: 33.57, lng: -7.59 },
+  { city: 'Alger', region: 'Alger', country: 'DZ', lat: 36.75, lng: 3.06 },
+  { city: 'Tunis', region: 'Tunis', country: 'TN', lat: 36.8, lng: 10.18 },
+  { city: 'Dakar', region: 'Dakar', country: 'SN', lat: 14.69, lng: -17.44 },
+  { city: 'Abidjan', region: 'Abidjan', country: 'CI', lat: 5.35, lng: -4.0 },
+  { city: 'Montréal', region: 'Québec', country: 'CA', lat: 45.5, lng: -73.57 },
+  { city: 'New York', region: 'New York', country: 'US', lat: 40.71, lng: -74.0 },
+  { city: 'Dubaï', region: 'Dubai', country: 'AE', lat: 25.2, lng: 55.27 },
+  { city: 'Tokyo', region: 'Tokyo', country: 'JP', lat: 35.68, lng: 139.76 },
+  { city: 'São Paulo', region: 'São Paulo', country: 'BR', lat: -23.55, lng: -46.63 },
+  { city: 'Sydney', region: 'New South Wales', country: 'AU', lat: -33.87, lng: 151.2 },
+  { city: '', region: 'Bavaria', country: 'DE', lat: null, lng: null },
+  { city: '', region: '', country: 'MA', lat: null, lng: null },
+];
+const PATHS_J = ['/', '/#reparations', '/#tarifs', '/#rdv', '/#contact', '/#avis', '/#garantie'];
+const BROWSER_BY_DEVICE: Record<string, string[]> = {
+  iPhone: ['Safari', 'Chrome'], iPad: ['Safari'], Mac: ['Safari', 'Chrome', 'Firefox'],
+  Android: ['Chrome', 'Samsung Internet', 'Firefox'], Windows: ['Chrome', 'Edge', 'Firefox'],
+};
+const OS_BY_DEVICE: Record<string, string> = { iPhone: 'iOS', iPad: 'iOS', Mac: 'macOS', Android: 'Android', Windows: 'Windows 10/11' };
+
+export function mockSessions(): SessionsData {
+  const now = Date.now();
+  const n = 46;
+  const sessions: VisitorSession[] = [];
+  for (let i = 0; i < n; i++) {
+    const live = i < 8; // les 8 premières = en ligne
+    const lastAgo = live ? between(1, 55) * 1000 : between(2, 1400) * 60000;
+    const last = now - lastAgo;
+    const dur = between(20, 600);
+    const first = last - dur * 1000;
+    const place = pick(PLACES);
+    const device = pick(['iPhone', 'iPhone', 'Android', 'Mac', 'Windows', 'iPad']);
+    const steps = 1 + Math.floor(Math.pow(rnd(), 1.4) * 6);
+    const journey = [];
+    let t = first;
+    let prev = '';
+    for (let s = 0; s < steps; s++) {
+      let p = pick(PATHS_J);
+      if (p === prev) p = '/#tarifs';
+      prev = p;
+      journey.push({ path: p, ts: new Date(t).toISOString() });
+      t += (dur * 1000) / steps;
+    }
+    sessions.push({
+      id: 'sess_' + (2200 - i).toString(36) + Math.floor(rnd() * 900),
+      lat: place.lat,
+      lng: place.lng,
+      first_ts: new Date(first).toISOString(),
+      last_ts: new Date(last).toISOString(),
+      duration_s: dur,
+      page_count: new Set(journey.map((j) => j.path)).size,
+      hits: journey.length + between(0, 8),
+      live,
+      journey,
+      country: place.country,
+      region: place.region || null,
+      city: place.city || null,
+      device,
+      device_model: device === 'Android' ? pick(['SM-S921B', 'SM-A546B', 'Pixel 8']) : null,
+      source: pick(['direct', 'search', 'social', 'qr', 'referral']),
+      browser: pick(BROWSER_BY_DEVICE[device] || ['Chrome']),
+      os: OS_BY_DEVICE[device] || 'Autre',
+      lang: pick(['fr-FR', 'fr', 'en-US', 'ar', 'es-ES']),
+      ref_host: null,
+    });
+  }
+  sessions.sort((a, b) => +new Date(b.last_ts) - +new Date(a.last_ts));
+  return { ready: true, now: new Date().toISOString(), online: sessions.filter((s) => s.live).length, total: sessions.length, sessions };
+}

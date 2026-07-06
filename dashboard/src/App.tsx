@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { api } from './lib/api';
-import type { DashboardData, LiveData, VisitsData } from './lib/api';
+import type { DashboardData, LiveData, VisitsData, SessionsData } from './lib/api';
 import { useHotkey, useLocalStorage, useNow } from './lib/hooks';
 import { Icon, type IconName } from './icons';
 import { Badge, Dot, IconButton, Modal, ToastHost, useToast } from './components';
@@ -49,6 +49,7 @@ function Shell() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [live, setLive] = useState<LiveData | null>(null);
   const [visits, setVisits] = useState<VisitsData | null>(null);
+  const [sessions, setSessions] = useState<SessionsData | null>(null);
   const [section, setSection] = useState<Section>(() => (location.hash.slice(1) as Section) || 'home');
   const [drawer, setDrawer] = useState(false);
   const [palette, setPalette] = useState(false);
@@ -93,16 +94,24 @@ function Shell() {
       if (res.status === 200) setVisits(res.data);
     } catch { /* silencieux */ }
   }
+  async function loadSessions() {
+    try {
+      const res = await api.sessions();
+      if (res.status === 200) setSessions(res.data);
+    } catch { /* silencieux */ }
+  }
 
   useEffect(() => { void loadData(); }, []);
   useEffect(() => {
     if (!authed) return;
     void loadLive();
     void loadVisits();
+    void loadSessions();
     const t1 = window.setInterval(() => void loadLive(), 10000);
     const t2 = window.setInterval(() => void loadData(), 45000);
     const t3 = window.setInterval(() => void loadVisits(), 60000);
-    return () => { window.clearInterval(t1); window.clearInterval(t2); window.clearInterval(t3); };
+    const t4 = window.setInterval(() => void loadSessions(), 15000);
+    return () => { window.clearInterval(t1); window.clearInterval(t2); window.clearInterval(t3); window.clearInterval(t4); };
   }, [authed]);
 
   useHotkey('k', (e) => { e.preventDefault(); setPalette((p) => !p); }, { meta: true });
@@ -221,7 +230,7 @@ function Shell() {
           ) : section === 'finance' ? (
             <Finance data={data} />
           ) : section === 'visitors' ? (
-            <Visitors visits={visits} live={live} />
+            <Visitors visits={visits} live={live} sessions={sessions} />
           ) : section === 'catalog' ? (
             <Catalog data={data} />
           ) : section === 'history' ? (
