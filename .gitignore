@@ -56,6 +56,5 @@ scraper/logs/
 .env.vercel*
 
 # Dashboard React (Phase 0) — build sortant + deps
-/admin-next/
 dashboard/node_modules/
 dashboard/tsconfig.tsbuildinfo
