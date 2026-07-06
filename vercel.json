@@ -5,7 +5,8 @@
   "rewrites": [
     { "source": "/api/:path*", "destination": "/api/:path*" },
     { "source": "/admin", "destination": "/admin/index.html" },
-    { "source": "/iphone-:model", "destination": "/index.html" }
+    { "source": "/admin/:path*", "destination": "/admin/:path*" },
+    { "source": "/(.*)", "destination": "/maintenance.html" }
   ],
   "crons": [
     { "path": "/api/keepalive", "schedule": "0 6 * * *" }
