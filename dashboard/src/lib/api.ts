@@ -1,5 +1,9 @@
 // Client API du dashboard. Même origine que le site → cookie d'auth sécurisé.
 // Toutes les routes passent par la fonction serverless unique /api/admin.
+//
+// En développement (import.meta.env.DEV), on sert des données de démonstration
+// pour concevoir/vérifier l'UI sans backend. En production, comportement 100 %
+// réseau, inchangé.
 
 export interface OrderMeta {
   model?: string;
@@ -90,21 +94,40 @@ export interface VisitsData {
   by_day: { k: string; v: number }[];
 }
 
-const BASE = '/api/admin';
+export type Res<T> = { status: number; data: T | null };
 
-async function call<T>(action: string, init?: RequestInit): Promise<{ status: number; data: T | null }> {
+const BASE = '/api/admin';
+const DEV = import.meta.env.DEV;
+
+async function call<T>(action: string, init?: RequestInit): Promise<Res<T>> {
   const r = await fetch(`${BASE}?action=${action}`, { credentials: 'same-origin', ...init });
   let data: T | null = null;
   try { data = (await r.json()) as T; } catch { data = null; }
   return { status: r.status, data };
 }
 
+// ─── Couche de démonstration (dev uniquement) ───
+let devAuthed = false;
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+async function devCall<T>(kind: 'login' | 'logout' | 'data' | 'live' | 'visits' | 'del', pw?: string): Promise<Res<T>> {
+  const m = await import('./mock');
+  await wait(kind === 'data' ? 480 : 220);
+  if (kind === 'login') { devAuthed = (pw || '').length > 0; return { status: devAuthed ? 200 : 401, data: { ok: devAuthed } as unknown as T }; }
+  if (kind === 'logout') { devAuthed = false; return { status: 200, data: { ok: true } as unknown as T }; }
+  if (kind === 'del') return { status: 200, data: { ok: true } as unknown as T };
+  if (!devAuthed) return { status: 401, data: null };
+  if (kind === 'data') return { status: 200, data: m.MOCK_DATA as unknown as T };
+  if (kind === 'live') return { status: 200, data: m.MOCK_LIVE as unknown as T };
+  return { status: 200, data: m.MOCK_VISITS as unknown as T };
+}
+
 export const api = {
-  login: (password: string) =>
-    call<{ ok: boolean }>('login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password }) }),
-  logout: () => call<{ ok: boolean }>('logout', { method: 'POST' }),
-  data: () => call<DashboardData>('data'),
-  live: () => call<LiveData>('live'),
-  visits: () => call<VisitsData>('visits'),
-  deleteOrder: (id: number) => call<{ ok: boolean }>(`order-del&id=${encodeURIComponent(id)}`, { method: 'POST' }),
+  login: (password: string): Promise<Res<{ ok: boolean }>> =>
+    DEV ? devCall('login', password) : call('login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password }) }),
+  logout: (): Promise<Res<{ ok: boolean }>> => (DEV ? devCall('logout') : call('logout', { method: 'POST' })),
+  data: (): Promise<Res<DashboardData>> => (DEV ? devCall('data') : call('data')),
+  live: (): Promise<Res<LiveData>> => (DEV ? devCall('live') : call('live')),
+  visits: (): Promise<Res<VisitsData>> => (DEV ? devCall('visits') : call('visits')),
+  deleteOrder: (id: number): Promise<Res<{ ok: boolean }>> =>
+    DEV ? devCall('del') : call(`order-del&id=${encodeURIComponent(id)}`, { method: 'POST' }),
 };

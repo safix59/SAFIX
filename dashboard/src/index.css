@@ -2,47 +2,131 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ─── Thèmes (variables sémantiques) ─── */
+/* ════════════════════════════════════════════════════════════════════
+   SAFIX Console — design tokens
+   Deux thèmes, une seule grammaire visuelle. Chaque valeur est pensée
+   pour la hiérarchie, le contraste et la profondeur (Apple / Linear / Vercel).
+   ════════════════════════════════════════════════════════════════════ */
+:root {
+  --accent: #0a84ff;
+  --accent-ink: #ffffff;
+  --ok: #30d158;
+  --warn: #ff9f0a;
+  --danger: #ff453a;
+  --violet: #bf5af2;
+  --pink: #ff375f;
+  --teal: #40c8e0;
+  --radius-card: 16px;
+  --radius-ctl: 11px;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text',
+    'Inter', 'Segoe UI', Roboto, sans-serif;
+}
+
 .dark {
-  --bg: #000;
-  --bg2: #0a0a0a;
-  --panel: #0d0d0f;
-  --panel2: #141416;
+  --bg: #000000;
+  --bg2: #08080a;
+  --panel: #0d0d10;
+  --panel2: #16161a;
+  --panel3: #1c1c22;
   --line: rgba(255, 255, 255, 0.08);
   --line2: rgba(255, 255, 255, 0.14);
-  --fg: #ffffff;
-  --fg2: rgba(235, 235, 245, 0.74);
-  --fg3: rgba(235, 235, 245, 0.5);
+  --fg: #f5f5f7;
+  --fg2: rgba(235, 235, 245, 0.62);
+  --fg3: rgba(235, 235, 245, 0.38);
+  --accent-soft: rgba(10, 132, 255, 0.16);
+  --accent-fg: #4aa8ff;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.36);
+  --shadow-lg: 0 24px 70px -12px rgba(0, 0, 0, 0.7);
+  --glass: rgba(10, 10, 12, 0.72);
+  --grid: rgba(255, 255, 255, 0.045);
   color-scheme: dark;
 }
+
 .light {
-  --bg: #f5f5f7;
+  --bg: #f6f6f8;
   --bg2: #ffffff;
   --panel: #ffffff;
   --panel2: #f4f4f6;
-  --line: rgba(0, 0, 0, 0.09);
-  --line2: rgba(0, 0, 0, 0.16);
-  --fg: #1d1d1f;
-  --fg2: rgba(60, 60, 67, 0.85);
-  --fg3: rgba(60, 60, 67, 0.55);
+  --panel3: #ececed;
+  --line: rgba(0, 0, 0, 0.08);
+  --line2: rgba(0, 0, 0, 0.15);
+  --fg: #16161a;
+  --fg2: rgba(60, 60, 67, 0.72);
+  --fg3: rgba(60, 60, 67, 0.45);
+  --accent-soft: rgba(10, 132, 255, 0.1);
+  --accent-fg: #0a6cff;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 6px 20px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 24px 60px -15px rgba(0, 0, 0, 0.18);
+  --glass: rgba(255, 255, 255, 0.72);
+  --grid: rgba(0, 0, 0, 0.04);
   color-scheme: light;
 }
 
-* { -webkit-tap-highlight-color: transparent; }
-html, body, #root { height: 100%; }
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+html,
+body,
+#root {
+  height: 100%;
+}
 body {
   margin: 0;
   background: var(--bg);
   color: var(--fg);
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font);
+  font-feature-settings: 'cv11', 'ss01';
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
 }
-::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-thumb { background: var(--line2); border-radius: 10px; }
-::-webkit-scrollbar-track { background: transparent; }
+::selection {
+  background: var(--accent-soft);
+  color: var(--fg);
+}
+::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--line2);
+  border-radius: 10px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--fg3);
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
 
-/* Skeleton shimmer */
+/* ─── Utilitaires ─── */
+@layer utilities {
+  .glass {
+    background: var(--glass);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    backdrop-filter: saturate(180%) blur(20px);
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .tnum {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum';
+  }
+  .mask-fade-r {
+    -webkit-mask-image: linear-gradient(to right, #000 82%, transparent);
+    mask-image: linear-gradient(to right, #000 82%, transparent);
+  }
+}
+
+/* ─── Skeleton shimmer ─── */
 .skeleton {
   position: relative;
   overflow: hidden;
@@ -53,6 +137,49 @@ body {
   position: absolute;
   inset: 0;
   transform: translateX(-100%);
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
-  animation: shimmer 1.6s infinite;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.06),
+    transparent
+  );
+  animation: shimmer 1.5s infinite;
+}
+.light .skeleton::after {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(0, 0, 0, 0.04),
+    transparent
+  );
+}
+
+/* ─── Grille de fond subtile ─── */
+.bg-grid {
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+
+/* Stagger d'apparition */
+.stagger > * {
+  opacity: 0;
+  animation: fade-in 0.5s var(--ease) forwards;
+}
+.stagger > *:nth-child(1) { animation-delay: 0.02s; }
+.stagger > *:nth-child(2) { animation-delay: 0.06s; }
+.stagger > *:nth-child(3) { animation-delay: 0.1s; }
+.stagger > *:nth-child(4) { animation-delay: 0.14s; }
+.stagger > *:nth-child(5) { animation-delay: 0.18s; }
+.stagger > *:nth-child(6) { animation-delay: 0.22s; }
+.stagger > *:nth-child(7) { animation-delay: 0.26s; }
+.stagger > *:nth-child(8) { animation-delay: 0.3s; }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  .stagger > * {
+    animation-duration: 0.001ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.001ms !important;
+  }
 }
