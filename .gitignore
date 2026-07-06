@@ -54,3 +54,7 @@ scraper/logs/
 .vercel
 *.env.vercel*
 .env.vercel*
+
+# Dashboard React (Phase 0) — build sortant + deps
+/admin-next/
+dashboard/node_modules/
