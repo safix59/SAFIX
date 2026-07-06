@@ -1410,8 +1410,11 @@ header {
 
 /* Couleurs identitaires sur hover des icônes du topbar */
 #themeBtn svg { transition:stroke .2s, fill .2s, color .2s; }
-[data-theme="dark"]  #themeBtn:hover svg { stroke:var(--accent); fill:var(--accent); }   /* lune : bleu accent */
-[data-theme="light"] #themeBtn:hover svg { stroke:#ffb02e;       fill:#ffb02e; }         /* soleil : orange chaud */
+/* Icône du thème TOUJOURS colorée (pas seulement au survol) : lune BLEUE en
+   mode sombre, soleil JAUNE en mode clair. L'icône représente le mode ACTIF,
+   avec une couleur intuitive et visuellement distincte. */
+[data-theme="dark"]  #themeBtn svg { stroke:#0A84FF; fill:#0A84FF; }   /* lune bleue */
+[data-theme="light"] #themeBtn svg { stroke:#FFC400; fill:#FFC400; }   /* soleil jaune */
 
 /* Lang : carré avec FR/EN — même empreinte que les SVG icônes (≈18×18) */
 .lang-box {
@@ -5013,7 +5016,9 @@ body.premium-mode .iphone-card:hover .card-shine { opacity:1; }
    interne à un SVG, et AUCUN filter (qui rognerait au bord sur Safari). */
 .hero-3d-swipe {
   position:absolute;
-  top:50%; left:50%;
+  /* Descendu sous le centre : évite le chevauchement avec le bloc caméra du
+     modèle 3D → indication toujours dégagée et parfaitement lisible. */
+  top:62%; left:50%;
   transform:translate(-50%,-50%);
   pointer-events:none;          /* ne bloque JAMAIS le drag du modèle */
   z-index:6;
@@ -5058,13 +5063,16 @@ body.premium-mode .iphone-card:hover .card-shine { opacity:1; }
 }
 /* Micro-libellé (respiration synchronisée avec le geste) */
 .hero-3d-drag-label {
-  font-size:11px; font-weight:600; letter-spacing:.09em; text-transform:uppercase;
-  color:rgba(255,255,255,.6); white-space:nowrap; user-select:none;
+  font-size:11.5px; font-weight:600; letter-spacing:.09em; text-transform:uppercase;
+  color:rgba(255,255,255,.82); white-space:nowrap; user-select:none;
+  /* Halo de lisibilité (text-shadow, PAS de filter → iOS-safe) : le texte reste
+     net par-dessus n'importe quelle partie du modèle 3D. */
+  text-shadow:0 1px 10px rgba(0,0,0,.6), 0 0 3px rgba(0,0,0,.45);
 }
 .hero-3d-swipe.show .hero-3d-drag-label { animation:heroDragLabel 4.4s ease-in-out .35s infinite both; }
-@keyframes heroDragLabel { 0%,100% { opacity:.34; } 40% { opacity:.7; } }
+@keyframes heroDragLabel { 0%,100% { opacity:.6; } 40% { opacity:.95; } }
 [data-theme="light"] .hero-3d-drag-track { background:linear-gradient(90deg, transparent, rgba(0,0,0,.2) 22%, rgba(0,0,0,.2) 78%, transparent); }
-[data-theme="light"] .hero-3d-drag-label { color:rgba(60,60,67,.68); }
+[data-theme="light"] .hero-3d-drag-label { color:rgba(30,30,35,.85); text-shadow:0 1px 10px rgba(255,255,255,.9), 0 0 3px rgba(255,255,255,.7); }
 @media (max-width:899px) {
   .hero-3d-drag { width:84px; }
   .hero-3d-drag-dot { width:13px; height:13px; margin:-6.5px 0 0 -6.5px; }
@@ -5563,7 +5571,7 @@ header { padding-left: max(20px, env(safe-area-inset-left));
       <span class="lang-box" id="langLabel">EN</span>
     </button>
     <button class="icon-btn" id="themeBtn" title="Thème" data-i18n-title="topbar.theme">
-      <svg id="themeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+      <svg id="themeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
     </button>
     <span class="nav-sep" aria-hidden="true"></span>
     <!-- Groupe 3 : Comparer + panier -->
@@ -7217,7 +7225,7 @@ const sunSVG  = `<circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.
 
 function applyTheme(t) {
   document.documentElement.setAttribute('data-theme', t);
-  if (themeIcon) themeIcon.innerHTML = t==='dark' ? sunSVG : moonSVG;   // dark → soleil, clair → lune (l'icône montre l'action possible)
+  if (themeIcon) themeIcon.innerHTML = t==='dark' ? moonSVG : sunSVG;   // dark → lune (bleue), clair → soleil (jaune) : l'icône = le mode actuel
   try { localStorage.setItem(THEME_KEY, t); } catch {}
   // Propage le thème à l'iframe du viewer 3D (pour adapter le style de la pill swatches)
   syncThemeToHeroIframe(t);
