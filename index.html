@@ -5004,78 +5004,74 @@ body.premium-mode .iphone-card:hover .card-shine { opacity:1; }
 }
 [data-theme="light"] .hero-3d-ground { display:block; }
 
-/* ─── Invite « swipe » : main line-art minimaliste CENTRÉE sur le 3D ──
-   Apparition pilotée par JS (classe .show) UNIQUEMENT à la fin de
-   l'intro Apple (message 'intro-done' du viewer) — plus de timer
-   aveugle. Un seul geste soigné ~3 s : repos → glisse vers la droite
-   → revient à sa position initiale. */
+/* ─── Invite « glisser pour pivoter » — indicateur premium minimaliste ──
+   Remplace l'ancienne main (illustration) par un point de contact lumineux
+   abstrait qui trace le geste, + un micro-libellé discret. Piloté par JS
+   (.show à la fin de l'intro Apple, .gone dès la 1re interaction).
+   iOS-safe : on n'anime QUE des éléments HTML (le point), jamais un <g>
+   interne à un SVG, et AUCUN filter (qui rognerait au bord sur Safari). */
 .hero-3d-swipe {
   position:absolute;
   top:50%; left:50%;
   transform:translate(-50%,-50%);
   pointer-events:none;          /* ne bloque JAMAIS le drag du modèle */
   z-index:6;
-  color:#fff;                   /* main blanche, opacité gérée plus bas */
   opacity:0;                    /* invisible tant que .show absent */
-  /* PAS de filter ici (ni nulle part dans .hero-3d-swipe) : sur
-     iOS/Safari un filtre CSS sur ces éléments crée une région qui
-     rogne la main quand elle glisse (= la « délimitation »). */
+  display:flex; flex-direction:column; align-items:center; gap:15px;
 }
-.hero-3d-swipe.show {
-  animation:swipeAppear .7s cubic-bezier(.4,0,.2,1) forwards;
+.hero-3d-swipe.show { animation:swipeAppear .85s cubic-bezier(.4,0,.2,1) forwards; }
+@keyframes swipeAppear {
+  from { opacity:0; transform:translate(-50%,-45%); }
+  to   { opacity:1; transform:translate(-50%,-50%); }
 }
-@keyframes swipeAppear { from { opacity:0; } to { opacity:.88; } }
 .hero-3d-swipe.gone {
   opacity:0 !important;
   animation:none;
-  transition:opacity .5s ease;
+  transition:opacity .55s ease;
 }
-.hero-3d-swipe svg {
-  width:50px; height:auto; display:block;   /* encore un peu plus petit */
-  transform:translateX(-8px) scale(1);   /* position initiale (repos) */
-  transform-origin:center;      /* l'« appui » (scale) se fait sur place */
-  will-change:transform;
-  /* C'EST LE <svg> LUI-MÊME qui glisse (boîte HTML dans un conteneur
-     overflow:visible + sans filtre). Le bug iOS venait d'animer un
-     <g> DANS le SVG : Safari ignore overflow:visible sur un SVG
-     inline et rogne au bord du viewBox. En déplaçant l'élément <svg>
-     entier, plus aucun rognage possible, sur aucun navigateur.
-     overflow:visible gardé par sécurité (Chrome). AUCUN filter. */
-  overflow:visible;
+/* Repère (ligne ultra fine) + point de contact lumineux */
+.hero-3d-drag { position:relative; width:98px; height:16px; }
+.hero-3d-drag-track {
+  position:absolute; top:50%; left:0; right:0; height:1.5px;
+  transform:translateY(-50%); border-radius:2px;
+  background:linear-gradient(90deg, transparent, rgba(255,255,255,.26) 22%, rgba(255,255,255,.26) 78%, transparent);
 }
-.hero-3d-swipe.show svg {
-  /* Geste NATUREL inspiré des coach-marks premium : appui du doigt
-     (scale) → léger élan → flick rapide qui décélère → petit
-     dépassement qui se pose (follow-through) → relâche → retour
-     plus souple. ×2, puis vraie pause. Easing PAR SEGMENT. */
-  animation:swipeGesture 7s linear .25s infinite both;
+.hero-3d-drag-dot {
+  position:absolute; top:50%; left:50%;
+  width:15px; height:15px; margin:-7.5px 0 0 -7.5px; border-radius:50%;
+  background:var(--accent);
+  /* Halo via box-shadow (PAS filter → aucun rognage iOS). SEUL le point bouge. */
+  box-shadow:0 0 0 5px rgba(var(--accent-rgb),.13), 0 0 20px 3px rgba(var(--accent-rgb),.55);
+  will-change:transform, opacity;
 }
-@keyframes swipeGesture {
-  /* ───── geste 1 : contact → flick → dépassement → relâche → retour ───── */
-  0%   { transform:translateX(-8px)  scale(1);  animation-timing-function:cubic-bezier(.33,0,.25,1); }   /* repos */
-  2%   { transform:translateX(-9px)  scale(.9); animation-timing-function:ease-out; }                    /* le doigt se pose (appui) */
-  4%   { transform:translateX(-11px) scale(.9); animation-timing-function:cubic-bezier(.16,.84,.3,1); }  /* léger recul = élan (anticipation) */
-  9%   { transform:translateX(18px)  scale(.9); animation-timing-function:cubic-bezier(.38,0,.2,1); }    /* flick : part vite puis décélère */
-  11%  { transform:translateX(14px)  scale(.9); animation-timing-function:linear; }                      /* dépassement → se pose (follow-through) */
-  14%  { transform:translateX(14px)  scale(.9); animation-timing-function:ease; }                        /* petit temps, doigt encore posé */
-  16%  { transform:translateX(14px)  scale(1);  animation-timing-function:cubic-bezier(.4,0,.25,1); }    /* le doigt se relève */
-  22%  { transform:translateX(-8px)  scale(1);  animation-timing-function:linear; }                      /* retour souple à l'initial */
-  25%  { transform:translateX(-8px)  scale(1);  animation-timing-function:cubic-bezier(.33,0,.25,1); }   /* respiration */
-  /* ───── geste 2 (identique) ───── */
-  27%  { transform:translateX(-9px)  scale(.9); animation-timing-function:ease-out; }
-  29%  { transform:translateX(-11px) scale(.9); animation-timing-function:cubic-bezier(.16,.84,.3,1); }
-  34%  { transform:translateX(18px)  scale(.9); animation-timing-function:cubic-bezier(.38,0,.2,1); }
-  36%  { transform:translateX(14px)  scale(.9); animation-timing-function:linear; }
-  39%  { transform:translateX(14px)  scale(.9); animation-timing-function:ease; }
-  41%  { transform:translateX(14px)  scale(1);  animation-timing-function:cubic-bezier(.4,0,.25,1); }
-  47%  { transform:translateX(-8px)  scale(1); }                                                         /* revenu */
-  /* ───── vraie pause (~3,8 s) avant de recommencer ───── */
-  50%  { transform:translateX(-8px)  scale(1); }
-  100% { transform:translateX(-8px)  scale(1); }
+.hero-3d-swipe.show .hero-3d-drag-dot {
+  animation:heroDrag 4.4s cubic-bezier(.45,0,.18,1) .35s infinite both;
 }
-@media (max-width:899px) { .hero-3d-swipe svg { width:38px; } }
+@keyframes heroDrag {
+  0%   { transform:translateX(-36px) scale(.55); opacity:0; }           /* rien */
+  9%   { transform:translateX(-36px) scale(1);   opacity:1; }           /* le doigt se pose (à gauche) */
+  48%  { transform:translateX(36px) translateY(-3px) scale(1); opacity:1; }  /* glisse en arc doux vers la droite */
+  57%  { transform:translateX(36px) translateY(0)  scale(1); opacity:1; }    /* se pose */
+  64%  { transform:translateX(36px) scale(.55); opacity:0; }            /* relâche + fondu */
+  100% { transform:translateX(-36px) scale(.55); opacity:0; }           /* réarme à gauche (invisible) → pause */
+}
+/* Micro-libellé (respiration synchronisée avec le geste) */
+.hero-3d-drag-label {
+  font-size:11px; font-weight:600; letter-spacing:.09em; text-transform:uppercase;
+  color:rgba(255,255,255,.6); white-space:nowrap; user-select:none;
+}
+.hero-3d-swipe.show .hero-3d-drag-label { animation:heroDragLabel 4.4s ease-in-out .35s infinite both; }
+@keyframes heroDragLabel { 0%,100% { opacity:.34; } 40% { opacity:.7; } }
+[data-theme="light"] .hero-3d-drag-track { background:linear-gradient(90deg, transparent, rgba(0,0,0,.2) 22%, rgba(0,0,0,.2) 78%, transparent); }
+[data-theme="light"] .hero-3d-drag-label { color:rgba(60,60,67,.68); }
+@media (max-width:899px) {
+  .hero-3d-drag { width:84px; }
+  .hero-3d-drag-dot { width:13px; height:13px; margin:-6.5px 0 0 -6.5px; }
+  .hero-3d-drag-label { font-size:10px; }
+}
 @media (prefers-reduced-motion: reduce) {
-  .hero-3d-swipe.show svg { animation:none; }
+  .hero-3d-swipe.show .hero-3d-drag-dot { animation:none; opacity:1; transform:translateX(0) scale(1); }
+  .hero-3d-swipe.show .hero-3d-drag-label { animation:none; opacity:.6; }
 }
 @keyframes hintFadeIn {
   to { opacity:.85; }
@@ -5637,16 +5633,16 @@ header { padding-left: max(20px, env(safe-area-inset-left));
              l'utilisateur touche le modèle. Non interactive (laisse
              passer le drag du 3D). -->
         <div class="hero-3d-swipe" id="hero3dSwipe" aria-hidden="true">
-          <!-- Main minimaliste façon Apple (silhouette lisse, sobre,
-               semi-transparente). Le geste horizontal seul indique le
-               swipe — pas de flèches (épuré, comme Apple). -->
-          <!-- Icône « hand-swipe-right » de Phosphor Icons (MIT).
-               C'est le <svg> LUI-MÊME qui est animé (plus de <g>
-               interne) → iOS ne peut plus le rogner au bord du
-               viewBox. Le chemin remplit son viewBox 0 0 256 256. -->
-          <svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">
-            <path d="M216,140v36c0,25.59-8.49,42.85-8.85,43.58A8,8,0,0,1,200,224a7.9,7.9,0,0,1-3.57-.85,8,8,0,0,1-3.58-10.73c.06-.12,7.16-14.81,7.16-36.42V140a12,12,0,0,0-24,0v4a8,8,0,0,1-16,0V124a12,12,0,0,0-24,0v12a8,8,0,0,1-16,0V68a12,12,0,0,0-24,0V176a8,8,0,0,1-14.79,4.23l-18.68-30-.14-.23A12,12,0,1,0,41.6,162L70.89,212A8,8,0,1,1,57.08,220l-29.32-50a28,28,0,0,1,48.41-28.17L80,148V68a28,28,0,0,1,56,0V98.7a28,28,0,0,1,38.65,16.69A28,28,0,0,1,216,140Zm37.66-89.66-32-32a8,8,0,0,0-11.31,11.32L228.68,48H176a8,8,0,0,0,0,16h52.69L210.34,82.34a8,8,0,0,0,11.31,11.32l32-32A8,8,0,0,0,253.66,50.34Z"/>
-          </svg>
+          <!-- Indicateur premium « glisser pour pivoter » : un point de
+               contact lumineux abstrait trace le geste le long d'un fin
+               repère, + un micro-libellé discret. iOS-safe : SEUL le point
+               (élément HTML) est animé — jamais un <g> interne à un SVG —
+               et AUCUN filter (qui rognerait au bord sur Safari). -->
+          <div class="hero-3d-drag" aria-hidden="true">
+            <span class="hero-3d-drag-track"></span>
+            <span class="hero-3d-drag-dot"></span>
+          </div>
+          <span class="hero-3d-drag-label" id="hero3dSwipeLabel">Glissez pour pivoter</span>
         </div>
       </div>
       <!-- Loader 3D : enfant de .hero-3d-col, PAS de #heroIphoneStage
@@ -7273,6 +7269,8 @@ function syncThemeToHeroIframe(t) {
   function showSwipe() {
     if (swipeShown || swipeKilled || !swipe) return;
     swipeShown = true;
+    var lbl = document.getElementById('hero3dSwipeLabel');
+    if (lbl) lbl.textContent = (typeof currentLang !== 'undefined' && currentLang === 'en') ? 'Drag to rotate' : 'Glissez pour pivoter';
     swipe.classList.add('show');
   }
   function hideSwipe() {
