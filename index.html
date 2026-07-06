@@ -1569,14 +1569,40 @@ header {
 /* ═══════════════════════════════════════════════════
    DELIVERY OPTIONS (cart) — désormais dans .cart-section
 ═══════════════════════════════════════════════════ */
+/* En-tête + sous-titre explicatif */
+.deliv-head { margin-bottom:13px; }
+.deliv-sub { font-size:11.5px; color:var(--text2); line-height:1.5; margin:4px 0 0; }
+
+/* Parcours en 4 étapes (comment ça marche) */
+.deliv-steps {
+  list-style:none; margin:0 0 15px; padding:0;
+  display:flex; gap:0;
+}
+.deliv-step {
+  flex:1; display:flex; flex-direction:column; align-items:center; gap:6px;
+  position:relative; text-align:center;
+}
+.deliv-step:not(:last-child)::after {
+  content:''; position:absolute; top:11px; left:50%; width:100%; height:2px;
+  background:var(--border); z-index:0;
+}
+.deliv-step-n {
+  position:relative; z-index:1;
+  width:23px; height:23px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-size:11px; font-weight:700;
+  background:var(--bg2); color:var(--text2); border:1.5px solid var(--border2);
+}
+.deliv-step-t { font-size:9.5px; font-weight:600; color:var(--text2); line-height:1.25; max-width:74px; }
+
+/* Options de vitesse (JS : .delivery-option[data-delivery], .selected, .flash-error) */
 .delivery-option {
-  display:flex; align-items:center; gap:12px;
-  padding:12px; border-radius:14px;
+  display:flex; align-items:flex-start; gap:12px;
+  padding:13px 14px; border-radius:14px;
   background:var(--bg2); border:1.5px solid var(--border);
-  cursor:pointer; transition:all .2s;
+  cursor:pointer; transition:border-color .2s, background .2s, box-shadow .2s;
   margin-bottom:8px; position:relative;
 }
-.delivery-option:last-child { margin-bottom:0; }
 .delivery-option:hover { border-color:var(--border2); }
 .delivery-option.selected {
   border-color:var(--accent);
@@ -1585,8 +1611,8 @@ header {
 }
 .delivery-radio {
   width:20px; height:20px; border-radius:50%;
-  border:2px solid var(--border2); flex-shrink:0;
-  position:relative; transition:all .2s;
+  border:2px solid var(--border2); flex-shrink:0; margin-top:1px;
+  position:relative; transition:border-color .2s;
 }
 .delivery-option.selected .delivery-radio { border-color:var(--accent); }
 .delivery-option.selected .delivery-radio::after {
@@ -1594,9 +1620,25 @@ header {
   background:var(--accent);
 }
 .delivery-info { flex:1; min-width:0; }
-.delivery-name { font-size:14px; font-weight:700; margin-bottom:2px; }
-.delivery-desc { font-size:11.5px; color:var(--text2); line-height:1.4; }
-.delivery-price { font-size:15px; font-weight:800; color:var(--accent); white-space:nowrap; }
+.deliv-opt-top { display:flex; align-items:center; gap:8px; }
+.deliv-opt-ic { width:18px; height:18px; color:var(--text2); flex-shrink:0; transition:color .2s; }
+.delivery-option.selected .deliv-opt-ic { color:var(--accent); }
+.delivery-name { font-size:14px; font-weight:700; }
+.deliv-badge {
+  font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.04em;
+  color:var(--accent); background:rgba(var(--accent-rgb),.12);
+  padding:2px 7px; border-radius:100px;
+}
+.delivery-price { margin-left:auto; font-size:15px; font-weight:800; color:var(--accent); white-space:nowrap; }
+.delivery-desc { font-size:11.5px; color:var(--text2); line-height:1.45; margin-top:3px; }
+
+/* Note zone d'intervention / conditions */
+.deliv-note {
+  font-size:11px; color:var(--text3); line-height:1.5;
+  margin:13px 0 0; padding-top:11px; border-top:1px solid var(--border);
+  display:flex; align-items:flex-start; gap:7px;
+}
+.deliv-note svg { width:14px; height:14px; flex-shrink:0; margin-top:1px; color:var(--text2); }
 
 /* ═══════════════════════════════════════════════════
    PAYMENT (Stripe Express Checkout + carte)
@@ -5777,27 +5819,49 @@ header { padding-left: max(20px, env(safe-area-inset-left));
 
     <!-- ═══ LIVRAISON ═══ -->
     <div class="cart-section" id="deliveryBlock" style="display:none">
-      <div class="cart-section-title" data-i18n="delivery.title">Livraison</div>
+      <div class="deliv-head">
+        <div class="cart-section-title" data-i18n="delivery.title">Livraison de la pièce</div>
+        <p class="deliv-sub" data-i18n="delivery.sub">La vitesse d'acheminement de votre pièce fixe la date de votre réparation.</p>
+      </div>
+
+      <!-- Comment ça marche : parcours en 4 étapes -->
+      <ol class="deliv-steps" aria-label="Étapes de la réparation">
+        <li class="deliv-step"><span class="deliv-step-n">1</span><span class="deliv-step-t" data-i18n="delivery.step1">Commande &amp; paiement</span></li>
+        <li class="deliv-step"><span class="deliv-step-n">2</span><span class="deliv-step-t" data-i18n="delivery.step2">Pièce commandée</span></li>
+        <li class="deliv-step"><span class="deliv-step-n">3</span><span class="deliv-step-t" data-i18n="delivery.step3">Dépôt de l'iPhone</span></li>
+        <li class="deliv-step"><span class="deliv-step-n">4</span><span class="deliv-step-t" data-i18n="delivery.step4">Réparé &amp; rendu</span></li>
+      </ol>
+
+      <!-- Choix de la vitesse d'acheminement -->
       <div class="delivery-option" data-delivery="standard">
         <div class="delivery-radio"></div>
         <div class="delivery-info">
-          <div class="delivery-name"><span data-i18n="delivery.std_name">Livraison Standard</span></div>
-          <div class="delivery-desc" data-i18n="delivery.std_desc">Sous 48h · passez commande avant 16h30<br>Lun – Mar – Mer</div>
+          <div class="deliv-opt-top">
+            <svg class="deliv-opt-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 7.5h9v8h-9z"/><path d="M11.5 10.5h4l3 3v2h-7z"/><circle cx="6" cy="17" r="1.7"/><circle cx="16.5" cy="17" r="1.7"/></svg>
+            <span class="delivery-name"><span data-i18n="delivery.std_name">Standard</span></span>
+            <span class="delivery-price">6 €</span>
+          </div>
+          <div class="delivery-desc" data-i18n="delivery.std_desc">Pièce sous 48 h · commande avant 16h30 · Lun – Mar – Mer</div>
           <div class="delivery-eta" data-eta="standard"></div>
           <div class="repair-eta" data-repair-eta="standard"></div>
         </div>
-        <div class="delivery-price">6 €</div>
       </div>
       <div class="delivery-option" data-delivery="express">
         <div class="delivery-radio"></div>
         <div class="delivery-info">
-          <div class="delivery-name"><span data-i18n="delivery.exp_name">Livraison Express</span></div>
-          <div class="delivery-desc" data-i18n="delivery.exp_desc">J+1 à 15h · passez commande avant 17h30<br>Lun – Mar – Mer – Jeu – Ven</div>
+          <div class="deliv-opt-top">
+            <svg class="deliv-opt-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2.5 5 13.5h5l-1 8 9-11.5h-5l1-7.5z"/></svg>
+            <span class="delivery-name"><span data-i18n="delivery.exp_name">Express</span></span>
+            <span class="deliv-badge" data-i18n="delivery.fastest">Le plus rapide</span>
+            <span class="delivery-price">8 €</span>
+          </div>
+          <div class="delivery-desc" data-i18n="delivery.exp_desc">Pièce dès J+1 (15h) · commande avant 17h30 · Lun → Ven</div>
           <div class="delivery-eta" data-eta="express"></div>
           <div class="repair-eta" data-repair-eta="express"></div>
         </div>
-        <div class="delivery-price">8 €</div>
       </div>
+
+      <p class="deliv-note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 11-8 11s-8-5-8-11a8 8 0 1 1 16 0z"/><circle cx="12" cy="10" r="2.5"/></svg><span data-i18n="delivery.note">Réparation à Dunkerque et ses alentours · pièces neuves commandées auprès du fournisseur.</span></p>
     </div>
 
     <!-- ═══ RDV — Réservation d'un créneau pour apporter l'iPhone ═══ -->
@@ -10100,11 +10164,18 @@ const I18N = {
     'costs.repair':"Service de réparation (main-d'œuvre)",
     'costs.fees':"Frais Stripe carte (1,5 % + 0,25 €)",
     'costs.note':"Vous me mandatez pour acheter la pièce pour votre compte. Le prix pièce inclut la TVA 20 % facturée par le fournisseur. Aucune marge cachée. <strong>Frais Stripe</strong> : appliqués UNIQUEMENT au paiement par carte/Apple Pay/Google Pay (1,5 % + 0,25 €). <strong>PayPal</strong> : facturé directement par PayPal selon votre compte. Le total affiché est sans ces frais — ils apparaissent à la page de paiement finale.",
-    'delivery.title':'Livraison',
-    'delivery.std_name':'Livraison Standard',
-    'delivery.std_desc':'Sous 48h · passez commande avant 16h30<br>Lun – Mar – Mer',
-    'delivery.exp_name':'Livraison Express',
-    'delivery.exp_desc':'J+1 à 15h · passez commande avant 17h30<br>Lun – Mar – Mer – Jeu – Ven',
+    'delivery.title':'Livraison de la pièce',
+    'delivery.sub':"La vitesse d'acheminement de votre pièce fixe la date de votre réparation.",
+    'delivery.step1':'Commande & paiement',
+    'delivery.step2':'Pièce commandée',
+    'delivery.step3':"Dépôt de l'iPhone",
+    'delivery.step4':'Réparé & rendu',
+    'delivery.std_name':'Standard',
+    'delivery.std_desc':'Pièce sous 48 h · commande avant 16h30 · Lun – Mar – Mer',
+    'delivery.exp_name':'Express',
+    'delivery.exp_desc':'Pièce dès J+1 (15h) · commande avant 17h30 · Lun → Ven',
+    'delivery.fastest':'Le plus rapide',
+    'delivery.note':'Réparation à Dunkerque et ses alentours · pièces neuves commandées auprès du fournisseur.',
     'contact.title':'Vos coordonnées',
     'contact.email_label':'Email','contact.email_ph':'vous@exemple.com',
     'contact.phone_label':'Téléphone','contact.phone_ph':'06 12 34 56 78',
@@ -10320,11 +10391,18 @@ const I18N = {
     'costs.repair':'Repair service (labor)',
     'costs.fees':'Stripe card fee (1.5% + €0.25)',
     'costs.note':'You authorize me to purchase the part on your behalf. The part price includes the 20% VAT charged by the supplier. No hidden margin. <strong>Stripe fees</strong> apply ONLY to card/Apple Pay/Google Pay payments (1.5% + €0.25). <strong>PayPal</strong> is billed directly by PayPal according to your account. The displayed total excludes these fees — they appear at the final payment page.',
-    'delivery.title':'Delivery',
-    'delivery.std_name':'Standard Delivery',
-    'delivery.std_desc':'Within 48h · order before 4:30pm<br>Mon – Tue – Wed',
-    'delivery.exp_name':'Express Delivery',
-    'delivery.exp_desc':'Next-day at 3pm · order before 5:30pm<br>Mon – Tue – Wed – Thu – Fri',
+    'delivery.title':'Part delivery',
+    'delivery.sub':"Your part's delivery speed sets your repair date.",
+    'delivery.step1':'Order & payment',
+    'delivery.step2':'Part ordered',
+    'delivery.step3':'Drop off iPhone',
+    'delivery.step4':'Repaired & returned',
+    'delivery.std_name':'Standard',
+    'delivery.std_desc':'Part within 48h · order before 4:30pm · Mon – Tue – Wed',
+    'delivery.exp_name':'Express',
+    'delivery.exp_desc':'Part next-day (3pm) · order before 5:30pm · Mon → Fri',
+    'delivery.fastest':'Fastest',
+    'delivery.note':'Repairs in Dunkirk and the surrounding area · brand-new parts ordered from the supplier.',
     'contact.title':'Your contact',
     'contact.email_label':'Email','contact.email_ph':'you@example.com',
     'contact.phone_label':'Phone','contact.phone_ph':'+33 6 12 34 56 78',
