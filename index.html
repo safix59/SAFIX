@@ -1413,8 +1413,8 @@ header {
 /* Icône du thème TOUJOURS colorée (pas seulement au survol) : lune BLEUE en
    mode sombre, soleil JAUNE en mode clair. L'icône représente le mode ACTIF,
    avec une couleur intuitive et visuellement distincte. */
-[data-theme="dark"]  #themeBtn svg { stroke:#0A84FF; fill:#0A84FF; }   /* lune bleue */
-[data-theme="light"] #themeBtn svg { stroke:#FFC400; fill:#FFC400; }   /* soleil jaune */
+[data-theme="dark"]  #themeBtn svg { stroke:#FFC400; fill:#FFC400; }   /* soleil jaune (mode sombre) */
+[data-theme="light"] #themeBtn svg { stroke:#0A84FF; fill:#0A84FF; }   /* lune bleue (mode clair) */
 
 /* Lang : carré avec FR/EN — même empreinte que les SVG icônes (≈18×18) */
 .lang-box {
@@ -5571,7 +5571,7 @@ header { padding-left: max(20px, env(safe-area-inset-left));
       <span class="lang-box" id="langLabel">EN</span>
     </button>
     <button class="icon-btn" id="themeBtn" title="Thème" data-i18n-title="topbar.theme">
-      <svg id="themeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+      <svg id="themeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
     </button>
     <span class="nav-sep" aria-hidden="true"></span>
     <!-- Groupe 3 : Comparer + panier -->
@@ -7225,7 +7225,7 @@ const sunSVG  = `<circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.
 
 function applyTheme(t) {
   document.documentElement.setAttribute('data-theme', t);
-  if (themeIcon) themeIcon.innerHTML = t==='dark' ? moonSVG : sunSVG;   // dark → lune (bleue), clair → soleil (jaune) : l'icône = le mode actuel
+  if (themeIcon) themeIcon.innerHTML = t==='dark' ? sunSVG : moonSVG;   // dark → soleil (jaune), clair → lune (bleue) : l'icône = le mode à activer
   try { localStorage.setItem(THEME_KEY, t); } catch {}
   // Propage le thème à l'iframe du viewer 3D (pour adapter le style de la pill swatches)
   syncThemeToHeroIframe(t);
