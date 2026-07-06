@@ -7341,11 +7341,14 @@ function renderRecents() {
 ═══════════════════════════════════════════════════ */
 let storedCardRect = null;
 
-function navigate(to, model, cardEl) {
+function navigate(to, model, cardEl, opts) {
+  opts = opts || {};
   if (to === 'detail') {
     activeModel = model;
     activeCard  = cardEl || null;
     addHistory(model);
+    if (!SFX_HOME_TITLE) SFX_HOME_TITLE = document.title;
+    document.title = model + ' · Réparation iPhone — SAFIX';
 
     // Page détail = comme le site EN LIGNE safix59.fr (sans premium-mode).
     // L'accueil garde premium-mode (réactivé au retour home plus bas).
@@ -7362,6 +7365,7 @@ function navigate(to, model, cardEl) {
 
   } else {
     activeModel = null;
+    if (SFX_HOME_TITLE) document.title = SFX_HOME_TITLE;
     { const _ch=document.getElementById('compareHeaderBtn'); if(_ch) _ch.style.display='none'; }
 
     // Retour accueil → on réactive premium-mode (catalogue premium que Sami aime)
@@ -7405,6 +7409,17 @@ function navigate(to, model, cardEl) {
   setTimeout(__scrollTop0, 60);
   setTimeout(__scrollTop0, 200);
   setTimeout(__scrollTop0, 420);
+
+  // ─── Historique navigateur : chaque modèle = une vraie URL /iphone-xx ───
+  // (sauf quand l'appel VIENT du popstate : on ne ré-empile pas.)
+  if (!opts.fromPopstate) {
+    try {
+      var _url = (to === 'detail' && model) ? '/' + modelToSlug(model) : '/';
+      var _st  = (to === 'detail' && model) ? { sfxView: 'detail', model: model } : { sfxView: 'home' };
+      if (opts.replace) history.replaceState(_st, '', _url);
+      else history.pushState(_st, '', _url);
+    } catch (e) { /* API history indispo → dégrade sans casser la nav */ }
+  }
 }
 
 function switchViews(to) {
@@ -7456,11 +7471,74 @@ function zoomClose(toRect, cb) {
   }));
 }
 
-document.getElementById('backBtn')?.addEventListener('click', () => navigate('home'));
+document.getElementById('backBtn')?.addEventListener('click', () => {
+  // Le bouton Retour interne imite le Retour navigateur : on remonte d'un
+  // cran dans l'historique (→ accueil, ou modèle précédent). Filet si l'on
+  // est arrivé sans historique en amont.
+  if (history.state && history.state.sfxView === 'detail') history.back();
+  else navigate('home');
+});
 document.getElementById('navLogo')?.addEventListener('click', e => {
   e.preventDefault();
   navigate('home');
 });
+
+/* ═══════════════════════════════════════════════════
+   ROUTING — chaque iPhone est une vraie page (/iphone-15-pro)
+   URL propres + historique navigateur : le bouton Retour de Safari
+   ramène à l'accueil (ou au modèle précédent), jamais hors du site.
+   Deep-link direct pris en charge. Aucune overlay pour cette section.
+═══════════════════════════════════════════════════ */
+var SFX_HOME_TITLE = '';
+function modelToSlug(model) {
+  return String(model || '')
+    .toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')   // enlève les accents
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+function slugToModel(slug) {
+  if (!slug) return null;
+  var list = (typeof allModels !== 'undefined' && allModels) ? allModels : [];
+  slug = String(slug).toLowerCase();
+  for (var i = 0; i < list.length; i++) { if (modelToSlug(list[i]) === slug) return list[i]; }
+  return null;
+}
+function pathSlug() {
+  try { return decodeURIComponent(location.pathname || '').replace(/^\/+|\/+$/g, ''); }
+  catch (e) { return (location.pathname || '').replace(/^\/+|\/+$/g, ''); }
+}
+// Retour / avance navigateur → on restaure la vue SANS ré-empiler d'historique.
+window.addEventListener('popstate', function (ev) {
+  var st = ev && ev.state;
+  var model = (st && st.sfxView === 'detail' && st.model) ? st.model : slugToModel(pathSlug());
+  if (model) navigate('detail', model, null, { fromPopstate: true });
+  else navigate('home', null, null, { fromPopstate: true });
+});
+// Résolution de la route au chargement (deep-link /iphone-15 directement).
+(function initRoute() {
+  var done = false;
+  function run() {
+    if (done) return; done = true;
+    var model = slugToModel(pathSlug());
+    if (model) {
+      // On garantit une entrée « accueil » DERRIÈRE le modèle → le Retour
+      // ramène à l'accueil même si l'utilisateur arrive direct sur /iphone-15.
+      try {
+        history.replaceState({ sfxView: 'home' }, '', '/');
+        history.pushState({ sfxView: 'detail', model: model }, '', '/' + modelToSlug(model));
+      } catch (e) {}
+      navigate('detail', model, null, { fromPopstate: true });
+    } else {
+      // Accueil (ou URL inconnue) : on pose l'état de base, URL nettoyée si besoin.
+      var known = pathSlug() === '' ;
+      try { history.replaceState({ sfxView: 'home' }, '', known ? location.pathname : '/'); } catch (e) {}
+    }
+  }
+  // Différé : garantit que allModels / navigate / le DOM sont prêts.
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+  else setTimeout(run, 0);
+})();
 
 /* ═══════════════════════════════════════════════════
    DYNAMIC COLOR

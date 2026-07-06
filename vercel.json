@@ -4,7 +4,8 @@
   "outputDirectory": ".",
   "rewrites": [
     { "source": "/api/:path*", "destination": "/api/:path*" },
-    { "source": "/admin", "destination": "/admin/index.html" }
+    { "source": "/admin", "destination": "/admin/index.html" },
+    { "source": "/iphone-:model", "destination": "/index.html" }
   ],
   "crons": [
     { "path": "/api/keepalive", "schedule": "0 6 * * *" }
