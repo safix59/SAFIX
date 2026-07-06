@@ -2913,10 +2913,11 @@ header {
 ═══════════════════════════════════════════════════ */
 .toast {
   position:fixed; bottom:116px; left:50%; transform:translateX(-50%) translateY(40px);
-  /* Surface STRICTEMENT identique à la .float-bar située juste en dessous
-     (même couleur, même opacité, même flou, même bordure) → cohérence parfaite. */
-  background:rgba(0,0,0,.25);
-  border:1px solid rgba(255,255,255,.10);
+  /* Même langage visuel que la .float-bar (flou, bordure, arrondi, ombre) mais
+     opacité relevée : une petite notification doit rester parfaitement lisible
+     — comme avant — là où une grande barre peut se permettre 25 %. */
+  background:rgba(12,12,14,.9);
+  border:1px solid rgba(255,255,255,.12);
   border-radius:50px; padding:12px 20px;
   font-size:14px; font-weight:600; color:var(--text);
   z-index:9999; white-space:nowrap;
@@ -2926,8 +2927,8 @@ header {
   opacity:0; display:flex; align-items:center; gap:8px;
 }
 [data-theme="light"] .toast {
-  background:rgba(255,255,255,.25);
-  border-color:rgba(0,0,0,.08);
+  background:rgba(255,255,255,.94);
+  border-color:rgba(0,0,0,.1);
 }
 .toast.show { transform:translateX(-50%) translateY(0); opacity:1; }
 .toast-icon { font-size:16px; }
