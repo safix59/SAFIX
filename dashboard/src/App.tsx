@@ -39,10 +39,12 @@ export default function App() {
   }, [theme]);
 
   async function loadData() {
-    const res = await api.data();
-    if (res.status === 401) { setAuthed(false); return; }
-    setAuthed(true);
-    if (res.data) setData(res.data);
+    try {
+      const res = await api.data();
+      // Seul un 200 avec données = connecté. 401/404/erreur → écran de connexion.
+      if (res.status === 200 && res.data) { setData(res.data); setAuthed(true); }
+      else { setAuthed(false); }
+    } catch { setAuthed(false); }
   }
   async function loadLive() { const res = await api.live(); setLive(res.data); }
   async function loadVisits() { const res = await api.visits(); if (res.data?.ready) setVisitsToday(res.data.today); }
