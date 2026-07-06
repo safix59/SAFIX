@@ -334,3 +334,39 @@ export function mockSessions(): SessionsData {
   sessions.sort((a, b) => +new Date(b.last_ts) - +new Date(a.last_ts));
   return { ready: true, now: new Date().toISOString(), online: sessions.filter((s) => s.live).length, total: sessions.length, sessions };
 }
+
+// ─── Messagerie (démo, dev only) ───
+type MockMsg = { id: number; sender: 'user' | 'admin'; body: string; name?: string | null; created_at: string };
+const _mNow = Date.now();
+const _msgStore: Record<string, MockMsg[]> = {
+  c_lucas: [
+    { id: 1, sender: 'user', name: 'Lucas', body: 'Bonjour, écran de mon iPhone 13 cassé. Dispo cette semaine ?', created_at: new Date(_mNow - 36e5 * 5).toISOString() },
+    { id: 2, sender: 'admin', body: 'Bonjour Lucas ! Oui, dépôt possible dès demain à Dunkerque 👍', created_at: new Date(_mNow - 36e5 * 4.8).toISOString() },
+    { id: 3, sender: 'user', name: 'Lucas', body: 'Parfait, je passe jeudi matin. Ça prend combien de temps ?', created_at: new Date(_mNow - 6e4 * 8).toISOString() },
+  ],
+  c_emma: [
+    { id: 4, sender: 'user', name: 'Emma', body: 'Combien pour une batterie iPhone 12 Pro ?', created_at: new Date(_mNow - 6e4 * 2).toISOString() },
+  ],
+  c_visiteur: [
+    { id: 5, sender: 'user', body: 'Vous faites la vitre arrière ?', created_at: new Date(_mNow - 36e5 * 26).toISOString() },
+    { id: 6, sender: 'admin', body: 'Oui, sur devis selon le modèle 🙂', created_at: new Date(_mNow - 36e5 * 25).toISOString() },
+  ],
+};
+let _msgSeq = 1000;
+export function mockThread(session: string): MockMsg[] { return _msgStore[session] || []; }
+export function mockReply(session: string, body: string) {
+  (_msgStore[session] = _msgStore[session] || []).push({ id: _msgSeq++, sender: 'admin', body, created_at: new Date().toISOString() });
+  return { ok: true };
+}
+export function mockThreads() {
+  const threads = Object.keys(_msgStore).map((session) => {
+    const arr = _msgStore[session];
+    const last = arr[arr.length - 1];
+    let lastAdmin = -1;
+    arr.forEach((mm, i) => { if (mm.sender === 'admin') lastAdmin = i; });
+    const unread = arr.filter((mm, i) => mm.sender === 'user' && i > lastAdmin).length;
+    const named = arr.find((mm) => mm.name);
+    return { session, name: named ? named.name || null : null, last_body: last.body, last_sender: last.sender, last_ts: last.created_at, unread, count: arr.length };
+  }).sort((a, b) => +new Date(b.last_ts) - +new Date(a.last_ts));
+  return { ready: true, threads, total_unread: threads.reduce((s, t) => s + t.unread, 0) };
+}

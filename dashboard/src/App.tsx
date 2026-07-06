@@ -15,14 +15,16 @@ import { Catalog } from './pages/Catalog';
 import { History } from './pages/History';
 import { System } from './pages/System';
 import { Settings } from './pages/Settings';
+import { Messages } from './pages/Messages';
 
-type Section = 'home' | 'orders' | 'finance' | 'visitors' | 'catalog' | 'history' | 'system' | 'settings';
+type Section = 'home' | 'orders' | 'finance' | 'visitors' | 'messages' | 'catalog' | 'history' | 'system' | 'settings';
 
 const NAV: { key: Section; label: string; icon: IconName; sub: string }[] = [
   { key: 'home', label: "Vue d'ensemble", icon: 'overview', sub: "Résumé de l'activité" },
   { key: 'orders', label: 'Commandes', icon: 'orders', sub: 'Toutes les commandes' },
   { key: 'finance', label: 'Finances', icon: 'finance', sub: 'Chiffre d’affaires, coûts et marge' },
   { key: 'visitors', label: 'Visiteurs', icon: 'visitors', sub: 'Fréquentation en temps réel' },
+  { key: 'messages', label: 'Messages', icon: 'chat', sub: 'Conversations avec les visiteurs' },
   { key: 'catalog', label: 'Catalogue & prix', icon: 'catalog', sub: 'Stock, couverture et tarifs' },
   { key: 'history', label: 'Historique prix', icon: 'history', sub: 'Mouvements de prix' },
   { key: 'system', label: 'Système & santé', icon: 'system', sub: 'État technique et alertes' },
@@ -30,7 +32,7 @@ const NAV: { key: Section; label: string; icon: IconName; sub: string }[] = [
 ];
 const NAV_GROUPS: { title: string; keys: Section[] }[] = [
   { title: 'Pilotage', keys: ['home'] },
-  { title: 'Activité', keys: ['orders', 'finance', 'visitors'] },
+  { title: 'Activité', keys: ['orders', 'finance', 'visitors', 'messages'] },
   { title: 'Catalogue', keys: ['catalog', 'history'] },
   { title: 'Système', keys: ['system', 'settings'] },
 ];
@@ -52,6 +54,7 @@ function Shell() {
   const [live, setLive] = useState<LiveData | null>(null);
   const [visits, setVisits] = useState<VisitsData | null>(null);
   const [sessions, setSessions] = useState<SessionsData | null>(null);
+  const [msgUnread, setMsgUnread] = useState(0);
   const [section, setSection] = useState<Section>(() => (location.hash.slice(1) as Section) || 'home');
   const [drawer, setDrawer] = useState(false);
   const [palette, setPalette] = useState(false);
@@ -102,6 +105,12 @@ function Shell() {
       if (res.status === 200) setSessions(res.data);
     } catch { /* silencieux */ }
   }
+  async function loadMsgUnread() {
+    try {
+      const res = await api.msgThreads();
+      if (res.status === 200 && res.data) setMsgUnread(res.data.total_unread || 0);
+    } catch { /* silencieux */ }
+  }
 
   useEffect(() => { void loadData(); }, []);
   useEffect(() => {
@@ -109,11 +118,13 @@ function Shell() {
     void loadLive();
     void loadVisits();
     void loadSessions();
+    void loadMsgUnread();
     const t1 = window.setInterval(() => void loadLive(), 10000);
     const t2 = window.setInterval(() => void loadData(), 45000);
     const t3 = window.setInterval(() => void loadVisits(), 60000);
     const t4 = window.setInterval(() => void loadSessions(), 15000);
-    return () => { window.clearInterval(t1); window.clearInterval(t2); window.clearInterval(t3); window.clearInterval(t4); };
+    const t5 = window.setInterval(() => void loadMsgUnread(), 15000);
+    return () => { window.clearInterval(t1); window.clearInterval(t2); window.clearInterval(t3); window.clearInterval(t4); window.clearInterval(t5); };
   }, [authed]);
 
   useHotkey('k', (e) => { e.preventDefault(); setPalette((p) => !p); }, { meta: true });
@@ -179,6 +190,9 @@ function Shell() {
                     {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-[3px] rounded-full bg-accent" />}
                     <span className={active ? 'text-accentFg' : 'text-fg3'}><Icon name={n.icon} size={18} /></span>
                     {n.label}
+                    {k === 'messages' && msgUnread > 0 && (
+                      <span className="ml-auto text-[10.5px] font-bold text-white bg-danger rounded-full min-w-[18px] h-[18px] grid place-items-center px-1">{msgUnread}</span>
+                    )}
                     {k === 'system' && errorCount > 0 && (
                       <span className="ml-auto text-[10.5px] font-bold text-white bg-danger rounded-full min-w-[18px] h-[18px] grid place-items-center px-1">{errorCount}</span>
                     )}
@@ -233,6 +247,8 @@ function Shell() {
             <Finance data={data} />
           ) : section === 'visitors' ? (
             <Visitors visits={visits} live={live} sessions={sessions} />
+          ) : section === 'messages' ? (
+            <Messages />
           ) : section === 'catalog' ? (
             <Catalog data={data} />
           ) : section === 'history' ? (

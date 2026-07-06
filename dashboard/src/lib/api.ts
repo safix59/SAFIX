@@ -126,6 +126,10 @@ export interface SessionsData {
   sessions: VisitorSession[];
 }
 
+export interface ChatMessage { id: number; sender: 'user' | 'admin'; body: string; name?: string | null; created_at: string; }
+export interface MsgThread { session: string; name: string | null; last_body: string; last_sender: string; last_ts: string; unread: number; count: number; }
+export interface ThreadsData { ready: boolean; threads: MsgThread[]; total_unread: number; }
+
 export interface GeoConfig {
   enabled: boolean;
   lat: number;
@@ -151,18 +155,21 @@ let devAuthed = false;
 let devGeo: GeoConfig = { enabled: true, lat: 51.0344, lng: 2.3768, radiusKm: 30, city: 'Dunkerque' };
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 async function devCall<T>(
-  kind: 'login' | 'logout' | 'data' | 'live' | 'visits' | 'sessions' | 'del' | 'geo' | 'geo-set',
+  kind: 'login' | 'logout' | 'data' | 'live' | 'visits' | 'sessions' | 'del' | 'geo' | 'geo-set' | 'msg-threads' | 'msg-thread' | 'msg-reply',
   pw?: string,
   payload?: unknown,
 ): Promise<Res<T>> {
   const m = await import('./mock');
-  await wait(kind === 'data' ? 480 : 220);
+  await wait(kind === 'data' ? 480 : 200);
   if (kind === 'login') { devAuthed = (pw || '').length > 0; return { status: devAuthed ? 200 : 401, data: { ok: devAuthed } as unknown as T }; }
   if (kind === 'logout') { devAuthed = false; return { status: 200, data: { ok: true } as unknown as T }; }
   if (kind === 'geo') return { status: 200, data: { ok: true, geo: devGeo } as unknown as T };
   if (kind === 'del') return { status: 200, data: { ok: true } as unknown as T };
   if (!devAuthed) return { status: 401, data: null };
   if (kind === 'geo-set') { devGeo = { ...devGeo, ...(payload as Partial<GeoConfig>) }; return { status: 200, data: { ok: true, geo: devGeo } as unknown as T }; }
+  if (kind === 'msg-threads') return { status: 200, data: m.mockThreads() as unknown as T };
+  if (kind === 'msg-thread') return { status: 200, data: { messages: m.mockThread(String((payload as { session: string }).session)) } as unknown as T };
+  if (kind === 'msg-reply') { const p = payload as { session: string; body: string }; m.mockReply(p.session, p.body); return { status: 200, data: { ok: true } as unknown as T }; }
   if (kind === 'data') return { status: 200, data: m.MOCK_DATA as unknown as T };
   if (kind === 'live') return { status: 200, data: m.MOCK_LIVE as unknown as T };
   if (kind === 'sessions') return { status: 200, data: m.mockSessions() as unknown as T };
@@ -180,6 +187,11 @@ export const api = {
   geo: (): Promise<Res<{ ok: boolean; geo: GeoConfig }>> => (DEV ? devCall('geo') : call('geo')),
   geoSet: (cfg: GeoConfig): Promise<Res<{ ok: boolean; geo: GeoConfig }>> =>
     DEV ? devCall('geo-set', undefined, cfg) : call('geo-set', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cfg) }),
+  msgThreads: (): Promise<Res<ThreadsData>> => (DEV ? devCall('msg-threads') : call('msg-threads')),
+  msgThread: (session: string): Promise<Res<{ messages: ChatMessage[] }>> =>
+    DEV ? devCall('msg-thread', undefined, { session }) : call(`msg-thread&session=${encodeURIComponent(session)}`),
+  msgReply: (session: string, body: string): Promise<Res<{ ok: boolean }>> =>
+    DEV ? devCall('msg-reply', undefined, { session, body }) : call('msg-reply', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ session, body }) }),
   deleteOrder: (id: number): Promise<Res<{ ok: boolean }>> =>
     DEV ? devCall('del') : call(`order-del&id=${encodeURIComponent(id)}`, { method: 'POST' }),
 };

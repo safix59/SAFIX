@@ -68,12 +68,108 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, geo: def });
   }
 
+  // ── MESSAGERIE — envoi d'un message par le visiteur (PUBLIC) ──
+  if (action === 'msg-send') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+    const S = process.env.SUPABASE_URL, K = process.env.SUPABASE_SERVICE_ROLE;
+    const b = req.body || {};
+    const session = String(b.session || '').slice(0, 60);
+    const body = String(b.body || '').trim().slice(0, 2000);
+    const name = b.name ? String(b.name).slice(0, 80) : null;
+    if (!session || !body) return res.status(400).json({ error: 'invalid' });
+    if (!S || !K) return res.status(200).json({ ok: false });
+    try {
+      const r = await fetch(`${S}/rest/v1/messages`, {
+        method: 'POST',
+        headers: { apikey: K, Authorization: `Bearer ${K}`, 'Content-Type': 'application/json', Prefer: 'return=representation' },
+        body: JSON.stringify({ session, sender: 'user', body, name, read_admin: false, read_user: true }),
+      });
+      const j = await r.json().catch(() => null);
+      return res.status(r.ok ? 200 : 500).json({ ok: r.ok, message: Array.isArray(j) ? j[0] : null });
+    } catch (e) { return res.status(500).json({ error: e.message }); }
+  }
+
+  // ── MESSAGERIE — conversation du visiteur (PUBLIC, par identifiant de session) ──
+  if (action === 'msg-list') {
+    const S = process.env.SUPABASE_URL, K = process.env.SUPABASE_SERVICE_ROLE;
+    const session = String((req.query && req.query.session) || '').slice(0, 60);
+    if (!session) return res.status(400).json({ error: 'no_session' });
+    if (!S || !K) return res.status(200).json({ ready: false, messages: [] });
+    try {
+      const r = await fetch(`${S}/rest/v1/messages?select=id,sender,body,created_at&session=eq.${encodeURIComponent(session)}&order=created_at.asc&limit=200`,
+        { headers: { apikey: K, Authorization: `Bearer ${K}` } });
+      if (r.status === 404) return res.status(200).json({ ready: false, messages: [] });
+      const rows = await r.json().catch(() => []);
+      // Marque les réponses admin comme lues côté visiteur (fire-and-forget).
+      fetch(`${S}/rest/v1/messages?session=eq.${encodeURIComponent(session)}&sender=eq.admin&read_user=eq.false`,
+        { method: 'PATCH', headers: { apikey: K, Authorization: `Bearer ${K}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify({ read_user: true }) }).catch(() => {});
+      return res.status(200).json({ ready: true, messages: Array.isArray(rows) ? rows : [] });
+    } catch (e) { return res.status(200).json({ ready: false, messages: [] }); }
+  }
+
   // ── (tout le reste exige l'authentification) ──
   if (!requireAuth(req)) return res.status(401).json({ error: 'unauthorized' });
 
   const SUPA = process.env.SUPABASE_URL, KEY = process.env.SUPABASE_SERVICE_ROLE;
 
   // ── SUPPRIMER UNE COMMANDE (nettoyage des tests, contrôle propriétaire) ──
+  // ── MESSAGERIE ADMIN — liste des conversations (groupées par session) ──
+  if (action === 'msg-threads') {
+    if (!SUPA || !KEY) return res.status(200).json({ ready: false, threads: [], total_unread: 0 });
+    try {
+      const r = await fetch(`${SUPA}/rest/v1/messages?select=*&order=created_at.desc&limit=3000`,
+        { headers: { apikey: KEY, Authorization: `Bearer ${KEY}` } });
+      if (r.status === 404) return res.status(200).json({ ready: false, threads: [], total_unread: 0 });
+      const rows = await r.json().catch(() => []);
+      const map = new Map();
+      for (const m of (Array.isArray(rows) ? rows : [])) {
+        let t = map.get(m.session);
+        if (!t) { t = { session: m.session, name: null, last: m, count: 0, unread: 0 }; map.set(m.session, t); }
+        t.count++;
+        if (m.name && !t.name) t.name = m.name;
+        if (new Date(m.created_at) > new Date(t.last.created_at)) t.last = m;
+        if (m.sender === 'user' && !m.read_admin) t.unread++;
+      }
+      const threads = [...map.values()]
+        .map((t) => ({ session: t.session, name: t.name, last_body: t.last.body, last_sender: t.last.sender, last_ts: t.last.created_at, unread: t.unread, count: t.count }))
+        .sort((a, b) => new Date(b.last_ts) - new Date(a.last_ts));
+      return res.status(200).json({ ready: true, threads, total_unread: threads.reduce((s, t) => s + t.unread, 0) });
+    } catch (e) { return res.status(200).json({ ready: false, threads: [], total_unread: 0, reason: e.message }); }
+  }
+
+  // ── MESSAGERIE ADMIN — une conversation + marque les messages visiteur comme lus ──
+  if (action === 'msg-thread') {
+    const session = String((req.query && req.query.session) || '');
+    if (!session) return res.status(400).json({ error: 'no_session' });
+    if (!SUPA || !KEY) return res.status(200).json({ messages: [] });
+    try {
+      const r = await fetch(`${SUPA}/rest/v1/messages?select=id,sender,body,name,created_at&session=eq.${encodeURIComponent(session)}&order=created_at.asc&limit=500`,
+        { headers: { apikey: KEY, Authorization: `Bearer ${KEY}` } });
+      const rows = await r.json().catch(() => []);
+      fetch(`${SUPA}/rest/v1/messages?session=eq.${encodeURIComponent(session)}&sender=eq.user&read_admin=eq.false`,
+        { method: 'PATCH', headers: { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify({ read_admin: true }) }).catch(() => {});
+      return res.status(200).json({ messages: Array.isArray(rows) ? rows : [] });
+    } catch (e) { return res.status(500).json({ error: e.message }); }
+  }
+
+  // ── MESSAGERIE ADMIN — répondre à un visiteur ──
+  if (action === 'msg-reply') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+    if (!SUPA || !KEY) return res.status(500).json({ error: 'supabase_absent' });
+    const b = req.body || {};
+    const session = String(b.session || '').slice(0, 60);
+    const body = String(b.body || '').trim().slice(0, 2000);
+    if (!session || !body) return res.status(400).json({ error: 'invalid' });
+    try {
+      const r = await fetch(`${SUPA}/rest/v1/messages`, {
+        method: 'POST',
+        headers: { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify({ session, sender: 'admin', body, read_admin: true, read_user: false }),
+      });
+      return res.status(r.ok ? 200 : 500).json({ ok: r.ok });
+    } catch (e) { return res.status(500).json({ error: e.message }); }
+  }
+
   if (action === 'order-del') {
     if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
     const id = (req.query && req.query.id) || (req.body && req.body.id);
