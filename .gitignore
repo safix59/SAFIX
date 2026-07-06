@@ -58,3 +58,4 @@ scraper/logs/
 # Dashboard React (Phase 0) — build sortant + deps
 /admin-next/
 dashboard/node_modules/
+dashboard/tsconfig.tsbuildinfo
