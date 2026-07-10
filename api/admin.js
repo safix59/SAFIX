@@ -43,12 +43,17 @@ async function botPrices() {
   if (doc && doc.prices) _botPrices = { doc, ts: Date.now() };
   return _botPrices.doc;
 }
+// Intentions ↔ identifiants RÉELS de prices.json (avec gammes de qualité).
 const BOT_REPAIRS = [
-  { rx: /écran|ecran|screen|vitre avant|afficheur|dalle/i, id: 'ecran', label: 'écran' },
-  { rx: /batterie|battery|autonomie/i, id: 'batterie', label: 'batterie' },
-  { rx: /vitre arri|arrière|arriere|back ?glass|dos /i, id: 'vitre-arriere', label: 'vitre arrière' },
-  { rx: /cam[ée]ra|appareil photo|objectif/i, id: 'camera', label: 'caméra' },
-  { rx: /connecteur|prise|port de charge|charge pas|recharge/i, id: 'connecteur-charge', label: 'connecteur de charge' },
+  { rx: /écran|ecran|screen|vitre avant|afficheur|dalle|lcd|oled/i, label: "l'écran", ids: [['ecran_eco', 'Éco'], ['ecran_standard', 'Standard'], ['ecran_premium', 'Premium'], ['ecran_original', 'Original']] },
+  { rx: /batterie|battery|autonomie/i, label: 'la batterie', ids: [['batterie', 'Standard'], ['batterie_original', 'Original']] },
+  { rx: /vitre arri|arrière|arriere|back ?glass|dos cass/i, label: 'la vitre arrière', ids: [['vitre_arriere', '']] },
+  { rx: /cam[ée]ra avant|selfie|frontale/i, label: 'la caméra avant', ids: [['camera_avant', '']] },
+  { rx: /cam[ée]ra|appareil photo|objectif/i, label: 'la caméra arrière', ids: [['camera_arriere', '']] },
+  { rx: /connecteur|prise de charge|port de charge|charge plus|recharge/i, label: 'le connecteur de charge', ids: [['connecteur_de_charge', '']] },
+  { rx: /haut[- ]?parleur|speaker/i, label: 'le haut-parleur', ids: [['haut_parleur', '']] },
+  { rx: /\bmicro\b|microphone/i, label: 'le micro', ids: [['micro', '']] },
+  { rx: /bouton (power|volume)|allumage/i, label: 'le bouton', ids: [['bouton_power', 'Power'], ['bouton_volume', 'Volume']] },
 ];
 const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
 function botFindModel(text, prices) {
@@ -70,22 +75,36 @@ async function botAnswer(message) {
   const repair = BOT_REPAIRS.find((r) => r.rx.test(message)) || null;
   const model = prices ? botFindModel(message, prices) : null;
 
+  const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
   if (repair && model && prices) {
-    const e = (prices[repair.id] && (prices[repair.id][model] || prices[repair.id].default)) || null;
-    if (!e) return { reply: `Je n'ai pas le ${repair.label} du ${model} dans notre catalogue. Un conseiller peut vérifier une disponibilité spéciale pour vous 👇`, human: true };
-    if (e.outOfStock) return { reply: `Le ${repair.label} du ${model} est actuellement en rupture chez notre fournisseur. Un conseiller peut vous proposer une alternative ou vous prévenir dès le retour en stock 👇`, human: true };
-    if (typeof e.final === 'number') return { reply: `Oui ✅ Le ${repair.label} du ${model} est disponible : ${e.final} € tout compris (pièce neuve + pose). Vous pouvez commander directement depuis la fiche « ${model} » sur le site.`, human: false };
-    return { reply: `Le ${repair.label} du ${model} est référencé mais son prix doit être confirmé. Un conseiller vous répond au plus vite 👇`, human: true };
+    const found = [];
+    let anyRef = false, allOOS = true;
+    for (const [id, tier] of repair.ids) {
+      const e = prices[id] && (prices[id][model] || prices[id].default);
+      if (!e) continue;
+      anyRef = true;
+      if (typeof e.final === 'number' && !e.outOfStock) { allOOS = false; found.push(tier ? `${tier} ${e.final} €` : `${e.final} €`); }
+    }
+    if (found.length) {
+      const detail = found.length > 1 ? `plusieurs qualités au choix — ${found.join(' · ')}` : `${found[0]} tout compris`;
+      return { reply: `Oui ✅ ${cap(repair.label)} de l'${model} est disponible : ${detail} (pièce neuve + pose). Vous pouvez commander directement depuis la fiche « ${model} » du site.`, human: false };
+    }
+    if (anyRef && allOOS) return { reply: `${cap(repair.label)} de l'${model} est actuellement en rupture chez notre fournisseur. Un conseiller peut vous prévenir dès le retour en stock 👇`, human: true };
+    return { reply: `Je ne trouve pas ${repair.label} pour l'${model} dans notre catalogue en ligne. Un conseiller peut vérifier une disponibilité spéciale pour vous 👇`, human: true };
   }
-  if (repair && !model) return { reply: `Bien sûr ! Pour quel modèle d'iPhone souhaitez-vous le ${repair.label} ? (ex. : iPhone 13 Pro)`, human: false };
+  if (repair && !model) return { reply: `Bien sûr ! Pour quel modèle d'iPhone souhaitez-vous ${repair.label} ? (ex. : iPhone 13 Pro)`, human: false };
   if (model && !repair && prices) {
     const avail = [];
     for (const r of BOT_REPAIRS) {
-      const e = prices[r.id] && (prices[r.id][model] || prices[r.id].default);
-      if (e && typeof e.final === 'number' && !e.outOfStock) avail.push(`${r.label} ${e.final} €`);
+      let best = null;
+      for (const [id] of r.ids) {
+        const e = prices[id] && (prices[id][model] || prices[id].default);
+        if (e && typeof e.final === 'number' && !e.outOfStock && (best == null || e.final < best)) best = e.final;
+      }
+      if (best != null) avail.push(`${r.label.replace(/^l['ae] ?|^le |^la /, '')} dès ${best} €`);
     }
-    if (avail.length) return { reply: `Pour le ${model}, voici ce qui est disponible : ${avail.join(' · ')}. Tout est visible sur la fiche « ${model} » du site.`, human: false };
-    return { reply: `Je vois le ${model}, mais je ne peux pas confirmer les disponibilités à l'instant. Un conseiller vous répond au plus vite 👇`, human: true };
+    if (avail.length) return { reply: `Pour l'${model}, voici ce qui est disponible : ${avail.slice(0, 6).join(' · ')}. Tout le détail est sur la fiche « ${model} » du site.`, human: false };
+    return { reply: `Je vois l'${model}, mais je ne peux pas confirmer les disponibilités à l'instant. Un conseiller vous répond au plus vite 👇`, human: true };
   }
   if (/adresse|localis|o[uù] (êtes|etes|vous trouve)|situ[ée]/.test(t)) return { reply: 'Nous sommes au 48 Bd Alexandre III, 59140 Dunkerque. Le dépôt de votre iPhone se fait sur rendez-vous, réservable directement lors de la commande.', human: false };
   if (/horaire|ouvert|quelle heure/.test(t)) return { reply: 'Nous fonctionnons sur rendez-vous : créneaux matin (9h–12h), après-midi (14h–18h) et soir (18h–20h), à choisir lors de votre commande.', human: false };

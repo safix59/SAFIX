@@ -42,12 +42,13 @@ async function loadPrices() {
   } catch { /* suggestions génériques */ }
   return _prices;
 }
-const REPAIRS = [
-  { rx: /écran|ecran|screen|vitre avant/i, id: 'ecran', label: 'écran' },
-  { rx: /batterie|battery/i, id: 'batterie', label: 'batterie' },
-  { rx: /vitre arri|arriere|back ?glass/i, id: 'vitre-arriere', label: 'vitre arrière' },
-  { rx: /cam[ée]ra|appareil photo/i, id: 'camera', label: 'caméra' },
-  { rx: /connecteur|charge/i, id: 'connecteur-charge', label: 'connecteur de charge' },
+// Identifiants RÉELS de prices.json (gammes de qualité incluses).
+const REPAIRS: { rx: RegExp; ids: [string, string][]; label: string }[] = [
+  { rx: /écran|ecran|screen|vitre avant/i, label: "l'écran", ids: [['ecran_eco', 'Éco'], ['ecran_standard', 'Standard'], ['ecran_premium', 'Premium'], ['ecran_original', 'Original']] },
+  { rx: /batterie|battery/i, label: 'la batterie', ids: [['batterie', 'Standard'], ['batterie_original', 'Original']] },
+  { rx: /vitre arri|arriere|back ?glass/i, label: 'la vitre arrière', ids: [['vitre_arriere', '']] },
+  { rx: /cam[ée]ra|appareil photo/i, label: 'la caméra arrière', ids: [['camera_arriere', '']] },
+  { rx: /connecteur|charge/i, label: 'le connecteur de charge', ids: [['connecteur_de_charge', '']] },
 ];
 const normTxt = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
 async function buildSuggestions(lastUserMsg: string, visitorName: string | null): Promise<string[]> {
@@ -57,14 +58,23 @@ async function buildSuggestions(lastUserMsg: string, visitorName: string | null)
   const prices = await loadPrices();
   const rep = REPAIRS.find((r) => r.rx.test(lastUserMsg));
   const mm = /iphone\s*(se|xr|xs max|xs|x|\d{1,2})\s*(pro max|pro|plus|mini|e)?/.exec(t.replace(/promax/g, 'pro max'));
-  if (rep && mm && prices && prices[rep.id]) {
+  if (rep && mm && prices) {
     const wanted = normTxt('iphone ' + mm[1] + (mm[2] ? ' ' + mm[2] : '')).replace(/(\d+) e\b/, '$1e');
-    const key = Object.keys(prices[rep.id]).find((k) => k !== 'default' && (normTxt(k) === wanted || normTxt(k).startsWith(wanted)));
-    const e = key ? prices[rep.id][key] : null;
-    if (e && typeof e.final === 'number' && !e.outOfStock)
-      out.push(`${hello} Oui, le ${rep.label} du ${key} est disponible : ${e.final} € tout compris (pièce neuve + pose). Vous pouvez commander directement depuis la fiche « ${key} » du site 👍`);
-    else if (e && e.outOfStock)
-      out.push(`${hello} Le ${rep.label} du ${key} est actuellement en rupture chez notre fournisseur. Je vous préviens dès son retour en stock si vous le souhaitez.`);
+    const tiers: string[] = [];
+    let modelKey: string | null = null;
+    for (const [id, tier] of rep.ids) {
+      const table = prices[id];
+      if (!table) continue;
+      const key = Object.keys(table).find((k) => k !== 'default' && (normTxt(k) === wanted || normTxt(k).startsWith(wanted)));
+      if (!key) continue;
+      modelKey = modelKey || key;
+      const e = table[key];
+      if (e && typeof e.final === 'number' && !e.outOfStock) tiers.push(tier ? `${tier} ${e.final} €` : `${e.final} €`);
+    }
+    if (tiers.length && modelKey)
+      out.push(`${hello} Oui, ${rep.label} de l'${modelKey} est disponible : ${tiers.join(' · ')} tout compris (pièce neuve + pose). Commande directe depuis la fiche « ${modelKey} » du site 👍`);
+    else if (modelKey)
+      out.push(`${hello} ${rep.label.charAt(0).toUpperCase() + rep.label.slice(1)} de l'${modelKey} est actuellement en rupture chez notre fournisseur. Je vous préviens dès son retour en stock si vous le souhaitez.`);
   }
   if (/rendez|rdv|deposer|apporter|quand/.test(t))
     out.push(`${hello} Vous pouvez réserver votre créneau directement dans le panier : lieu de dépôt, date (dès demain) et créneau (matin, après-midi ou soir).`);
