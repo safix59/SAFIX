@@ -126,7 +126,7 @@ crontab -e
 Ajouter :
 
 ```
-0 */6 * * * cd /Users/sami/Downloads/wIA/scraper && /usr/local/bin/node run.js >> logs/cron.log 2>&1
+0 */6 * * * cd ~/SAFIX/scraper && /usr/local/bin/node run.js >> logs/cron.log 2>&1
 ```
 
 (Adaptez `/usr/local/bin/node` au chemin réel — `which node` pour le trouver.)

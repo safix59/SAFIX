@@ -191,7 +191,7 @@ function isServiceOnly(item) {
 // pour comptes PRO = bot 100% autonome dans 80-90 % des cas.
 //
 // Si la CB échoue (3DS challenge ou plafond), le bot bascule sur Fintecture
-// → Sami valide sur son app banque (~5 s) → commande passée.
+// → l'admin valide sur son app banque (~5 s) → commande passée.
 const PAYMENT_PRIMARY  = process.env.UTOPYA_PAYMENT          || 'scellius_standard';
 const PAYMENT_FALLBACK = process.env.UTOPYA_PAYMENT_FALLBACK || 'fintecture';
 const SHOULD_CONFIRM   = process.env.CONFIRM_ORDER === 'true'; // safety switch

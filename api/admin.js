@@ -14,6 +14,90 @@ const FLAGSHIP = [
   'iPhone 14 Pro Max', 'iPhone 14 Pro', 'iPhone 14', 'iPhone 13', 'iPhone 12', 'iPhone 11',
 ];
 
+// ── Upload d'une photo de chat vers Supabase Storage (bucket public `chat`) ──
+// Compression faite côté client (canvas JPEG ≤1280px) → ici on valide + stocke.
+async function uploadChatImage(S, K, session, dataUrl) {
+  const m = /^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/.exec(String(dataUrl || ''));
+  if (!m || m[2].length > 2_000_000) return null; // ~1,5 Mo binaire max
+  const ext = m[1] === 'jpeg' ? 'jpg' : m[1];
+  const bin = Buffer.from(m[2], 'base64');
+  const path = `${session}/${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}.${ext}`;
+  const H = { apikey: K, Authorization: `Bearer ${K}` };
+  // Bucket idempotent (409 = existe déjà, OK)
+  await fetch(`${S}/storage/v1/bucket`, {
+    method: 'POST', headers: { ...H, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: 'chat', name: 'chat', public: true }),
+  }).catch(() => {});
+  const up = await fetch(`${S}/storage/v1/object/chat/${path}`, {
+    method: 'POST', headers: { ...H, 'Content-Type': `image/${m[1]}` }, body: bin,
+  }).catch(() => null);
+  if (!up || !up.ok) return null;
+  return `${S}/storage/v1/object/public/chat/${path}`;
+}
+
+// ── Assistant IA (déterministe — catalogue + FAQ, n'invente JAMAIS rien) ──
+let _botPrices = { doc: null, ts: 0 };
+async function botPrices() {
+  if (_botPrices.doc && Date.now() - _botPrices.ts < 300000) return _botPrices.doc;
+  const doc = await getJson('/scraper/prices.json');
+  if (doc && doc.prices) _botPrices = { doc, ts: Date.now() };
+  return _botPrices.doc;
+}
+const BOT_REPAIRS = [
+  { rx: /écran|ecran|screen|vitre avant|afficheur|dalle/i, id: 'ecran', label: 'écran' },
+  { rx: /batterie|battery|autonomie/i, id: 'batterie', label: 'batterie' },
+  { rx: /vitre arri|arrière|arriere|back ?glass|dos /i, id: 'vitre-arriere', label: 'vitre arrière' },
+  { rx: /cam[ée]ra|appareil photo|objectif/i, id: 'camera', label: 'caméra' },
+  { rx: /connecteur|prise|port de charge|charge pas|recharge/i, id: 'connecteur-charge', label: 'connecteur de charge' },
+];
+const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
+function botFindModel(text, prices) {
+  const t = norm(text).replace(/promax/g, 'pro max');
+  const mm = /iphone\s*(se|xr|xs max|xs|x|\d{1,2})\s*(pro max|pro|plus|mini|e)?(?:\s*\((\d{4})\))?/.exec(t);
+  if (!mm) return null;
+  const wanted = norm('iphone ' + mm[1] + (mm[2] ? ' ' + mm[2] : '') + (mm[3] ? ' (' + mm[3] + ')' : ''))
+    .replace(/(\d+)\s+e\b/, '$1e'); // « 16 e » → « 16e »
+  const models = new Set();
+  for (const rid of Object.keys(prices)) for (const k of Object.keys(prices[rid])) if (k !== 'default') models.add(k);
+  for (const k of models) if (norm(k) === wanted) return k;
+  for (const k of models) if (norm(k).startsWith(wanted)) return k;
+  return null;
+}
+async function botAnswer(message) {
+  const t = norm(message);
+  const doc = await botPrices();
+  const prices = (doc && doc.prices) || null;
+  const repair = BOT_REPAIRS.find((r) => r.rx.test(message)) || null;
+  const model = prices ? botFindModel(message, prices) : null;
+
+  if (repair && model && prices) {
+    const e = (prices[repair.id] && (prices[repair.id][model] || prices[repair.id].default)) || null;
+    if (!e) return { reply: `Je n'ai pas le ${repair.label} du ${model} dans notre catalogue. Un conseiller peut vérifier une disponibilité spéciale pour vous 👇`, human: true };
+    if (e.outOfStock) return { reply: `Le ${repair.label} du ${model} est actuellement en rupture chez notre fournisseur. Un conseiller peut vous proposer une alternative ou vous prévenir dès le retour en stock 👇`, human: true };
+    if (typeof e.final === 'number') return { reply: `Oui ✅ Le ${repair.label} du ${model} est disponible : ${e.final} € tout compris (pièce neuve + pose). Vous pouvez commander directement depuis la fiche « ${model} » sur le site.`, human: false };
+    return { reply: `Le ${repair.label} du ${model} est référencé mais son prix doit être confirmé. Un conseiller vous répond au plus vite 👇`, human: true };
+  }
+  if (repair && !model) return { reply: `Bien sûr ! Pour quel modèle d'iPhone souhaitez-vous le ${repair.label} ? (ex. : iPhone 13 Pro)`, human: false };
+  if (model && !repair && prices) {
+    const avail = [];
+    for (const r of BOT_REPAIRS) {
+      const e = prices[r.id] && (prices[r.id][model] || prices[r.id].default);
+      if (e && typeof e.final === 'number' && !e.outOfStock) avail.push(`${r.label} ${e.final} €`);
+    }
+    if (avail.length) return { reply: `Pour le ${model}, voici ce qui est disponible : ${avail.join(' · ')}. Tout est visible sur la fiche « ${model} » du site.`, human: false };
+    return { reply: `Je vois le ${model}, mais je ne peux pas confirmer les disponibilités à l'instant. Un conseiller vous répond au plus vite 👇`, human: true };
+  }
+  if (/adresse|localis|o[uù] (êtes|etes|vous trouve)|situ[ée]/.test(t)) return { reply: 'Nous sommes au 48 Bd Alexandre III, 59140 Dunkerque. Le dépôt de votre iPhone se fait sur rendez-vous, réservable directement lors de la commande.', human: false };
+  if (/horaire|ouvert|quelle heure/.test(t)) return { reply: 'Nous fonctionnons sur rendez-vous : créneaux matin (9h–12h), après-midi (14h–18h) et soir (18h–20h), à choisir lors de votre commande.', human: false };
+  if (/livraison|d[ée]lai|combien de temps|rapide/.test(t)) return { reply: "La pièce arrive en Standard (sous 48 h, 6 €) ou Express (dès le lendemain 15h, 8 €) — c'est ce qui fixe la date de votre réparation. Les détails exacts s'affichent dans le panier.", human: false };
+  if (/paiement|payer|carte|paypal|apple pay/.test(t)) return { reply: 'Vous pouvez régler par carte bancaire, Apple Pay, Google Pay ou PayPal — paiement 100 % sécurisé au moment de la commande.', human: false };
+  if (/rendez|rdv|d[ée]poser|apporter/.test(t)) return { reply: "Le rendez-vous se choisit en 3 étapes dans le panier : lieu de dépôt, date (dès demain) et créneau. Vous recevez ensuite une confirmation par e-mail.", human: false };
+  if (/zone|dunkerque|d[ée]placement|loin|lille|calais/.test(t)) return { reply: 'Nos réparations sont réalisées à Dunkerque et dans les communes environnantes. Si vous êtes plus loin, il faudra vous déplacer jusqu\'à notre point de réparation.', human: false };
+  if (/bonjour|salut|hello|bonsoir|hey/.test(t) && t.length < 25) return { reply: 'Bonjour 👋 Je peux vous renseigner sur nos réparations, les prix, les délais ou les rendez-vous. Que puis-je faire pour vous ?', human: false };
+  if (/merci|top|parfait|super/.test(t) && t.length < 30) return { reply: 'Avec plaisir 🙌 Je reste là si vous avez une autre question.', human: false };
+  return { reply: "Je préfère ne pas vous répondre au hasard sur ce point. Un conseiller va prendre le relais — vous pouvez aussi cliquer sur « Parler à un conseiller » 👇", human: true };
+}
+
 async function getJson(path, ms = 8000) {
   const ctrl = new AbortController();
   const to = setTimeout(() => ctrl.abort(), ms);
@@ -74,11 +158,16 @@ export default async function handler(req, res) {
     const S = process.env.SUPABASE_URL, K = process.env.SUPABASE_SERVICE_ROLE;
     const b = req.body || {};
     const session = String(b.session || '').slice(0, 60);
-    const body = String(b.body || '').trim().slice(0, 2000);
+    let body = String(b.body || '').trim().slice(0, 2000);
     const name = b.name ? String(b.name).slice(0, 80) : null;
-    if (!session || !body) return res.status(400).json({ error: 'invalid' });
+    if (!session || (!body && !b.image)) return res.status(400).json({ error: 'invalid' });
     if (!S || !K) return res.status(200).json({ ok: false });
     try {
+      if (b.image) {
+        const url = await uploadChatImage(S, K, session, b.image);
+        if (!url && !body) return res.status(400).json({ error: 'image_invalid' });
+        if (url) body = '::img::' + url + (body ? '\n' + body : '');
+      }
       const r = await fetch(`${S}/rest/v1/messages`, {
         method: 'POST',
         headers: { apikey: K, Authorization: `Bearer ${K}`, 'Content-Type': 'application/json', Prefer: 'return=representation' },
@@ -105,6 +194,38 @@ export default async function handler(req, res) {
         { method: 'PATCH', headers: { apikey: K, Authorization: `Bearer ${K}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify({ read_user: true }) }).catch(() => {});
       return res.status(200).json({ ready: true, messages: Array.isArray(rows) ? rows : [] });
     } catch (e) { return res.status(200).json({ ready: false, messages: [] }); }
+  }
+
+  // ── ASSISTANT IA (PUBLIC) : réponse déterministe catalogue + FAQ ──
+  // Ne répond QUE si aucun conseiller humain n'est engagé dans le fil.
+  // N'invente jamais : prix/stocks lus dans prices.json, sinon → conseiller.
+  if (action === 'bot') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+    const S = process.env.SUPABASE_URL, K = process.env.SUPABASE_SERVICE_ROLE;
+    const b = req.body || {};
+    const session = String(b.session || '').slice(0, 60);
+    const message = String(b.message || '').trim().slice(0, 1000);
+    if (!session || !message) return res.status(400).json({ error: 'invalid' });
+    if (!S || !K) return res.status(200).json({ ok: false });
+    try {
+      // Un humain a-t-il pris la main ? (message admin sans ::bot::, ou demande ::human::)
+      const th = await fetch(`${S}/rest/v1/messages?select=sender,body&session=eq.${encodeURIComponent(session)}&order=created_at.desc&limit=60`,
+        { headers: { apikey: K, Authorization: `Bearer ${K}` } });
+      if (th.ok) {
+        const rows = await th.json();
+        for (const m of (Array.isArray(rows) ? rows : [])) {
+          if (m.body === '::human::') return res.status(200).json({ ok: true, human: true });
+          if (m.sender === 'admin' && String(m.body || '').indexOf('::bot::') !== 0) return res.status(200).json({ ok: true, human: true });
+        }
+      }
+      const ans = await botAnswer(message);
+      await fetch(`${S}/rest/v1/messages`, {
+        method: 'POST',
+        headers: { apikey: K, Authorization: `Bearer ${K}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify({ session, sender: 'admin', body: '::bot::' + ans.reply, read_admin: true, read_user: false }),
+      });
+      return res.status(200).json({ ok: true, reply: ans.reply, human: !!ans.human });
+    } catch (e) { return res.status(200).json({ ok: false }); }
   }
 
   // ── PRÉSENCE ADMIN (PUBLIC) : le widget de chat sait si l'admin est en messagerie ──
@@ -142,6 +263,33 @@ export default async function handler(req, res) {
       });
       return res.status(200).json({ ok: r.ok });
     } catch (e) { return res.status(200).json({ ok: false }); }
+  }
+
+  // ── MODE MAINTENANCE — lecture / bascule depuis le Dashboard ──
+  if (action === 'maintenance-get') {
+    if (!SUPA || !KEY) return res.status(200).json({ ok: true, on: false });
+    try {
+      const r = await fetch(`${SUPA}/rest/v1/settings?select=value,updated_at&key=eq.maintenance`,
+        { headers: { apikey: KEY, Authorization: `Bearer ${KEY}` } });
+      if (r.ok) {
+        const rows = await r.json();
+        return res.status(200).json({ ok: true, on: !!(rows[0] && rows[0].value && rows[0].value.on), since: rows[0]?.updated_at || null });
+      }
+    } catch { /* défaut off */ }
+    return res.status(200).json({ ok: true, on: false });
+  }
+  if (action === 'maintenance-set') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+    if (!SUPA || !KEY) return res.status(500).json({ error: 'supabase_absent' });
+    const on = !!(req.body && req.body.on);
+    try {
+      const r = await fetch(`${SUPA}/rest/v1/settings?on_conflict=key`, {
+        method: 'POST',
+        headers: { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify({ key: 'maintenance', value: { on }, updated_at: new Date().toISOString() }),
+      });
+      return res.status(r.ok ? 200 : 500).json({ ok: r.ok, on });
+    } catch (e) { return res.status(500).json({ error: e.message }); }
   }
 
   // ── MESSAGERIE ADMIN — liste des conversations (groupées par session) ──
@@ -183,20 +331,49 @@ export default async function handler(req, res) {
     } catch (e) { return res.status(500).json({ error: e.message }); }
   }
 
-  // ── MESSAGERIE ADMIN — répondre à un visiteur ──
+  // ── MESSAGERIE ADMIN — répondre à un visiteur (texte et/ou photo) ──
   if (action === 'msg-reply') {
     if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
     if (!SUPA || !KEY) return res.status(500).json({ error: 'supabase_absent' });
     const b = req.body || {};
     const session = String(b.session || '').slice(0, 60);
-    const body = String(b.body || '').trim().slice(0, 2000);
-    if (!session || !body) return res.status(400).json({ error: 'invalid' });
+    let body = String(b.body || '').trim().slice(0, 2000);
+    if (!session || (!body && !b.image)) return res.status(400).json({ error: 'invalid' });
     try {
+      if (b.image) {
+        const url = await uploadChatImage(SUPA, KEY, session, b.image);
+        if (!url && !body) return res.status(400).json({ error: 'image_invalid' });
+        if (url) body = '::img::' + url + (body ? '\n' + body : '');
+      }
       const r = await fetch(`${SUPA}/rest/v1/messages`, {
         method: 'POST',
         headers: { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
         body: JSON.stringify({ session, sender: 'admin', body, read_admin: true, read_user: false }),
       });
+      return res.status(r.ok ? 200 : 500).json({ ok: r.ok });
+    } catch (e) { return res.status(500).json({ error: e.message }); }
+  }
+
+  // ── MESSAGERIE ADMIN — suppression (message(s) / conversation entière) ──
+  if (action === 'msg-del') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+    if (!SUPA || !KEY) return res.status(500).json({ error: 'supabase_absent' });
+    const ids = (Array.isArray(req.body && req.body.ids) ? req.body.ids : []).map(Number).filter(Number.isFinite).slice(0, 200);
+    if (!ids.length) return res.status(400).json({ error: 'no_ids' });
+    try {
+      const r = await fetch(`${SUPA}/rest/v1/messages?id=in.(${ids.join(',')})`,
+        { method: 'DELETE', headers: { apikey: KEY, Authorization: `Bearer ${KEY}` } });
+      return res.status(r.ok ? 200 : 500).json({ ok: r.ok, count: ids.length });
+    } catch (e) { return res.status(500).json({ error: e.message }); }
+  }
+  if (action === 'msg-del-thread') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+    if (!SUPA || !KEY) return res.status(500).json({ error: 'supabase_absent' });
+    const session = String((req.body && req.body.session) || '').slice(0, 60);
+    if (!session) return res.status(400).json({ error: 'no_session' });
+    try {
+      const r = await fetch(`${SUPA}/rest/v1/messages?session=eq.${encodeURIComponent(session)}`,
+        { method: 'DELETE', headers: { apikey: KEY, Authorization: `Bearer ${KEY}` } });
       return res.status(r.ok ? 200 : 500).json({ ok: r.ok });
     } catch (e) { return res.status(500).json({ error: e.message }); }
   }

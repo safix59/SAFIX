@@ -9,7 +9,7 @@ Le validateur fonctionne **localement** dans ton navigateur. Il faut un mini-ser
 ### Méthode 1 — Python (déjà installé sur Mac)
 
 ```bash
-cd /Users/sami/Downloads/wIA/tools/link-validator
+cd ~/SAFIX/tools/link-validator
 python3 -m http.server 8000
 ```
 
@@ -18,7 +18,7 @@ Puis ouvre : **http://localhost:8000/**
 ### Méthode 2 — Node (si tu as `npx`)
 
 ```bash
-cd /Users/sami/Downloads/wIA/tools/link-validator
+cd ~/SAFIX/tools/link-validator
 npx serve -l 8000
 ```
 

@@ -2989,21 +2989,74 @@ body.chat-open .chat-panel { opacity:1; transform:none; pointer-events:all; }
 .chat-dot { width:7px; height:7px; border-radius:50%; background:#30d158; animation:chatDot 2s infinite; }
 .chat-dot.off { background:rgba(255,255,255,.55); animation:none; box-shadow:none; }
 @keyframes chatDot { 0%{box-shadow:0 0 0 0 rgba(48,209,88,.5);} 70%{box-shadow:0 0 0 6px rgba(48,209,88,0);} 100%{box-shadow:0 0 0 0 rgba(48,209,88,0);} }
-.chat-head-close { margin-left:auto; background:rgba(255,255,255,.16); border:none; color:#fff; width:30px; height:30px; border-radius:50%; cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center; transition:background .2s; }
-.chat-head-close:hover { background:rgba(255,255,255,.3); }
+/* (fermeture unique : la bulle flottante fait office de bouton fermer — pas de ✕ redondant) */
 .chat-body { flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:9px; background:var(--bg); }
 .chat-welcome { margin-bottom:2px; }
 .chat-welcome p { margin:0; font-size:13px; line-height:1.5; color:var(--text2); background:var(--surface); padding:11px 14px; border-radius:14px; }
-.chat-name-field { margin-top:4px; }
-.chat-name-field input { width:100%; padding:9px 13px; border-radius:11px; border:1px solid var(--border); background:var(--bg2); color:var(--text); font-size:13px; font-family:inherit; outline:none; transition:border-color .2s; }
-.chat-name-field input:focus { border-color:var(--accent); }
+.chat-name-field { margin-top:10px; }
+.chat-name-field input {
+  width:100%; padding:11px 14px;
+  background:var(--surface); border:1.5px solid var(--border); border-radius:var(--r2);
+  color:var(--text); font-size:14px; font-family:inherit; outline:none;
+  transition:border-color .25s, box-shadow .25s;
+}
+.chat-name-field input:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(var(--accent-rgb),.12); }
+.chat-name-field input.err { border-color:var(--red); animation:chatShake .34s ease; }
+@keyframes chatShake { 0%,100%{transform:none} 25%{transform:translateX(-4px)} 60%{transform:translateX(4px)} }
+.chat-name-err { margin:6px 2px 0; font-size:11.5px; color:var(--red); }
 .chat-msg { max-width:82%; padding:9px 13px; font-size:13.5px; line-height:1.42; border-radius:16px; word-break:break-word; white-space:pre-wrap; position:relative; }
 .chat-msg.user { align-self:flex-end; background:var(--accent); color:#fff; border-bottom-right-radius:5px; }
 .chat-msg.admin { align-self:flex-start; background:var(--surface); color:var(--text); border-bottom-left-radius:5px; }
 .chat-msg-time { font-size:10px; opacity:.62; margin-top:3px; display:block; }
-.chat-input { display:flex; gap:8px; padding:12px; border-top:1px solid var(--border); background:var(--bg2); flex-shrink:0; }
-.chat-input input { flex:1; padding:11px 15px; border-radius:22px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-size:14px; font-family:inherit; outline:none; transition:border-color .2s; }
-.chat-input input:focus { border-color:var(--accent); }
+.chat-input { display:flex; align-items:center; gap:8px; padding:12px; border-top:1px solid var(--border); background:var(--bg2); flex-shrink:0; }
+/* Champ aligné sur la barre de recherche du site : même surface, même bordure
+   1.5px, même arrondi (--r2), même focus. Cohérence totale du design system. */
+.chat-input input[type="text"] {
+  flex:1; min-width:0; padding:12px 15px;
+  background:var(--surface); border:1.5px solid var(--border); border-radius:var(--r2);
+  color:var(--text); font-size:15px; font-family:inherit; outline:none;
+  -webkit-appearance:none; appearance:none;
+  transition:border-color .25s, background .25s, box-shadow .25s;
+}
+.chat-input input[type="text"]:focus {
+  border-color:rgba(var(--accent-rgb),.4);
+  box-shadow:0 0 0 1px rgba(var(--accent-rgb),.4), 0 0 24px rgba(var(--accent-rgb),.18);
+}
+.chat-attach {
+  width:42px; height:42px; border-radius:var(--r2); border:1.5px solid var(--border);
+  background:var(--surface); color:var(--text2); cursor:pointer;
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  transition:border-color .2s, color .2s;
+}
+.chat-attach:hover { border-color:var(--border2); color:var(--text); }
+.chat-attach svg { width:19px; height:19px; }
+.chat-preview {
+  display:flex; align-items:center; gap:10px; padding:10px 12px 0; background:var(--bg2); flex-shrink:0;
+}
+.chat-preview img { height:56px; width:56px; object-fit:cover; border-radius:10px; border:1px solid var(--border2); }
+.chat-preview button {
+  width:26px; height:26px; border-radius:50%; border:none; background:var(--surface2);
+  color:var(--text); cursor:pointer; font-size:12px;
+}
+.chat-msg img { display:block; max-width:100%; border-radius:11px; margin-bottom:2px; }
+.chat-img-cap { display:block; margin-top:5px; }
+.chat-msg.bot { background:var(--surface); border:1px solid rgba(var(--accent-rgb),.25); }
+.chat-bot-tag { display:block; font-size:9.5px; font-weight:800; letter-spacing:.07em; text-transform:uppercase; color:var(--accent2); margin-bottom:4px; }
+.chat-sys { align-self:center; font-size:11.5px; color:var(--text2); background:var(--surface); border:1px solid var(--border); border-radius:100px; padding:6px 13px; }
+.chat-human-btn {
+  align-self:center; margin-top:2px; padding:8px 15px; border-radius:100px;
+  background:var(--surface); border:1.5px solid var(--border); color:var(--text2);
+  font-size:12px; font-weight:600; font-family:inherit; cursor:pointer;
+  transition:border-color .2s, color .2s;
+}
+.chat-human-btn:hover { border-color:rgba(var(--accent-rgb),.4); color:var(--text); }
+.chat-typing { align-self:flex-start; display:flex; gap:4px; padding:11px 14px; background:var(--surface); border-radius:16px 16px 16px 5px; }
+.chat-typing i { width:6px; height:6px; border-radius:50%; background:var(--text2); animation:blinkTyping 1.2s infinite; }
+.chat-typing i:nth-child(2){ animation-delay:.15s; } .chat-typing i:nth-child(3){ animation-delay:.3s; }
+@keyframes blinkTyping { 0%,100%{opacity:.25} 40%{opacity:.9} }
+/* Chat masqué quand le panier est ouvert (jamais par-dessus le tunnel de commande) */
+body:has(.cart-overlay.open) .chat-fab,
+body:has(.cart-overlay.open) .chat-panel { opacity:0; pointer-events:none; }
 .chat-send { width:42px; height:42px; border-radius:50%; border:none; background:linear-gradient(135deg, var(--accent) 0%, #5AC8FA 100%); color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:transform .15s, filter .2s; }
 .chat-send:hover { filter:brightness(1.1); }
 .chat-send:active { transform:scale(.9); }
@@ -6392,7 +6445,7 @@ header { padding-left: max(20px, env(safe-area-inset-left));
   <div class="footer-inner">
     <div class="footer-section-title" data-i18n="footer.title">Support client</div>
     <div class="footer-card">
-      <a class="footer-card-icon" href="mailto:fusion-laminaire-0i@icloud.com" title="Envoyer un mail" aria-label="Envoyer un mail">
+      <a class="footer-card-icon" href="mailto:support@safix59.fr" title="Envoyer un mail" aria-label="Envoyer un mail">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="url(#mailGrad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <defs><linearGradient id="mailGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#007AFF"/><stop offset="100%" stop-color="#5AC8FA"/></linearGradient></defs>
           <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
@@ -6402,7 +6455,7 @@ header { padding-left: max(20px, env(safe-area-inset-left));
       <div class="footer-card-content">
         <div class="footer-card-label" data-i18n="footer.email_label">Assistance par mail</div>
         <div class="footer-card-value">
-          <a href="mailto:fusion-laminaire-0i@icloud.com">fusion-laminaire-0i@icloud.com</a>
+          <a href="mailto:support@safix59.fr">support@safix59.fr</a>
         </div>
       </div>
     </div>
@@ -6460,7 +6513,7 @@ header { padding-left: max(20px, env(safe-area-inset-left));
         <li data-i18n="legal.about.cmt4">Livraison <strong>en 48 h</strong> ou <strong>J+1 en Express</strong>.</li>
       </ul>
       <h3 data-i18n="legal.about.h_contact">Nous contacter</h3>
-      <p data-i18n="legal.about.contact">Email : <a href="mailto:fusion-laminaire-0i@icloud.com">fusion-laminaire-0i@icloud.com</a><br>
+      <p data-i18n="legal.about.contact">Email : <a href="mailto:support@safix59.fr">support@safix59.fr</a><br>
       Snapchat : <a href="https://www.snapchat.com/add/safix.59" target="_blank" rel="noopener">@safix.59</a></p>
     </div>
   </div>
@@ -6475,7 +6528,7 @@ header { padding-left: max(20px, env(safe-area-inset-left));
       <h3 data-i18n="legal.mentions.h_editor">Éditeur du site</h3>
       <p data-i18n="legal.mentions.editor"><strong>SAFIX</strong> — Entreprise individuelle<br>
       Adresse : 48 Bd Alexandre III, 59140 Dunkerque, France<br>
-      Email : <a href="mailto:fusion-laminaire-0i@icloud.com">fusion-laminaire-0i@icloud.com</a><br>
+      Email : <a href="mailto:support@safix59.fr">support@safix59.fr</a><br>
       SIREN : 942 003 062<br>
       SIRET (siège social) : 942 003 062 00018<br>
       TVA non applicable, art. 293 B du CGI (franchise en base de TVA)</p>
@@ -6504,7 +6557,7 @@ header { padding-left: max(20px, env(safe-area-inset-left));
       <p data-i18n="legal.privacy.updated"><em>Dernière mise à jour : avril 2026</em></p>
       <h3 data-i18n="legal.privacy.h1">1. Responsable du traitement</h3>
       <p data-i18n="legal.privacy.p1"><strong>SAFIX</strong> — Entreprise individuelle, 48 Bd Alexandre III, 59140 Dunkerque, France — SIREN 942 003 062.<br>
-      Contact RGPD : <a href="mailto:fusion-laminaire-0i@icloud.com">fusion-laminaire-0i@icloud.com</a></p>
+      Contact RGPD : <a href="mailto:support@safix59.fr">support@safix59.fr</a></p>
       <h3 data-i18n="legal.privacy.h2">2. Données collectées</h3>
       <ul>
         <li data-i18n="legal.privacy.d1"><strong>Email</strong> (obligatoire) : envoi de la confirmation et suivi de commande</li>
@@ -6530,7 +6583,7 @@ header { padding-left: max(20px, env(safe-area-inset-left));
       <h3 data-i18n="legal.privacy.h6">6. Destinataires</h3>
       <p data-i18n="legal.privacy.p6">Vos données sont uniquement traitées par SAFIX et ses sous-traitants techniques (hébergeur, service d'envoi d'email, prestataire de paiement). Aucune donnée n'est revendue.</p>
       <h3 data-i18n="legal.privacy.h7">7. Vos droits</h3>
-      <p data-i18n="legal.privacy.p7a">Vous disposez d'un droit d'accès, de rectification, de suppression, de portabilité, de limitation et d'opposition. Pour les exercer, écrivez-nous à : <a href="mailto:fusion-laminaire-0i@icloud.com">fusion-laminaire-0i@icloud.com</a>.</p>
+      <p data-i18n="legal.privacy.p7a">Vous disposez d'un droit d'accès, de rectification, de suppression, de portabilité, de limitation et d'opposition. Pour les exercer, écrivez-nous à : <a href="mailto:support@safix59.fr">support@safix59.fr</a>.</p>
       <p data-i18n="legal.privacy.p7b">En cas de désaccord, vous pouvez saisir la <strong>CNIL</strong> : <a href="https://www.cnil.fr" target="_blank" rel="noopener">www.cnil.fr</a>.</p>
       <h3 data-i18n="legal.privacy.h8">8. Sécurité</h3>
       <p data-i18n="legal.privacy.p8">Connexion HTTPS, données stockées sur des serveurs européens, mots de passe hashés, accès restreint aux personnes habilitées.</p>
@@ -7588,7 +7641,7 @@ function navigate(to, model, cardEl, opts) {
     if (SFX_HOME_TITLE) document.title = SFX_HOME_TITLE;
     { const _ch=document.getElementById('compareHeaderBtn'); if(_ch) _ch.style.display='none'; }
 
-    // Retour accueil → on réactive premium-mode (catalogue premium que Sami aime)
+    // Retour accueil → on réactive premium-mode (catalogue premium validé par le propriétaire)
     document.body.classList.add('premium-mode');
 
     // Transition simple sans zoomClose overlay
@@ -10374,11 +10427,11 @@ const I18N = {
     'legal.about.cmt3':'<strong>Réparation soignée</strong> par un technicien dédié.',
     'legal.about.cmt4':'Livraison <strong>en 48 h</strong> ou <strong>J+1 en Express</strong>.',
     'legal.about.h_contact':'Nous contacter',
-    'legal.about.contact':'Email : <a href="mailto:fusion-laminaire-0i@icloud.com">fusion-laminaire-0i@icloud.com</a><br>\n      Snapchat : <a href="https://www.snapchat.com/add/safix.59" target="_blank" rel="noopener">@safix.59</a>',
+    'legal.about.contact':'Email : <a href="mailto:support@safix59.fr">support@safix59.fr</a><br>\n      Snapchat : <a href="https://www.snapchat.com/add/safix.59" target="_blank" rel="noopener">@safix.59</a>',
     // Mentions légales
     'legal.mentions.title':'Mentions légales',
     'legal.mentions.h_editor':'Éditeur du site',
-    'legal.mentions.editor':'<strong>SAFIX</strong> — Entreprise individuelle<br>\n      Adresse : 48 Bd Alexandre III, 59140 Dunkerque, France<br>\n      Email : <a href="mailto:fusion-laminaire-0i@icloud.com">fusion-laminaire-0i@icloud.com</a><br>\n      SIREN : 942 003 062<br>\n      SIRET (siège social) : 942 003 062 00018<br>\n      TVA non applicable, art. 293 B du CGI (franchise en base de TVA)',
+    'legal.mentions.editor':'<strong>SAFIX</strong> — Entreprise individuelle<br>\n      Adresse : 48 Bd Alexandre III, 59140 Dunkerque, France<br>\n      Email : <a href="mailto:support@safix59.fr">support@safix59.fr</a><br>\n      SIREN : 942 003 062<br>\n      SIRET (siège social) : 942 003 062 00018<br>\n      TVA non applicable, art. 293 B du CGI (franchise en base de TVA)',
     'legal.mentions.h_director':'Directeur de la publication',
     'legal.mentions.director':"Le responsable légal de l'entreprise individuelle SAFIX.",
     'legal.mentions.h_host':'Hébergeur du site',
@@ -10395,7 +10448,7 @@ const I18N = {
     'legal.privacy.title':'Politique de confidentialité',
     'legal.privacy.updated':'<em>Dernière mise à jour : avril 2026</em>',
     'legal.privacy.h1':'1. Responsable du traitement',
-    'legal.privacy.p1':'<strong>SAFIX</strong> — Entreprise individuelle, 48 Bd Alexandre III, 59140 Dunkerque, France — SIREN 942 003 062.<br>\n      Contact RGPD : <a href="mailto:fusion-laminaire-0i@icloud.com">fusion-laminaire-0i@icloud.com</a>',
+    'legal.privacy.p1':'<strong>SAFIX</strong> — Entreprise individuelle, 48 Bd Alexandre III, 59140 Dunkerque, France — SIREN 942 003 062.<br>\n      Contact RGPD : <a href="mailto:support@safix59.fr">support@safix59.fr</a>',
     'legal.privacy.h2':'2. Données collectées',
     'legal.privacy.d1':'<strong>Email</strong> (obligatoire) : envoi de la confirmation et suivi de commande',
     'legal.privacy.d2':'<strong>Téléphone</strong> (optionnel) : suivi de commande accéléré',
@@ -10415,7 +10468,7 @@ const I18N = {
     'legal.privacy.h6':'6. Destinataires',
     'legal.privacy.p6':"Vos données sont uniquement traitées par SAFIX et ses sous-traitants techniques (hébergeur, service d'envoi d'email, prestataire de paiement). Aucune donnée n'est revendue.",
     'legal.privacy.h7':'7. Vos droits',
-    'legal.privacy.p7a':"Vous disposez d'un droit d'accès, de rectification, de suppression, de portabilité, de limitation et d'opposition. Pour les exercer, écrivez-nous à : <a href=\"mailto:fusion-laminaire-0i@icloud.com\">fusion-laminaire-0i@icloud.com</a>.",
+    'legal.privacy.p7a':"Vous disposez d'un droit d'accès, de rectification, de suppression, de portabilité, de limitation et d'opposition. Pour les exercer, écrivez-nous à : <a href=\"mailto:support@safix59.fr\">support@safix59.fr</a>.",
     'legal.privacy.p7b':'En cas de désaccord, vous pouvez saisir la <strong>CNIL</strong> : <a href="https://www.cnil.fr" target="_blank" rel="noopener">www.cnil.fr</a>.',
     'legal.privacy.h8':'8. Sécurité',
     'legal.privacy.p8':'Connexion HTTPS, données stockées sur des serveurs européens, mots de passe hashés, accès restreint aux personnes habilitées.',
@@ -10605,11 +10658,11 @@ const I18N = {
     'legal.about.cmt3':'<strong>Careful repair</strong> by a dedicated technician.',
     'legal.about.cmt4':'Delivery <strong>within 48 h</strong> or <strong>next day with Express</strong>.',
     'legal.about.h_contact':'Contact us',
-    'legal.about.contact':'Email: <a href="mailto:fusion-laminaire-0i@icloud.com">fusion-laminaire-0i@icloud.com</a><br>\n      Snapchat: <a href="https://www.snapchat.com/add/safix.59" target="_blank" rel="noopener">@safix.59</a>',
+    'legal.about.contact':'Email: <a href="mailto:support@safix59.fr">support@safix59.fr</a><br>\n      Snapchat: <a href="https://www.snapchat.com/add/safix.59" target="_blank" rel="noopener">@safix.59</a>',
     // Legal notice (Mentions légales)
     'legal.mentions.title':'Legal notice',
     'legal.mentions.h_editor':'Site publisher',
-    'legal.mentions.editor':'<strong>SAFIX</strong> — Sole proprietorship (entreprise individuelle)<br>\n      Address: 48 Bd Alexandre III, 59140 Dunkerque, France<br>\n      Email: <a href="mailto:fusion-laminaire-0i@icloud.com">fusion-laminaire-0i@icloud.com</a><br>\n      SIREN: 942 003 062<br>\n      SIRET (registered office): 942 003 062 00018<br>\n      VAT not applicable, art. 293 B of the CGI (French VAT-exempt basic franchise scheme — franchise en base de TVA)',
+    'legal.mentions.editor':'<strong>SAFIX</strong> — Sole proprietorship (entreprise individuelle)<br>\n      Address: 48 Bd Alexandre III, 59140 Dunkerque, France<br>\n      Email: <a href="mailto:support@safix59.fr">support@safix59.fr</a><br>\n      SIREN: 942 003 062<br>\n      SIRET (registered office): 942 003 062 00018<br>\n      VAT not applicable, art. 293 B of the CGI (French VAT-exempt basic franchise scheme — franchise en base de TVA)',
     'legal.mentions.h_director':'Publication director',
     'legal.mentions.director':'The legal representative of the sole proprietorship SAFIX.',
     'legal.mentions.h_host':'Site host',
@@ -10626,7 +10679,7 @@ const I18N = {
     'legal.privacy.title':'Privacy policy',
     'legal.privacy.updated':'<em>Last updated: April 2026</em>',
     'legal.privacy.h1':'1. Data controller',
-    'legal.privacy.p1':'<strong>SAFIX</strong> — Sole proprietorship (entreprise individuelle), 48 Bd Alexandre III, 59140 Dunkerque, France — SIREN 942 003 062.<br>\n      GDPR contact: <a href="mailto:fusion-laminaire-0i@icloud.com">fusion-laminaire-0i@icloud.com</a>',
+    'legal.privacy.p1':'<strong>SAFIX</strong> — Sole proprietorship (entreprise individuelle), 48 Bd Alexandre III, 59140 Dunkerque, France — SIREN 942 003 062.<br>\n      GDPR contact: <a href="mailto:support@safix59.fr">support@safix59.fr</a>',
     'legal.privacy.h2':'2. Data collected',
     'legal.privacy.d1':'<strong>Email</strong> (required): sending the confirmation and order tracking',
     'legal.privacy.d2':'<strong>Phone</strong> (optional): expedited order tracking',
@@ -10646,7 +10699,7 @@ const I18N = {
     'legal.privacy.h6':'6. Recipients',
     'legal.privacy.p6':'Your data is processed solely by SAFIX and its technical subprocessors (host, email-sending service, payment provider). No data is resold.',
     'legal.privacy.h7':'7. Your rights',
-    'legal.privacy.p7a':"You have the right of access, rectification, erasure, portability, restriction and objection. To exercise them, write to us at: <a href=\"mailto:fusion-laminaire-0i@icloud.com\">fusion-laminaire-0i@icloud.com</a>.",
+    'legal.privacy.p7a':"You have the right of access, rectification, erasure, portability, restriction and objection. To exercise them, write to us at: <a href=\"mailto:support@safix59.fr\">support@safix59.fr</a>.",
     'legal.privacy.p7b':'In the event of a disagreement, you may refer the matter to the <strong>CNIL</strong> (French data protection authority): <a href="https://www.cnil.fr" target="_blank" rel="noopener">www.cnil.fr</a>.',
     'legal.privacy.h8':'8. Security',
     'legal.privacy.p8':'HTTPS connection, data stored on European servers, hashed passwords, access restricted to authorised personnel.',
@@ -13819,15 +13872,25 @@ setInterval(refreshDeliveryAvailability, 60000); // ré-évalue chaque minute (c
       <div class="chat-head-title">SAFIX</div>
       <div class="chat-head-sub"><span class="chat-dot" id="chatDot"></span> <span id="chatStatus">Hors ligne</span></div>
     </div>
-    <button class="chat-head-close" id="chatClose" aria-label="Fermer">✕</button>
   </div>
   <div class="chat-body" id="chatBody">
     <div class="chat-welcome" id="chatWelcome">
-      <p id="chatWelcomeText">Bonjour 👋 Une question sur votre réparation ? Écrivez-nous, on vous répond au plus vite.</p>
-      <div class="chat-name-field" id="chatNameField"><input type="text" id="chatName" placeholder="Votre prénom (optionnel)" autocomplete="given-name" maxlength="80"></div>
+      <p id="chatWelcomeText">Bonjour 👋 Une question sur votre réparation ? Notre assistant vous répond immédiatement, et un conseiller reste disponible.</p>
+      <div class="chat-name-field" id="chatNameField">
+        <input type="text" id="chatName" placeholder="Votre prénom" autocomplete="given-name" maxlength="80" aria-label="Votre prénom">
+        <p class="chat-name-err" id="chatNameErr" hidden>Indiquez votre prénom pour démarrer la conversation.</p>
+      </div>
     </div>
   </div>
+  <div class="chat-preview" id="chatPreview" hidden>
+    <img id="chatPreviewImg" alt="Aperçu">
+    <button type="button" id="chatPreviewRm" aria-label="Retirer la photo">✕</button>
+  </div>
   <form class="chat-input" id="chatForm" autocomplete="off">
+    <button type="button" class="chat-attach" id="chatAttach" aria-label="Envoyer une photo" title="Envoyer une photo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.6"/><path d="M21 15.5 16 10.5 5 21"/></svg>
+    </button>
+    <input type="file" id="chatFile" accept="image/*" hidden>
     <input type="text" id="chatText" placeholder="Votre message…" autocomplete="off" maxlength="2000" aria-label="Votre message">
     <button type="submit" class="chat-send" id="chatSend" aria-label="Envoyer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7z"/></svg></button>
   </form>
@@ -13838,29 +13901,32 @@ setInterval(refreshDeliveryAvailability, 60000); // ré-évalue chaque minute (c
       body=document.getElementById('chatBody'), form=document.getElementById('chatForm'),
       input=document.getElementById('chatText'), badge=document.getElementById('chatFabBadge'),
       nameField=document.getElementById('chatNameField'), nameInput=document.getElementById('chatName'),
-      closeBtn=document.getElementById('chatClose');
+      nameErr=document.getElementById('chatNameErr'),
+      attachBtn=document.getElementById('chatAttach'), fileInput=document.getElementById('chatFile'),
+      preview=document.getElementById('chatPreview'), previewImg=document.getElementById('chatPreviewImg'),
+      previewRm=document.getElementById('chatPreviewRm');
   if(!fab||!panel||!body||!form||!input) return;
 
   var EN=(typeof currentLang!=='undefined'&&currentLang==='en');
   var T=EN
-    ? {online:'Online', offline:'Offline', welcome:"Hi 👋 A question about your repair? Message us — we'll reply shortly.", ph:'Your message…', name:'Your first name (optional)'}
-    : {online:'En ligne', offline:'Hors ligne', welcome:'Bonjour 👋 Une question sur votre réparation ? Écrivez-nous, on vous répond au plus vite.', ph:'Votre message…', name:'Votre prénom (optionnel)'};
+    ? {online:'Online', offline:'Offline', assistant:'Assistant', welcome:'Hi 👋 A question about your repair? Our assistant replies instantly, and an advisor stays available.',
+       ph:'Your message…', name:'Your first name', nameErr:'Please enter your first name to start the conversation.',
+       human:'Talk to an advisor', humanOk:'An advisor will reply to you here as soon as possible.', photo:'Photo'}
+    : {online:'En ligne', offline:'Hors ligne', assistant:'Assistant', welcome:'Bonjour 👋 Une question sur votre réparation ? Notre assistant vous répond immédiatement, et un conseiller reste disponible.',
+       ph:'Votre message…', name:'Votre prénom', nameErr:'Indiquez votre prénom pour démarrer la conversation.',
+       human:'Parler à un conseiller', humanOk:'Un conseiller vous répondra ici dès que possible.', photo:'Photo'};
   var stEl=document.getElementById('chatStatus'), wEl=document.getElementById('chatWelcomeText'), dotEl=document.getElementById('chatDot');
   if(wEl) wEl.textContent=T.welcome;
   input.placeholder=T.ph; if(nameInput) nameInput.placeholder=T.name;
+  if(nameErr) nameErr.textContent=T.nameErr;
 
-  // Présence admin : « En ligne » UNIQUEMENT si l'admin est sur la messagerie
-  // du Dashboard (heartbeat récent), sinon « Hors ligne ».
   function setPresence(on){ if(stEl) stEl.textContent = on ? T.online : T.offline; if(dotEl) dotEl.classList.toggle('off', !on); }
   setPresence(false);
   function checkPresence(){
-    fetch('/api/admin?action=presence',{cache:'no-store'})
-      .then(function(r){ return r.ok?r.json():null; })
-      .then(function(j){ setPresence(!!(j&&j.online)); })
-      .catch(function(){});
+    fetch('/api/admin?action=presence',{cache:'no-store'}).then(function(r){ return r.ok?r.json():null; })
+      .then(function(j){ setPresence(!!(j&&j.online)); }).catch(function(){});
   }
-  checkPresence();
-  setInterval(checkPresence, 30000);
+  checkPresence(); setInterval(checkPresence, 30000);
 
   var sid;
   try{ sid=localStorage.getItem('sfx_chat_sid'); if(!sid){ sid='c'+Date.now().toString(36)+Math.random().toString(36).slice(2,8); localStorage.setItem('sfx_chat_sid',sid); } }catch(e){ sid='c'+Date.now().toString(36); }
@@ -13868,36 +13934,97 @@ setInterval(refreshDeliveryAvailability, 60000); // ré-évalue chaque minute (c
   if(storedName && nameInput) nameInput.value=storedName;
   var seenMax=0; try{ seenMax=parseInt(localStorage.getItem('sfx_chat_seen')||'0',10)||0; }catch(e){}
 
-  var msgs=[], open=false, pollT=null, slowT=null, sending=false;
+  var msgs=[], open=false, pollT=null, slowT=null, sending=false, pendingImg=null, typing=false;
+  var baseTitle=document.title;
   function fmtTime(ts){ try{ return new Date(ts).toLocaleTimeString(EN?'en-US':'fr-FR',{hour:'2-digit',minute:'2-digit'}); }catch(e){ return ''; } }
   function esc(s){ var d=document.createElement('div'); d.textContent=s==null?'':String(s); return d.innerHTML; }
   function adminMaxId(){ var x=0; msgs.forEach(function(m){ if(m.sender==='admin'&&m.id>x)x=m.id; }); return x; }
+  // Marqueurs internes : ::img::URL[\ncaption] · ::bot::texte · ::human::
+  function parseBody(m){
+    var b=String(m.body||'');
+    if(b==='::human::') return {kind:'human'};
+    var bot=false;
+    if(b.indexOf('::bot::')===0){ bot=true; b=b.slice(7); }
+    if(b.indexOf('::img::')===0){
+      var rest=b.slice(7), nl=rest.indexOf('\n');
+      return {kind:'img', bot:bot, url:nl===-1?rest:rest.slice(0,nl), caption:nl===-1?'':rest.slice(nl+1)};
+    }
+    return {kind:'text', bot:bot, text:b};
+  }
+  function botActive(){
+    for(var i=0;i<msgs.length;i++){
+      var m=msgs[i];
+      if(m.body==='::human::') return false;
+      if(m.sender==='admin' && String(m.body||'').indexOf('::bot::')!==0) return false;
+    }
+    return true;
+  }
   function render(){
-    body.querySelectorAll('.chat-msg').forEach(function(n){ n.remove(); });
+    body.querySelectorAll('.chat-msg,.chat-sys,.chat-human-btn,.chat-typing').forEach(function(n){ n.remove(); });
     if(nameField) nameField.style.display=msgs.length?'none':'';
     msgs.forEach(function(m){
+      var p=parseBody(m);
+      if(p.kind==='human'){
+        var sy=document.createElement('div'); sy.className='chat-sys'; sy.textContent='🙋 '+T.humanOk; body.appendChild(sy); return;
+      }
       var el=document.createElement('div');
-      el.className='chat-msg '+(m.sender==='admin'?'admin':'user');
-      el.innerHTML=esc(m.body)+'<span class="chat-msg-time">'+fmtTime(m.created_at)+'</span>';
+      el.className='chat-msg '+(m.sender==='admin'?(p.bot?'admin bot':'admin'):'user');
+      var inner=p.bot?('<span class="chat-bot-tag">'+T.assistant+'</span>'):'';
+      if(p.kind==='img'){
+        inner+='<a href="'+esc(p.url)+'" target="_blank" rel="noopener"><img src="'+esc(p.url)+'" alt="'+T.photo+'" loading="lazy"></a>';
+        if(p.caption) inner+='<span class="chat-img-cap">'+esc(p.caption)+'</span>';
+      } else { inner+=esc(p.text); }
+      el.innerHTML=inner+'<span class="chat-msg-time">'+fmtTime(m.created_at)+'</span>';
       body.appendChild(el);
     });
+    if(typing){ var tp=document.createElement('div'); tp.className='chat-typing'; tp.innerHTML='<i></i><i></i><i></i>'; body.appendChild(tp); }
+    else if(msgs.length && botActive()){
+      var hb=document.createElement('button'); hb.type='button'; hb.className='chat-human-btn'; hb.textContent='👤 '+T.human;
+      hb.addEventListener('click', requestHuman); body.appendChild(hb);
+    }
     body.scrollTop=body.scrollHeight;
+  }
+  function beep(){
+    try{
+      var C=window.AudioContext||window.webkitAudioContext; if(!C) return;
+      var ctx=beep._c||(beep._c=new C()); if(ctx.state==='suspended') return;
+      var o=ctx.createOscillator(), g=ctx.createGain();
+      o.frequency.value=880; g.gain.setValueAtTime(0.0001,ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.06,ctx.currentTime+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+0.28);
+      o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime+0.3);
+    }catch(e){}
+  }
+  function notifyNew(){
+    beep();
+    if(document.hidden||!open){ document.title='(1) '+baseTitle;
+      var back=function(){ if(!document.hidden){ document.title=baseTitle; document.removeEventListener('visibilitychange',back); } };
+      document.addEventListener('visibilitychange',back);
+    }
   }
   function refreshBadge(){
     var unread=0; msgs.forEach(function(m){ if(m.sender==='admin'&&m.id>seenMax) unread++; });
     if(!open && unread>0){ badge.textContent=unread>9?'9+':String(unread); badge.hidden=false; } else { badge.hidden=true; }
   }
-  function markSeen(){ seenMax=Math.max(seenMax, adminMaxId()); try{ localStorage.setItem('sfx_chat_seen',String(seenMax)); }catch(e){} refreshBadge(); }
+  function markSeen(){ seenMax=Math.max(seenMax, adminMaxId()); try{ localStorage.setItem('sfx_chat_seen',String(seenMax)); }catch(e){} refreshBadge(); document.title=baseTitle; }
+  var lastAdmin=0;
   function load(){
     return fetch('/api/admin?action=msg-list&session='+encodeURIComponent(sid),{cache:'no-store'})
       .then(function(r){ return r.ok?r.json():null; })
-      .then(function(j){ if(j&&Array.isArray(j.messages)){ msgs=j.messages; if(open){ render(); markSeen(); } else { refreshBadge(); } } })
-      .catch(function(){});
+      .then(function(j){
+        if(j&&Array.isArray(j.messages)){
+          msgs=j.messages;
+          var mx=adminMaxId();
+          if(lastAdmin && mx>lastAdmin) notifyNew();
+          lastAdmin=mx;
+          if(open){ render(); markSeen(); } else { refreshBadge(); }
+        }
+      }).catch(function(){});
   }
   function slowPoll(){ if(slowT) clearInterval(slowT); slowT=setInterval(function(){ if(!open) load(); },30000); }
   function openChat(){
     open=true; document.body.classList.add('chat-open'); panel.setAttribute('aria-hidden','false');
-    render(); load(); checkPresence(); setTimeout(function(){ input.focus(); },80);
+    render(); load(); checkPresence(); setTimeout(function(){ (msgs.length?input:nameInput||input).focus(); },80);
     if(pollT) clearInterval(pollT); pollT=setInterval(load,6000);
   }
   function closeChat(){
@@ -13906,22 +14033,77 @@ setInterval(refreshDeliveryAvailability, 60000); // ré-évalue chaque minute (c
     slowPoll();
   }
   fab.addEventListener('click', function(){ open?closeChat():openChat(); });
-  if(closeBtn) closeBtn.addEventListener('click', closeChat);
   document.addEventListener('keydown', function(e){ if(e.key==='Escape'&&open) closeChat(); });
+
+  // ── Prénom OBLIGATOIRE avant le premier message (validation douce) ──
+  function requireName(){
+    if(msgs.length) return true;
+    var nm=((nameInput&&nameInput.value)||'').trim();
+    if(nm){ if(nameErr) nameErr.hidden=true; nameInput.classList.remove('err'); return true; }
+    if(nameErr) nameErr.hidden=false;
+    if(nameInput){ nameInput.classList.remove('err'); void nameInput.offsetWidth; nameInput.classList.add('err'); nameInput.focus(); }
+    return false;
+  }
+  if(nameInput) nameInput.addEventListener('input', function(){ if(nameInput.value.trim()){ nameInput.classList.remove('err'); if(nameErr) nameErr.hidden=true; } });
+
+  // ── Photos : sélection → compression (canvas) → aperçu → envoi ──
+  if(attachBtn&&fileInput){
+    attachBtn.addEventListener('click', function(){ fileInput.click(); });
+    fileInput.addEventListener('change', function(){
+      var f=fileInput.files&&fileInput.files[0]; fileInput.value='';
+      if(!f||!/^image\//.test(f.type)) return;
+      var img=new Image(), url=URL.createObjectURL(f);
+      img.onload=function(){
+        try{
+          var MAX=1280, w=img.width, h=img.height;
+          if(w>MAX||h>MAX){ var k=Math.min(MAX/w,MAX/h); w=Math.round(w*k); h=Math.round(h*k); }
+          var c=document.createElement('canvas'); c.width=w; c.height=h;
+          c.getContext('2d').drawImage(img,0,0,w,h);
+          pendingImg=c.toDataURL('image/jpeg',0.82);
+          if(previewImg) previewImg.src=pendingImg;
+          if(preview) preview.hidden=false;
+        }catch(e){ pendingImg=null; }
+        URL.revokeObjectURL(url);
+      };
+      img.onerror=function(){ URL.revokeObjectURL(url); };
+      img.src=url;
+    });
+  }
+  if(previewRm) previewRm.addEventListener('click', function(){ pendingImg=null; if(preview) preview.hidden=true; });
+
+  // ── Assistant IA : répond tant qu'aucun conseiller humain n'est engagé ──
+  function askBot(text){
+    if(!botActive()) return;
+    typing=true; render();
+    fetch('/api/admin?action=bot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session:sid, message:text})})
+      .then(function(r){ return r.ok?r.json():null; })
+      .then(function(){ typing=false; return load(); })
+      .catch(function(){ typing=false; render(); });
+  }
+  function requestHuman(){
+    fetch('/api/admin?action=msg-send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session:sid, body:'::human::', name:storedName||null})})
+      .then(function(){ return load(); });
+  }
+
   form.addEventListener('submit', function(e){
     e.preventDefault();
     var txt=(input.value||'').trim();
-    if(!txt||sending) return;
+    if((!txt&&!pendingImg)||sending) return;
+    if(!requireName()) return;
     sending=true;
     var nm=((nameInput&&nameInput.value)||'').trim();
     if(nm){ storedName=nm; try{ localStorage.setItem('sfx_chat_name',nm); }catch(e){} }
-    msgs.push({id:Date.now()*1000, sender:'user', body:txt, created_at:new Date().toISOString()});
+    var img=pendingImg; pendingImg=null; if(preview) preview.hidden=true;
+    var localBody=img?('::img::'+(previewImg?previewImg.src:'')+(txt?'\n'+txt:'')):txt;
+    msgs.push({id:Date.now()*1000, sender:'user', body:localBody, created_at:new Date().toISOString()});
     input.value=''; render();
-    fetch('/api/admin?action=msg-send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session:sid, body:txt, name:nm||storedName||null})})
+    fetch('/api/admin?action=msg-send',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({session:sid, body:txt, name:nm||storedName||null, image:img||null})})
       .then(function(r){ return r.ok?r.json():null; })
-      .then(function(){ sending=false; return load(); })
+      .then(function(){ sending=false; if(txt) askBot(txt); return load(); })
       .catch(function(){ sending=false; });
   });
+
   // La bulle chat s'écarte de la barre panier flottante quand elle apparaît.
   (function(){
     var fb=document.getElementById('floatBar'); if(!fb) return;
@@ -13930,8 +14112,7 @@ setInterval(refreshDeliveryAvailability, 60000); // ré-évalue chaque minute (c
     try { new MutationObserver(sync).observe(fb, { attributes:true, attributeFilter:['class'] }); } catch(e){}
   })();
 
-  // Détection discrète des réponses non lues au chargement (badge), sans polling inutile.
-  setTimeout(function(){ load().then(function(){ if(msgs.length){ refreshBadge(); slowPoll(); } }); }, 3500);
+  setTimeout(function(){ load().then(function(){ if(msgs.length){ lastAdmin=adminMaxId(); refreshBadge(); slowPoll(); } }); }, 3500);
 })();
 </script>
 

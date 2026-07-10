@@ -1,6 +1,6 @@
 // ─────────────────────────────────────────────────────────────────────────
 // Webhook Stripe — réceptionne les événements de paiement et :
-//   1. envoie un mail à Sami avec le récap (server-side, fiable)
+//   1. envoie un mail à l'administrateur avec le récap (server-side, fiable)
 //   2. (optionnel) insère la commande dans Supabase
 //   3. (optionnel) trigger le bot Render pour passer la commande Utopya
 // ─────────────────────────────────────────────────────────────────────────

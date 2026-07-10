@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { api } from '../lib/api';
 import type { GeoConfig } from '../lib/api';
 import { haversineKm } from '../lib/derive';
-import { Card, CardHead, Button, Switch, Badge, Skeleton, AlertBanner, useToast } from '../components';
+import { Card, CardHead, Button, Switch, Badge, Skeleton, AlertBanner, Modal, Dot, useToast } from '../components';
 import { Icon } from '../icons';
 
 const DEFAULT: GeoConfig = { enabled: true, lat: 51.0344, lng: 2.3768, radiusKm: 30, city: 'Dunkerque' };
@@ -70,7 +70,9 @@ export function Settings() {
 
   return (
     <div className="stagger">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5">
+      <MaintenanceCard />
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5 mt-3.5">
         {/* Configuration */}
         <Card className="lg:col-span-2">
           <CardHead title="Zone d’intervention" icon="pin" sub="Vérification de localisation au moment de la commande" />
@@ -171,6 +173,81 @@ export function Settings() {
 
       <style>{`.ctl{width:100%;height:40px;background:var(--panel2);border:1px solid var(--line);border-radius:var(--radius-ctl);padding:0 12px;color:var(--fg);font-size:13.5px;outline:none;transition:border-color .15s,box-shadow .15s}.ctl:focus{border-color:var(--line2);box-shadow:0 0 0 3.5px var(--accent-soft)}`}</style>
     </div>
+  );
+}
+
+// ─── Mode maintenance : bascule instantanée du site public (< 30 s) ───
+function MaintenanceCard() {
+  const [on, setOn] = useState<boolean | null>(null);
+  const [confirm, setConfirm] = useState<null | boolean>(null); // valeur demandée
+  const [busy, setBusy] = useState(false);
+  const toast = useToast();
+
+  useEffect(() => {
+    let alive = true;
+    api.maintenanceGet().then((r) => { if (alive && r.data) setOn(!!r.data.on); });
+    return () => { alive = false; };
+  }, []);
+
+  const apply = async (v: boolean) => {
+    setBusy(true);
+    const r = await api.maintenanceSet(v);
+    setBusy(false);
+    setConfirm(null);
+    if (r.status === 200 && r.data?.ok) {
+      setOn(v);
+      toast({
+        title: v ? 'Maintenance activée' : 'Site rouvert au public',
+        msg: v ? 'Le public voit la page de maintenance (effet < 30 s).' : 'Le site est de nouveau accessible (effet < 30 s).',
+        tone: v ? 'warn' : 'ok',
+      });
+    } else {
+      toast({ title: 'Échec de la bascule', msg: 'Vérifiez la table settings, puis réessayez.', tone: 'danger' });
+    }
+  };
+
+  return (
+    <>
+      <Card pad className="flex items-center gap-4">
+        <span className={`grid place-items-center h-12 w-12 rounded-2xl shrink-0 ${on ? 'bg-warn/12 text-warn' : 'bg-ok/12 text-ok'}`}>
+          <Icon name={on ? 'alert' : 'checkCircle'} size={22} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="text-[15px] font-semibold tracking-tight flex items-center gap-2.5">
+            Mode maintenance
+            {on == null ? <Skeleton className="h-4 w-16 rounded" /> : (
+              <Badge tone={on ? 'warn' : 'ok'}><Dot tone={on ? 'warn' : 'ok'} ping={!!on} />{on ? 'Site fermé au public' : 'Site en ligne'}</Badge>
+            )}
+          </div>
+          <div className="text-[12.5px] text-fg3 mt-0.5">
+            Ferme le site public derrière une page de maintenance premium. Le Dashboard et l'API restent accessibles. Effet en moins de 30 secondes, réversible à tout moment.
+          </div>
+        </div>
+        {on != null && <Switch checked={on} onChange={(v) => setConfirm(v)} />}
+      </Card>
+
+      <Modal open={confirm != null} onClose={() => setConfirm(null)}>
+        <div className="p-5">
+          <div className="flex items-center gap-3">
+            <span className={`grid place-items-center h-10 w-10 rounded-xl ${confirm ? 'bg-warn/12 text-warn' : 'bg-ok/12 text-ok'}`}>
+              <Icon name={confirm ? 'alert' : 'checkCircle'} size={18} />
+            </span>
+            <div>
+              <div className="text-[15px] font-semibold">{confirm ? 'Fermer le site au public ?' : 'Rouvrir le site au public ?'}</div>
+              <div className="text-[12.5px] text-fg3">
+                {confirm ? 'Tous les visiteurs verront la page de maintenance.' : 'Le site redeviendra accessible à tous.'}
+              </div>
+            </div>
+          </div>
+          <div className="flex gap-2.5 mt-5">
+            <Button className="flex-1" onClick={() => setConfirm(null)}>Annuler</Button>
+            <Button variant={confirm ? 'danger' : 'primary'} className="flex-1" disabled={busy} onClick={() => void apply(!!confirm)}>
+              {busy ? 'Application…' : confirm ? 'Activer la maintenance' : 'Rouvrir le site'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    </>
   );
 }
 

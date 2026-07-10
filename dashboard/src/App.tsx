@@ -55,6 +55,7 @@ function Shell() {
   const [visits, setVisits] = useState<VisitsData | null>(null);
   const [sessions, setSessions] = useState<SessionsData | null>(null);
   const [msgUnread, setMsgUnread] = useState(0);
+  const prevUnread = useRef<number | null>(null);
   const [section, setSection] = useState<Section>(() => (location.hash.slice(1) as Section) || 'home');
   const [drawer, setDrawer] = useState(false);
   const [palette, setPalette] = useState(false);
@@ -108,7 +109,16 @@ function Shell() {
   async function loadMsgUnread() {
     try {
       const res = await api.msgThreads();
-      if (res.status === 200 && res.data) setMsgUnread(res.data.total_unread || 0);
+      if (res.status === 200 && res.data) {
+        const n = res.data.total_unread || 0;
+        // Notification temps réel : toast quand un nouveau message arrive.
+        if (prevUnread.current != null && n > prevUnread.current) {
+          toast({ title: 'Nouveau message visiteur', msg: 'Ouvrez l’onglet Messages pour répondre.', tone: 'accent' });
+        }
+        prevUnread.current = n;
+        setMsgUnread(n);
+        document.title = n > 0 ? `(${n}) SAFIX · Administration` : 'SAFIX · Administration';
+      }
     } catch { /* silencieux */ }
   }
 

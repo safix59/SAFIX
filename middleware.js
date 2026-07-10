@@ -1,14 +1,39 @@
 // ─────────────────────────────────────────────────────────────────────────
-// MODE MAINTENANCE (Edge Middleware).
-// S'exécute AVANT le système de fichiers → intercepte TOUT le public (/,
-// /index.html, /iphone-*, assets…) et renvoie la page de maintenance (503).
-// EXCLUT /admin (+ ses assets) et /api : le Dashboard et l'API restent 100 %
-// fonctionnels. POUR LEVER LA MAINTENANCE : supprimer ce fichier middleware.js
-// (un seul fichier) puis redéployer.
+// MODE MAINTENANCE (Edge Middleware) — PERMANENT & PILOTABLE.
+// S'exécute AVANT le système de fichiers. Lit le drapeau `maintenance` dans
+// la table Supabase `settings` (cache 20 s par instance edge) :
+//   • drapeau ON  → tout le public reçoit la page de maintenance (503)
+//   • drapeau OFF (ou absent) → le site fonctionne normalement
+// EXCLUT /admin et /api : Dashboard + API toujours fonctionnels.
+// ACTIVER / DÉSACTIVER : Dashboard → Réglages → Mode maintenance (aucun
+// changement de code, effet < 30 s). Ce fichier reste en place en permanence.
 // ─────────────────────────────────────────────────────────────────────────
 export const config = {
-  matcher: '/((?!admin|api|_next|favicon).*)',
+  // Exclut : admin (dashboard), api, scraper (prix publics — nécessaires à
+  // l'assistant IA et au Dashboard même pendant la maintenance), _next, favicon.
+  matcher: '/((?!admin|api|scraper|_next|favicon).*)',
 };
+
+let _cache = { on: null, ts: 0 };
+async function maintenanceOn() {
+  const now = Date.now();
+  if (_cache.on !== null && now - _cache.ts < 20000) return _cache.on;
+  try {
+    const S = process.env.SUPABASE_URL, K = process.env.SUPABASE_SERVICE_ROLE;
+    if (S && K) {
+      const r = await fetch(`${S}/rest/v1/settings?select=value&key=eq.maintenance`, {
+        headers: { apikey: K, Authorization: `Bearer ${K}` },
+      });
+      if (r.ok) {
+        const rows = await r.json();
+        _cache = { on: !!(rows && rows[0] && rows[0].value && rows[0].value.on), ts: now };
+        return _cache.on;
+      }
+    }
+  } catch { /* réseau/DB indisponible → on garde la dernière valeur connue */ }
+  _cache.ts = now;
+  return _cache.on === null ? false : _cache.on;
+}
 
 const HTML = `<!doctype html>
 <html lang="fr">
@@ -56,7 +81,8 @@ p{font-size:15.5px;line-height:1.66;color:rgba(235,235,245,.66);margin:0 auto 30
 </body>
 </html>`;
 
-export default function middleware() {
+export default async function middleware() {
+  if (!(await maintenanceOn())) return; // maintenance OFF → site normal
   return new Response(HTML, {
     status: 503,
     headers: {
