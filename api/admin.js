@@ -148,12 +148,18 @@ function botFindModel(text, prices) {
   for (const k of models) if (norm(k).startsWith(wanted)) return k;
   return null;
 }
-async function botAnswer(message) {
+// `historyTexts` = messages précédents du client (du plus récent au plus
+// ancien) → mémoire de contexte : « et pour la batterie ? » après un échange
+// sur l'iPhone 13 Pro concerne l'iPhone 13 Pro, sans le redemander.
+async function botAnswer(message, historyTexts = []) {
   const t = norm(message);
   const doc = await botPrices();
   const prices = (doc && doc.prices) || null;
   const repair = BOT_REPAIRS.find((r) => r.rx.test(message)) || null;
-  const model = prices ? botFindModel(message, prices) : null;
+  let model = prices ? botFindModel(message, prices) : null;
+  if (!model && prices) {
+    for (const h of historyTexts) { model = botFindModel(h, prices); if (model) break; }
+  }
 
   const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
   if (repair && model && prices) {
@@ -320,7 +326,7 @@ export default async function handler(req, res) {
         }
       }
       // 1) Réponse déterministe (repli garanti + ancrage anti-hallucination)
-      const det = await botAnswer(message);
+      const det = await botAnswer(message, rows.filter((m) => m.sender === 'user').map((m) => String(m.body || '')));
       // 2) Réponse Claude ancrée (si ANTHROPIC_API_KEY) : historique + catalogue réel
       let reply = null;
       if (process.env.ANTHROPIC_API_KEY) {
