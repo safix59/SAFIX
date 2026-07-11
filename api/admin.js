@@ -76,6 +76,9 @@ FAITS VÉRIFIÉS (ta SEULE source de vérité) :
 - Livraison de la PIÈCE (fixe la date de réparation) : Standard 6 € (sous 48 h, commande avant 16h30, lun-mer) ou Express 8 € (dès le lendemain 15h, commande avant 17h30, lun-ven).
 - Paiement sécurisé : carte bancaire, Apple Pay, Google Pay, PayPal. Prix tout compris (pièce neuve + pose), aucune marge cachée sur la pièce.
 - Remboursement intégral automatique si la commande ne peut être honorée.
+- Gammes écran : Éco (idéal petit budget), Standard (meilleur rapport qualité/prix), Premium (meilleure qualité), Original (pièce Apple® certifiée). Batteries : Standard ou Original. Verres trempés : Classique (protection impacts/rayures) et Anti-espion (confidentialité).
+- Garantie (CGV) : aucune garantie commerciale sur les réparations ; les droits légaux du consommateur restent applicables. Pièces neuves uniquement.
+- Contact : ce chat (un conseiller répond ici), ou support@safix59.fr. Pas d'assistance téléphonique. Pas d'intervention à domicile (dépôt sur rendez-vous).
 RÈGLES STRICTES :
 1. N'INVENTE JAMAIS un prix, une disponibilité, un délai ou une information. Utilise UNIQUEMENT les faits ci-dessus et les DONNÉES CATALOGUE fournies.
 2. Si l'information demandée n'est pas dans tes données (ex : Face ID, carte mère, dégât des eaux, garantie, cas particulier) : ne dis PAS que SAFIX ne le fait pas — dis honnêtement que tu n'as pas l'info et qu'un conseiller va confirmer (escalate=true).
@@ -165,6 +168,7 @@ const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-
   .replace(/\btel\b|\btelefone\b|\btelephonne\b/g, 'telephone')
   .replace(/\bpb\b|\bblm\b|\bprob\b/g, 'probleme')
   .replace(/\bkc\b/g, 'casse').replace(/\bcass\w*\b/g, 'casse')
+  .replace(/\bbjr\b/g, 'bonjour').replace(/\bslt\b/g, 'salut').replace(/\bcc\b/g, 'coucou')
   .replace(/\bsvp\b|\bstp\b/g, '')
   .replace(/\s+/g, ' ').trim();
 // Distance de Levenshtein bornée → tolérance aux fautes de frappe :
@@ -262,7 +266,8 @@ async function botAnswer(message, history = []) {
   // Vente de téléphones : SAFIX n'en vend pas (réparation + verres trempés).
   const wantsBuy = hasWord(t, ['acheter', 'achete', 'acheterai', 'vendez', 'vendre', 'vente', 'en vente', 'a vendre']);
   const phoneObj = hasWord(t, ['telephone', 'portable', 'smartphone', 'mobile', 'iphone', 'samsung', 'occasion', 'reconditionne', 'neuf']);
-  const repairCur = findRepair(t);
+  const repairs = BOT_REPAIRS.filter((r) => hasWord(t, r.kw));
+  const repairCur = repairs[0] || null;
   if (wantsBuy && phoneObj && !repairCur) {
     return { reply: "Nous ne proposons pas la vente de téléphones pour le moment — SAFIX est spécialisé dans la réparation d'iPhone (pièces neuves) et les verres trempés. Dites-moi votre besoin, je vous aide avec plaisir 👍", human: false };
   }
@@ -279,13 +284,32 @@ async function botAnswer(message, history = []) {
     return { reply: "Cette intervention n'est pas dans notre catalogue en ligne, je préfère ne pas vous répondre au hasard : un conseiller vous confirme rapidement si nous pouvons la prendre en charge 👇", human: true };
   }
   if (hasWord(t, ['garantie', 'garanti', 'garantis'])) {
-    return { reply: 'Toutes nos réparations utilisent des pièces neuves, et une commande qui ne peut pas être honorée est intégralement remboursée. Pour les conditions précises de garantie, un conseiller vous confirme cela 👇', human: true };
+    return { reply: "Nos réparations sont réalisées avec des pièces neuves. Conformément à nos CGV, aucune garantie commerciale n'est offerte sur les réparations — vos droits légaux de consommateur restent bien sûr pleinement applicables. Et si une commande ne peut pas être honorée, elle est intégralement remboursée.", human: false };
   }
   if (hasWord(t, ['ma commande', 'suivi de commande', 'numero de commande', 'ou en est ma'])) {
     return { reply: 'Pour le suivi de votre commande, un conseiller vérifie votre dossier et vous répond ici même 👇 (pensez à indiquer l\'e-mail utilisé lors de la commande).', human: true };
   }
+  if (hasWord(t, ['annuler', 'annulation', 'reporter', 'decaler', 'changer mon rendez vous', 'changer la date', 'deplacer mon rendez vous', 'deplacer le rendez vous', 'deplacer ma commande'])) {
+    return { reply: 'Pour annuler ou déplacer un rendez-vous ou une commande, un conseiller s\'en occupe directement avec vous 👇 (indiquez l\'e-mail utilisé lors de la commande).', human: true };
+  }
+  if (hasWord(t, ['plusieurs fois', '3 fois', '4 fois', 'echelonner', 'facilites de paiement', 'facilite de paiement'])) {
+    return { reply: "Le paiement s'effectue en une fois (carte bancaire, Apple Pay, Google Pay ou PayPal). Pour toute facilité particulière, un conseiller vous répond 👇", human: true };
+  }
+  if (hasWord(t, ['retour en stock', 'de nouveau disponible', 'restock', 'quand disponible', 'reassort', 'reapprovisionne'])) {
+    return { reply: 'Les stocks se mettent à jour en temps réel sur le site. Un conseiller peut vous prévenir personnellement dès le retour de la pièce 👇', human: true };
+  }
+  if (hasWord(t, ['mes donnees', 'mes photos', 'vider mon', 'effacer mes', 'sauvegarder'])) {
+    return { reply: 'Très bonne question — un conseiller vous précise la marche à suivre pour vos données avant le dépôt (sauvegarde, code…) 👇', human: true };
+  }
+  if (hasWord(t, ['contacter', 'joindre', 'appeler', 'appelle', 'un appel', 'par telephone', 'numero', 'e mail', 'email', 'courriel', 'adresse mail', 'par mail'])) {
+    return { reply: 'Le plus simple : ce chat — un conseiller vous répond ici même. Vous pouvez aussi nous écrire à support@safix59.fr. Nous ne proposons pas d\'assistance téléphonique pour le moment.', human: false };
+  }
+  // Gammes de qualité (descriptions officielles du catalogue).
+  if (hasWord(t, ['difference', 'qualite', 'qualites', 'gamme', 'gammes', 'choisir entre', 'lequel choisir', 'laquelle choisir'])) {
+    return { reply: "Pour les écrans, 4 gammes au choix : Éco (idéal petit budget) · Standard (meilleur rapport qualité/prix) · Premium (meilleure qualité) · Original (pièce Apple® certifiée). Batteries : Standard ou Original (pièce Apple® certifiée). Les prix exacts par gamme s'affichent sur la fiche de votre modèle.", human: false };
+  }
   if (hasWord(t, ['coque', 'accessoire']) && !repairCur) {
-    return { reply: "Côté accessoires, notre catalogue en ligne propose les verres trempés (Classique et Anti-espion), posés avec soin. Pour les autres accessoires, un conseiller vous dira ce qui est disponible 👇", human: true };
+    return { reply: "Côté accessoires, notre catalogue en ligne propose les verres trempés (Classique — protection impacts et rayures, et Anti-espion — confidentialité sous tous les angles), posés avec soin. Pour les autres accessoires, un conseiller vous dira ce qui est disponible 👇", human: true };
   }
 
   // ── Compréhension réparation : pièce nommée, symptôme décrit, ou mémoire ──
@@ -316,6 +340,15 @@ async function botAnswer(message, history = []) {
     }
   }
 
+  // Plusieurs pièces dans le même message (« écran et batterie ») → devis groupé.
+  if (repairs.length > 1 && model && prices) {
+    const parts = [];
+    for (const r of repairs.slice(0, 3)) {
+      const { found } = botPriceLine(r, model, prices);
+      if (found.length) parts.push(`${cap(r.label)} : ${found.join(' · ')}`);
+    }
+    if (parts.length > 1) return { reply: `Pour l'${model} — ${parts.join(' — ')} (pièces neuves + pose). Tout se commande depuis la fiche « ${model} » du site.`, human: false };
+  }
   if (repair && model && prices) {
     const { found, anyRef, allOOS } = botPriceLine(repair, model, prices);
     if (found.length) {
@@ -328,7 +361,9 @@ async function botAnswer(message, history = []) {
   if (repair && !model) return { reply: `Bien sûr !${symptomHint} Pour quel modèle d'iPhone est-ce ? (ex. : iPhone 13 Pro)`, human: false };
   if (model && !repair && prices) {
     // Panne évoquée sans pièce identifiable (« il est casse », « ne s'allume plus ») ?
-    if (hasWord(t, ['casse', 'allume plus', 'allume pas', 'demarre plus', 'demarre pas', 'ecran noir', 'marche plus', 'probleme', 'panne', 'hs'])) {
+    // « casse » en exact uniquement : norm() canonicalise déjà cass* → casse,
+    // et le flou créerait des collisions (« passe », « caisse »…).
+    if (/\bcasse\b/.test(t) || hasWord(t, ['allume plus', 'allume pas', 'demarre plus', 'demarre pas', 'ecran noir', 'marche plus', 'probleme', 'panne', 'hs'])) {
       return { reply: `D'accord, un souci sur votre ${model}. Pouvez-vous me préciser ce qui ne va pas — l'écran, la batterie, la charge, le son… ? Je vous donne le prix exact tout de suite.`, human: false };
     }
     const avail = [];
@@ -344,21 +379,38 @@ async function botAnswer(message, history = []) {
     return { reply: `Je vois l'${model}, mais je ne peux pas confirmer les disponibilités à l'instant. Un conseiller vous répond au plus vite 👇`, human: true };
   }
   // Panne décrite sans modèle ni pièce (« mon telephone est casse »).
-  if (hasWord(t, ['casse', 'tombe', 'allume plus', 'allume pas', 'demarre plus', 'demarre pas', 'ecran noir', 'marche plus', 'panne', 'probleme', 'souci', 'hs'])) {
+  if (/\bcasse\b/.test(t) || hasWord(t, ['tombe', 'allume plus', 'allume pas', 'demarre plus', 'demarre pas', 'ecran noir', 'marche plus', 'panne', 'probleme', 'souci', 'hs'])) {
     return { reply: "Je vais vous aider 👍 Deux petites précisions : quel modèle d'iPhone, et qu'est-ce qui ne va pas exactement (écran, batterie, charge, son…) ?", human: false };
   }
 
   // ── FAQ vérifiée ──
   if (hasWord(t, ['adresse', 'localisation', 'ou etes vous', 'vous etes ou', 'etes ou', 'ou vous trouve', 'vous situez', 'situe', 'ou aller'])) return { reply: 'Nous sommes au 48 Bd Alexandre III, 59140 Dunkerque. Le dépôt de votre iPhone se fait sur rendez-vous, réservable directement lors de la commande.', human: false };
   if (hasWord(t, ['horaire', 'horaires', 'ouvert', 'quelle heure'])) return { reply: 'Nous fonctionnons sur rendez-vous : créneaux matin (9h–12h), après-midi (14h–18h) et soir (18h–20h), à choisir lors de votre commande.', human: false };
-  if (hasWord(t, ['livraison', 'delai', 'delais', 'combien de temps', 'rapide', 'rapidement', '48h', '48 h', 'sous 48', 'demain', 'aujourd hui'])) return { reply: "La pièce arrive en Standard (sous 48 h, 6 €) ou Express (dès le lendemain 15h, 8 €) — c'est ce qui fixe la date de votre réparation. Les détails exacts s'affichent dans le panier.", human: false };
+  if (hasWord(t, ['livraison', 'delai', 'delais', 'combien de temps', 'longtemps', 'rapide', 'rapidement', '48h', '48 h', 'sous 48', 'demain', 'aujourd hui'])) return { reply: "La pièce arrive en Standard (sous 48 h, 6 €) ou Express (dès le lendemain 15h, 8 €) — c'est ce qui fixe la date de votre réparation. Les détails exacts s'affichent dans le panier.", human: false };
   if (hasWord(t, ['paiement', 'payer', 'carte', 'paypal', 'apple pay', 'google pay'])) return { reply: 'Vous pouvez régler par carte bancaire, Apple Pay, Google Pay ou PayPal — paiement 100 % sécurisé au moment de la commande.', human: false };
   if (hasWord(t, ['rendez vous', 'rdv', 'deposer', 'apporter', 'depot'])) return { reply: 'Le rendez-vous se choisit en 3 étapes dans le panier : lieu de dépôt, date (dès demain) et créneau. Vous recevez ensuite une confirmation par e-mail.', human: false };
-  if (hasWord(t, ['zone', 'dunkerque', 'deplacement', 'loin', 'lille', 'calais', 'deplacez'])) return { reply: 'Nos réparations sont réalisées à Dunkerque et dans les communes environnantes. Si vous êtes plus loin, il faudra vous déplacer jusqu\'à notre point de réparation.', human: false };
+  if (hasWord(t, ['zone', 'dunkerque', 'deplacement', 'loin', 'lille', 'calais', 'deplacez', 'domicile', 'chez moi', 'a domicile'])) return { reply: 'La réparation se fait par dépôt de votre iPhone à notre point de Dunkerque (48 Bd Alexandre III), sur rendez-vous — nous n\'intervenons pas à domicile. Si vous êtes en dehors des environs, il faudra vous déplacer.', human: false };
+  if (hasWord(t, ['comment ca marche', 'comment ca se passe', 'comment commander', 'comment faire', 'je fais comment', 'ca marche comment', 'fonctionnement', 'les etapes', 'comment proceder'])) return { reply: "C'est simple : ① choisissez votre modèle sur le site puis la réparation ② dans le panier, choisissez la livraison de la pièce et votre rendez-vous (lieu, date, créneau) ③ payez en ligne ④ déposez votre iPhone au rendez-vous, il vous est rendu réparé. Confirmation par e-mail à chaque étape.", human: false };
   // Question de prix sans réparation identifiable (après la FAQ : « combien
   // de temps » doit rester une question de délai, pas de prix).
-  if (hasWord(t, ['combien', 'prix', 'tarif', 'cout', 'coute'])) {
+  if (hasWord(t, ['combien', 'prix', 'tarif', 'cout', 'coute', 'how much'])) {
     return { reply: "Avec plaisir ! Dites-moi le modèle d'iPhone et la réparation souhaitée (écran, batterie, connecteur…) et je vous donne le prix exact tout de suite.", human: false };
+  }
+  // Modèles couverts — calculé en direct depuis le catalogue (jamais figé).
+  if (prices && hasWord(t, ['quels modeles', 'quel modele reparez', 'quels iphone', 'modeles compatibles', 'liste des modeles', 'tous les modeles'])) {
+    const ms = new Set();
+    for (const rid of Object.keys(prices)) for (const k of Object.keys(prices[rid])) if (k !== 'default') ms.add(k);
+    let maxN = 0, minN = 99, hasSE = false;
+    for (const k of ms) { const m = /iphone (\d+)/.exec(norm(k)); if (m) { const n = +m[1]; if (n > maxN) maxN = n; if (n < minN) minN = n; } if (/\bse\b/.test(norm(k))) hasSE = true; }
+    if (ms.size) return { reply: `Nous couvrons ${ms.size} modèles — ${hasSE ? 'des iPhone SE, ' : ''}de l'iPhone ${minN} jusqu'aux iPhone ${maxN}. Cherchez simplement le vôtre sur la page d'accueil du site : s'il y figure, nous le réparons.`, human: false };
+  }
+  // Micro-réponses d'assentiment / refus AVANT les remerciements
+  // (« non merci » = refus poli, pas un merci).
+  if (/^(ok|oui|d accord|dac|dacc|ca marche|entendu|tres bien)\b.{0,8}$/.test(t)) {
+    return { reply: "Parfait 👍 Pour commander : la fiche de votre modèle sur le site → choisissez la réparation → panier (livraison de la pièce + rendez-vous). Je reste là si besoin !", human: false };
+  }
+  if (/^(non|non merci|c est bon|pas besoin|rien d autre)\b.{0,8}$/.test(t)) {
+    return { reply: "Pas de souci 👍 Je reste disponible si une question vous vient. Bonne journée !", human: false };
   }
   if (hasWord(t, ['bonjour', 'salut', 'hello', 'bonsoir', 'coucou', 'hey']) && t.length < 25) return { reply: 'Bonjour 👋 Je peux vous renseigner sur nos réparations, les prix, les délais ou les rendez-vous. Que puis-je faire pour vous ?', human: false };
   if (hasWord(t, ['merci', 'top', 'parfait', 'super', 'genial', 'nickel']) && t.length < 30) return { reply: 'Avec plaisir 🙌 Je reste là si vous avez une autre question.', human: false };
