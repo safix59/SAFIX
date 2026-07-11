@@ -51,7 +51,10 @@ async function askClaude(system, messages, maxTokens = 400, schema = null) {
       _anthropic = new Anthropic({ timeout: 20000, maxRetries: 1 });
     }
     const req = {
-      model: 'claude-opus-4-8',
+      // Qualité maximale par défaut ; ANTHROPIC_MODEL (env Vercel) permet de
+      // basculer sans code, ex. claude-haiku-4-5 (≈ ⅕ du coût, très bon en
+      // support chat) si l'owner privilégie le budget.
+      model: process.env.ANTHROPIC_MODEL || 'claude-opus-4-8',
       max_tokens: maxTokens,
       output_config: { effort: 'low' },   // chat support = sensible à la latence
       system,
