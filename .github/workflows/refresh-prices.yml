@@ -2,14 +2,19 @@ name: Rafraîchir les prix Utopya
 
 # But : maintenir scraper/prices.json à jour automatiquement, sans dépendre du PC
 # du propriétaire. Tourne sur les serveurs GitHub (gratuit, repo public).
-# - schedule : 2×/semaine (lundi & jeudi 04:00 UTC)
+# - schedule : 1×/jour à 04:47 UTC. Pas plus fréquent, à dessein : un scrape
+#   Playwright dure ~25 min, les tarifs fournisseur bougent au plus une fois
+#   par jour, et marteler Utopya (Cloudflare) ferait bannir le compte.
+#   (heure décalée de :00 : GitHub retarde fortement les crons pile à l'heure)
 # - workflow_dispatch : bouton "Run workflow" manuel (mode "login-test" pour
 #   simplement vérifier la connexion Utopya sans scraper, ou "full" pour tout)
+# - Reprise automatique : 2 tentatives espacées de 3 min (aléas Cloudflare).
+# - Alerte : échec → issue GitHub ouverte automatiquement (+ e-mail GitHub).
 # Le commit de prices.json sur main déclenche l'auto-déploiement Vercel → prix en ligne.
 
 on:
   schedule:
-    - cron: "0 4 * * 1,4"
+    - cron: "47 4 * * *"
   workflow_dispatch:
     inputs:
       mode:
@@ -26,11 +31,12 @@ concurrency:
 
 permissions:
   contents: write   # pour committer prices.json
+  issues: write     # pour ouvrir une issue d'alerte en cas d'échec
 
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 75   # 2 tentatives de ~25 min + marge
     defaults:
       run:
         working-directory: scraper
@@ -57,11 +63,15 @@ jobs:
         run: |
           MODE="${{ github.event.inputs.mode || 'full' }}"
           echo "Mode = $MODE"
-          if [ "$MODE" = "login-test" ]; then
-            node run.js --login-only
-          else
-            node run.js
-          fi
+          ARGS=""; [ "$MODE" = "login-test" ] && ARGS="--login-only"
+          # Reprise automatique : 2 tentatives (les échecs Cloudflare/latence
+          # sont souvent transitoires). Un échec persistant = vrai problème
+          # (ex : compte Utopya désactivé) → alerte via l'étape d'issue.
+          for i in 1 2; do
+            if node run.js $ARGS; then exit 0; fi
+            if [ "$i" = "1" ]; then echo "Tentative 1 échouée — nouvelle tentative dans 3 min…"; sleep 180; fi
+          done
+          exit 1
 
       - name: Valider prices.json (garde-fou anti-publication-cassée)
         if: ${{ github.event.inputs.mode != 'login-test' }}
@@ -89,4 +99,23 @@ jobs:
             git commit -m "Auto: rafraîchissement prix Utopya ($(date -u +%Y-%m-%d))"
             git push
             echo "prices.json + historique publiés → Vercel va auto-déployer."
+          fi
+
+      - name: Alerte en cas d'échec (issue GitHub, sans doublon)
+        if: ${{ failure() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          TITLE="⚠️ Rafraîchissement des prix en échec"
+          EXISTING=$(gh issue list --state open --search "$TITLE in:title" --json number --jq '.[0].number' || true)
+          BODY="Le run [\#${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) a échoué le $(date -u '+%Y-%m-%d %H:%M UTC') après 2 tentatives.
+
+          Causes fréquentes : compte Utopya désactivé (« Votre compte n'est pas actif » → contacter le support Utopya), identifiants changés (secrets UTOPYA_EMAIL / UTOPYA_PASSWORD), ou blocage Cloudflare persistant.
+
+          ⚠️ Tant que ce n'est pas réglé, les prix du site restent figés au dernier scrape réussi."
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body "$BODY"
+          else
+            gh issue create --title "$TITLE" --body "$BODY"
           fi
