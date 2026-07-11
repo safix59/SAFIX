@@ -121,6 +121,8 @@ export function Messages() {
   const [sending, setSending] = useState(false);
   const [pendingImg, setPendingImg] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [sugLoading, setSugLoading] = useState(false);
+  const [sugTick, setSugTick] = useState(0);
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [confirmDel, setConfirmDel] = useState<null | { kind: 'msgs'; ids: number[] } | { kind: 'thread' }>(null);
@@ -161,25 +163,33 @@ export function Messages() {
   useEffect(() => {
     if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
   }, [messages, active]);
-  // Suggestions de réponses : d'abord Claude (serveur, ancré catalogue),
-  // sinon repli sur le générateur local déterministe. Ne se déclenche que
-  // lorsque le dernier message vient du client (pas après une réponse admin).
+  // Assistant temps réel : à chaque nouveau message client, Claude analyse la
+  // conversation complète (contexte, modèle évoqué, fautes) et propose des
+  // réponses prêtes à envoyer. Repli local déterministe si Claude indisponible.
+  // Ne se masque que si la DERNIÈRE réponse vient de l'admin humain (les
+  // réponses de l'assistant automatique ::bot:: ne bloquent pas — tu peux
+  // toujours reprendre la main).
   useEffect(() => {
     const last = messages[messages.length - 1];
+    const lastIsHumanAdmin = !!last && last.sender === 'admin' && !last.body.startsWith('::bot::');
     const lastUser = [...messages].reverse().find((m) => m.sender === 'user' && m.body !== '::human::' && !m.body.startsWith('::img::'));
-    if (!active || !lastUser || (last && last.sender === 'admin')) { setSuggestions([]); return; }
+    if (!active || !lastUser || lastIsHumanAdmin) { setSuggestions([]); setSugLoading(false); return; }
     let alive = true;
     const th = threads?.find((t) => t.session === active);
     const sessionId = active;
     // Repli local immédiat (affichage instantané), puis Claude si dispo.
     void buildSuggestions(lastUser.body, th?.name ?? null).then((s) => { if (alive) setSuggestions((cur) => (cur.length ? cur : s)); });
+    setSugLoading(true);
     const t = setTimeout(() => {
-      void api.msgSuggest(sessionId).then((r) => {
-        if (alive && r.status === 200 && r.data?.ready && r.data.suggestions.length) setSuggestions(r.data.suggestions);
-      });
-    }, 400);
+      void api.msgSuggest(sessionId)
+        .then((r) => {
+          if (alive && r.status === 200 && r.data?.ready && r.data.suggestions.length) setSuggestions(r.data.suggestions);
+        })
+        .finally(() => { if (alive) setSugLoading(false); });
+    }, 350);
     return () => { alive = false; clearTimeout(t); };
-  }, [messages, active, threads]);
+    // sugTick force une régénération manuelle (bouton ↻ de l'assistant).
+  }, [messages, active, threads, sugTick]);
 
   const filtered = useMemo(() => {
     const list = threads || [];
@@ -371,19 +381,39 @@ export function Messages() {
                 </div>
               )}
 
-              {/* Suggestions IA */}
-              {!selectMode && suggestions.length > 0 && (
-                <div className="flex gap-2 px-3 pt-2.5 pb-0.5 overflow-x-auto no-scrollbar shrink-0">
-                  {suggestions.map((s, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setReply(s)}
-                      title={s}
-                      className="shrink-0 max-w-[260px] truncate text-[11.5px] text-fg2 bg-panel2 border border-line rounded-full px-3 py-1.5 hover:border-accent/40 hover:text-fg transition-colors"
-                    >
-                      ✨ {s}
-                    </button>
-                  ))}
+              {/* Assistant IA temps réel : analyse la conversation, propose des
+                  réponses complètes. Clic = remplit le champ (modifiable avant envoi). */}
+              {!selectMode && (suggestions.length > 0 || sugLoading) && (
+                <div className="px-3 pt-2.5 pb-0.5 shrink-0">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-accentFg">✨ Assistant</span>
+                    {sugLoading ? (
+                      <span className="flex items-center gap-1.5 text-[10.5px] text-fg3">
+                        <span className="inline-block h-2.5 w-2.5 rounded-full border-[1.5px] border-fg3/30 border-t-accent animate-spin" />
+                        analyse la conversation…
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => setSugTick((n) => n + 1)}
+                        title="Régénérer les suggestions"
+                        className="text-[11px] text-fg3 hover:text-fg transition-colors leading-none"
+                      >
+                        ↻
+                      </button>
+                    )}
+                    <span className="ml-auto text-[10px] text-fg3">clic = remplir le champ, modifiable avant envoi</span>
+                  </div>
+                  <div className="flex flex-col gap-1.5 max-h-40 overflow-auto no-scrollbar">
+                    {suggestions.map((s, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setReply(s)}
+                        className="text-left text-[12.5px] leading-snug text-fg2 bg-panel2 border border-line rounded-xl px-3 py-2 hover:border-accent/40 hover:text-fg hover:bg-accent/[0.04] transition-colors"
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
 
