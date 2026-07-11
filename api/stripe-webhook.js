@@ -7,6 +7,11 @@
 
 import Stripe from 'stripe';
 
+// Adresse de contact affichée dans les e-mails clients. Bascule vers
+// support@safix59.fr (env SHOP_CONTACT_EMAIL ou défaut ici) UNIQUEMENT quand
+// la boîte OVH existera — sinon les clients écriraient à une adresse qui rebondit.
+const CONTACT_EMAIL = process.env.SHOP_CONTACT_EMAIL || 'fusion-laminaire-0i@icloud.com';
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: '2024-06-20',
 });
@@ -286,7 +291,7 @@ function buildClientEmailHtml({ session, lineItems }) {
         <div style="margin-top:24px;padding:18px 20px;border-radius:14px;border:1px solid #e5e5e5;text-align:center;">
           <div style="font-size:13px;font-weight:700;color:#1d1d1f;margin-bottom:8px;">Une question ? On répond rapidement.</div>
           <div style="font-size:13px;color:#3a3a3c;line-height:1.6;">
-            📧 <a href="mailto:fusion-laminaire-0i@icloud.com" style="color:#0066ff;text-decoration:none;">fusion-laminaire-0i@icloud.com</a><br>
+            📧 <a href="mailto:${CONTACT_EMAIL}" style="color:#0066ff;text-decoration:none;">${CONTACT_EMAIL}</a><br>
             👻 Snapchat · <a href="https://www.snapchat.com/add/safix-support" style="color:#0066ff;text-decoration:none;">@safix-support</a><br>
             🌐 <a href="https://safix59.fr" style="color:#0066ff;text-decoration:none;">safix59.fr</a>
           </div>
