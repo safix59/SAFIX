@@ -156,7 +156,7 @@ let devGeo: GeoConfig = { enabled: true, lat: 51.0344, lng: 2.3768, radiusKm: 30
 let devMaint = false;
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 async function devCall<T>(
-  kind: 'login' | 'logout' | 'data' | 'live' | 'visits' | 'sessions' | 'del' | 'geo' | 'geo-set' | 'msg-threads' | 'msg-thread' | 'msg-reply' | 'msg-del' | 'msg-del-thread' | 'admin-ping' | 'maintenance-get' | 'maintenance-set',
+  kind: 'login' | 'logout' | 'data' | 'live' | 'visits' | 'sessions' | 'del' | 'geo' | 'geo-set' | 'msg-threads' | 'msg-thread' | 'msg-reply' | 'msg-del' | 'msg-del-thread' | 'suggest' | 'admin-ping' | 'maintenance-get' | 'maintenance-set',
   pw?: string,
   payload?: unknown,
 ): Promise<Res<T>> {
@@ -173,6 +173,7 @@ async function devCall<T>(
   if (kind === 'msg-reply') { const p = payload as { session: string; body: string }; m.mockReply(p.session, p.body); return { status: 200, data: { ok: true } as unknown as T }; }
   if (kind === 'admin-ping') return { status: 200, data: { ok: true } as unknown as T };
   if (kind === 'msg-del' || kind === 'msg-del-thread') return { status: 200, data: { ok: true } as unknown as T };
+  if (kind === 'suggest') return { status: 200, data: { ready: false, suggestions: [] } as unknown as T };
   if (kind === 'maintenance-get') return { status: 200, data: { ok: true, on: devMaint } as unknown as T };
   if (kind === 'maintenance-set') { devMaint = !!(payload as { on: boolean }).on; return { status: 200, data: { ok: true, on: devMaint } as unknown as T }; }
   if (kind === 'data') return { status: 200, data: m.MOCK_DATA as unknown as T };
@@ -201,6 +202,8 @@ export const api = {
     DEV ? devCall('msg-del', undefined, { ids }) : call('msg-del', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids }) }),
   msgDelThread: (session: string): Promise<Res<{ ok: boolean }>> =>
     DEV ? devCall('msg-del-thread', undefined, { session }) : call('msg-del-thread', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ session }) }),
+  msgSuggest: (session: string): Promise<Res<{ ready: boolean; suggestions: string[] }>> =>
+    DEV ? devCall('suggest', undefined, { session }) : call('suggest', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ session }) }),
   adminPing: (): Promise<Res<{ ok: boolean }>> => (DEV ? devCall('admin-ping') : call('admin-ping', { method: 'POST' })),
   maintenanceGet: (): Promise<Res<{ ok: boolean; on: boolean; since?: string | null }>> =>
     DEV ? devCall('maintenance-get') : call('maintenance-get'),

@@ -4,6 +4,7 @@
   "description": "Backend serverless SAFIX — Stripe Checkout",
   "type": "module",
   "dependencies": {
-    "stripe": "^16.0.0"
+    "stripe": "^16.0.0",
+    "@anthropic-ai/sdk": "^0.116.0"
   }
 }

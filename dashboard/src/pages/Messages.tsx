@@ -161,14 +161,24 @@ export function Messages() {
   useEffect(() => {
     if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
   }, [messages, active]);
-  // Suggestions IA basées sur le dernier message visiteur du fil actif.
+  // Suggestions de réponses : d'abord Claude (serveur, ancré catalogue),
+  // sinon repli sur le générateur local déterministe. Ne se déclenche que
+  // lorsque le dernier message vient du client (pas après une réponse admin).
   useEffect(() => {
+    const last = messages[messages.length - 1];
     const lastUser = [...messages].reverse().find((m) => m.sender === 'user' && m.body !== '::human::' && !m.body.startsWith('::img::'));
-    if (!lastUser) { setSuggestions([]); return; }
+    if (!active || !lastUser || (last && last.sender === 'admin')) { setSuggestions([]); return; }
     let alive = true;
     const th = threads?.find((t) => t.session === active);
-    void buildSuggestions(lastUser.body, th?.name ?? null).then((s) => { if (alive) setSuggestions(s); });
-    return () => { alive = false; };
+    const sessionId = active;
+    // Repli local immédiat (affichage instantané), puis Claude si dispo.
+    void buildSuggestions(lastUser.body, th?.name ?? null).then((s) => { if (alive) setSuggestions((cur) => (cur.length ? cur : s)); });
+    const t = setTimeout(() => {
+      void api.msgSuggest(sessionId).then((r) => {
+        if (alive && r.status === 200 && r.data?.ready && r.data.suggestions.length) setSuggestions(r.data.suggestions);
+      });
+    }, 400);
+    return () => { alive = false; clearTimeout(t); };
   }, [messages, active, threads]);
 
   const filtered = useMemo(() => {
