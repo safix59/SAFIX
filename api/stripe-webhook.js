@@ -10,7 +10,7 @@ import Stripe from 'stripe';
 // Adresse de contact affichée dans les e-mails clients. Bascule vers
 // support@safix59.fr (env SHOP_CONTACT_EMAIL ou défaut ici) UNIQUEMENT quand
 // la boîte OVH existera — sinon les clients écriraient à une adresse qui rebondit.
-const CONTACT_EMAIL = process.env.SHOP_CONTACT_EMAIL || 'fusion-laminaire-0i@icloud.com';
+const CONTACT_EMAIL = process.env.SHOP_CONTACT_EMAIL || 'support@safix59.fr';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: '2024-06-20',
@@ -372,7 +372,7 @@ Reçu le : ${new Date().toLocaleString('fr-FR')}`;
         },
         body: JSON.stringify({
           from:    process.env.RESEND_FROM || 'SAFIX <onboarding@resend.dev>',
-          to:      [process.env.RESEND_TO || 'chafiai.travail@gmail.com'],
+          to:      [process.env.RESEND_TO || CONTACT_EMAIL],
           subject: `🔔 Nouvelle commande SAFIX — ${total} €`,
           text:    body,
           html,
@@ -416,7 +416,7 @@ async function sendEmailToClient({ session, lineItems }) {
       body: JSON.stringify({
         from:    fromAddress,
         to:      [customerEmail],
-        reply_to: 'fusion-laminaire-0i@icloud.com',
+        reply_to: CONTACT_EMAIL,
         subject: `✓ SAFIX — Commande confirmée (${total} €)`,
         html,
       }),
