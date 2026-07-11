@@ -115,7 +115,13 @@ async function botCatalogContext(userTexts) {
   return blocks.length ? `DONNÉES CATALOGUE VÉRIFIÉES (prix tout compris, temps réel) :\n${blocks.join('\n')}` : null;
 }
 
-// ── Assistant IA (déterministe — catalogue + FAQ, n'invente JAMAIS rien) ──
+// ══ Assistant déterministe v5 — moteur NLU gratuit (zéro dépendance) ══
+// Pipeline : normalisation (abréviations SMS) → correction floue Levenshtein
+// → intentions (vente, autre marque, dégât liquide, hors-catalogue, symptôme
+// → réparation, accessoires, FAQ, politesse, frustration) → mémoire de
+// dialogue (modèle ET réparation retrouvés dans l'historique = slot-filling :
+// « écran cassé » → « quel modèle ? » → « 13 pro » → prix) → réponse ancrée.
+// Règle d'or inchangée : prices.json + faits vérifiés, AUCUNE invention.
 let _botPrices = { doc: null, ts: 0 };
 async function botPrices() {
   if (_botPrices.doc && Date.now() - _botPrices.ts < 300000) return _botPrices.doc;
@@ -124,26 +130,95 @@ async function botPrices() {
   return _botPrices.doc;
 }
 // Intentions ↔ identifiants RÉELS de prices.json (avec gammes de qualité).
+// `kw` = lexique (mots simples appariés en flou, expressions en littéral).
+// L'ordre compte : les intentions les plus spécifiques d'abord.
 const BOT_REPAIRS = [
-  { rx: /écran|ecran|screen|vitre avant|afficheur|dalle|lcd|oled/i, label: "l'écran", ids: [['ecran_eco', 'Éco'], ['ecran_standard', 'Standard'], ['ecran_premium', 'Premium'], ['ecran_original', 'Original']] },
-  { rx: /batterie|battery|autonomie/i, label: 'la batterie', ids: [['batterie', 'Standard'], ['batterie_original', 'Original']] },
-  { rx: /vitre arri|arrière|arriere|back ?glass|dos cass/i, label: 'la vitre arrière', ids: [['vitre_arriere', '']] },
-  { rx: /cam[ée]ra avant|selfie|frontale/i, label: 'la caméra avant', ids: [['camera_avant', '']] },
-  { rx: /cam[ée]ra|appareil photo|objectif/i, label: 'la caméra arrière', ids: [['camera_arriere', '']] },
-  { rx: /connecteur|prise de charge|port de charge|charge plus|recharge/i, label: 'le connecteur de charge', ids: [['connecteur_de_charge', '']] },
-  { rx: /haut[- ]?parleur|speaker/i, label: 'le haut-parleur', ids: [['haut_parleur', '']] },
-  { rx: /\bmicro\b|microphone/i, label: 'le micro', ids: [['micro', '']] },
-  { rx: /bouton (power|volume)|allumage/i, label: 'le bouton', ids: [['bouton_power', 'Power'], ['bouton_volume', 'Volume']] },
+  { kw: ['camera avant', 'selfie', 'frontale'], label: 'la caméra avant', ids: [['camera_avant', '']] },
+  { kw: ['camera', 'appareil photo', 'objectif'], label: 'la caméra arrière', ids: [['camera_arriere', '']] },
+  { kw: ['lentille'], label: 'la lentille de la caméra arrière', ids: [['lentille_camera_arriere', '']] },
+  { kw: ['vitre arriere', 'face arriere', 'dos', 'back glass', 'backglass'], label: 'la vitre arrière', ids: [['vitre_arriere', '']] },
+  { kw: ['ecran', 'screen', 'afficheur', 'dalle', 'lcd', 'oled', 'vitre avant', 'tactile'], label: "l'écran", ids: [['ecran_eco', 'Éco'], ['ecran_standard', 'Standard'], ['ecran_premium', 'Premium'], ['ecran_original', 'Original']] },
+  { kw: ['batterie', 'battery', 'autonomie'], label: 'la batterie', ids: [['batterie', 'Standard'], ['batterie_original', 'Original']] },
+  { kw: ['connecteur', 'prise de charge', 'port de charge'], label: 'le connecteur de charge', ids: [['connecteur_de_charge', '']] },
+  { kw: ['haut parleur', 'hautparleur', 'speaker', 'enceinte'], label: 'le haut-parleur', ids: [['haut_parleur', '']] },
+  { kw: ['ecouteur'], label: "l'écouteur interne", ids: [['ecouteur_interne', '']] },
+  { kw: ['micro', 'microphone'], label: 'le micro', ids: [['micro', '']] },
+  { kw: ['vibreur'], label: 'le vibreur', ids: [['vibreur', '']] },
+  { kw: ['verre trempe', 'verre', 'protection', 'film'], label: 'le verre trempé', ids: [['verre_trempe_classique', 'Classique'], ['verre_trempe_anti_espion', 'Anti-espion']] },
+  { kw: ['bouton power', 'bouton allumage', 'bouton volume', 'bouton'], label: 'le bouton', ids: [['bouton_power', 'Power'], ['bouton_volume', 'Volume']] },
 ];
-// Normalisation tolérante aux fautes courantes (« iphon », « i phone »…).
+// Symptômes décrits avec ses mots → réparation probable (jamais affirmée
+// comme certaine : le diagnostic au dépôt confirme).
+const BOT_SYMPTOMS = [
+  { kw: ['charge plus', 'charge pas', 'charge mal', 'charge rien', 'ne charge', 'se charge plus', 'recharge plus', 'recharge pas'], ridKw: 'connecteur', hint: "Le plus souvent c'est le connecteur de charge (parfois la batterie — le diagnostic au dépôt le confirme sans frais)." },
+  { kw: ['decharge vite', 'se decharge', 'tient pas', 'tient plus', 'vide vite', 'batterie fond'], ridKw: 'batterie', hint: 'Une batterie qui se vide vite se remplace rapidement.' },
+  { kw: ['aucun son', 'pas de son', 'plus de son', 'gresille', 'entend rien', 'entends rien'], ridKw: 'haut parleur', hint: "Cela pointe vers le haut-parleur (ou l'écouteur interne selon le cas)." },
+  { kw: ['m entend pas', 'm entendent pas', 'entend mal quand je parle'], ridKw: 'micro', hint: 'Cela ressemble à un souci de micro.' },
+  { kw: ['tactile marche plus', 'repond plus au doigt', 'repond plus au toucher', 'touche plus'], ridKw: 'ecran', hint: "Un tactile qui ne répond plus vient de l'écran." },
+  { kw: ['photo floue', 'photos floues', 'camera floue'], ridKw: 'camera', hint: 'Une photo floue vient en général de la caméra ou de sa lentille.' },
+];
+// Normalisation : accents, ponctuation, abréviations SMS et fautes fréquentes.
 const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  .replace(/[’']/g, ' ').replace(/[.,;:!?()"«»\[\]]/g, ' ')
   .replace(/\bi ?-?phone?\b/g, 'iphone').replace(/\biphonne?\b/g, 'iphone')
+  .replace(/\bcmb\b/g, 'combien').replace(/\bpr\b/g, 'pour').replace(/\bbcp\b/g, 'beaucoup')
+  .replace(/\btel\b|\btelefone\b|\btelephonne\b/g, 'telephone')
+  .replace(/\bpb\b|\bblm\b|\bprob\b/g, 'probleme')
+  .replace(/\bkc\b/g, 'casse').replace(/\bcass\w*\b/g, 'casse')
+  .replace(/\bsvp\b|\bstp\b/g, '')
   .replace(/\s+/g, ' ').trim();
+// Distance de Levenshtein bornée → tolérance aux fautes de frappe :
+// exact pour les mots courts, 1 faute dès 4 lettres, 2 fautes dès 8.
+function lev(a, b) {
+  const m = a.length, n = b.length;
+  let prev = Array.from({ length: n + 1 }, (_, i) => i);
+  for (let i = 1; i <= m; i++) {
+    const cur = [i];
+    for (let j = 1; j <= n; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    prev = cur;
+  }
+  return prev[n];
+}
+function fuzzyTok(tok, word) {
+  if (tok === word) return true;
+  if (word.length < 4 || tok.length < 3) return false;
+  const d = word.length >= 8 ? 2 : 1;
+  if (Math.abs(tok.length - word.length) > d) return false;
+  return lev(tok, word) <= d;
+}
+// `t` déjà normalisé ; expressions (avec espace) en littéral, mots en flou.
+function hasWord(t, words) {
+  const toks = t.split(' ');
+  for (const w of words) {
+    if (w.includes(' ')) { if (t.includes(w)) return true; continue; }
+    for (const tok of toks) if (fuzzyTok(tok, w)) return true;
+  }
+  return false;
+}
+const findRepair = (t) => BOT_REPAIRS.find((r) => hasWord(t, r.kw)) || null;
+const findSymptom = (t) => BOT_SYMPTOMS.find((s) => hasWord(t, s.kw)) || null;
 function botFindModel(text, prices) {
   const t = norm(text).replace(/promax/g, 'pro max');
-  const mm = /iphone\s*(se|xr|xs max|xs|x|\d{1,2})\s*(pro max|pro|plus|mini|e)?(?:\s*\((\d{4})\))?/.exec(t);
+  const mm = /iphone\s*(se|xr|xs max|xs|x|\d{1,2})\s*(pro max|pro|plus|mini|e)?(?:\s*(\d{4}))?/.exec(t);
   if (!mm) return null;
-  const wanted = norm('iphone ' + mm[1] + (mm[2] ? ' ' + mm[2] : '') + (mm[3] ? ' (' + mm[3] + ')' : ''))
+  return botResolveModel(mm, prices);
+}
+// Version « contexte » : accepte « 13 pro », « le 12 », « et sur le 15 ? »
+// SANS le mot iphone — utilisée uniquement quand la conversation a déjà
+// établi qu'on parle d'un iPhone (slot-filling), jamais à froid.
+function botFindModelLoose(text, prices) {
+  const t = norm(text).replace(/promax/g, 'pro max');
+  const strict = botFindModel(t, prices);
+  if (strict) return strict;
+  const mm = /(?:^|\s)(se|xr|xs max|xs|x|1[0-7]|[5-9])\s*(pro max|pro|plus|mini|e)?(?:\s*(\d{4}))?(?=\s|$)/.exec(t);
+  if (!mm) return null;
+  return botResolveModel(mm, prices);
+}
+function botResolveModel(mm, prices) {
+  // L'année ne distingue que les SE (2020/2022) — l'ignorer ailleurs évite
+  // que « iphone 13 128 go » ou une année parasite fasse échouer le match.
+  const year = mm[3] && mm[1] === 'se' ? ' ' + mm[3] : '';
+  const wanted = norm('iphone ' + mm[1] + (mm[2] ? ' ' + mm[2] : '') + year)
     .replace(/(\d+)\s+e\b/, '$1e'); // « 16 e » → « 16e »
   const models = new Set();
   for (const rid of Object.keys(prices)) for (const k of Object.keys(prices[rid])) if (k !== 'default') models.add(k);
@@ -151,38 +226,111 @@ function botFindModel(text, prices) {
   for (const k of models) if (norm(k).startsWith(wanted)) return k;
   return null;
 }
-// `historyTexts` = messages précédents du client (du plus récent au plus
-// ancien) → mémoire de contexte : « et pour la batterie ? » après un échange
-// sur l'iPhone 13 Pro concerne l'iPhone 13 Pro, sans le redemander.
-async function botAnswer(message, historyTexts = []) {
+// Prix catalogue d'une réparation pour un modèle → phrase, ou null.
+function botPriceLine(repair, model, prices) {
+  const found = [];
+  let anyRef = false, allOOS = true;
+  for (const [id, tier] of repair.ids) {
+    const e = prices[id] && (prices[id][model] || prices[id].default);
+    if (!e) continue;
+    anyRef = true;
+    if (typeof e.final === 'number' && !e.outOfStock) { allOOS = false; found.push(tier ? `${tier} ${e.final} €` : `${e.final} €`); }
+  }
+  return { found, anyRef, allOOS };
+}
+// `history` = lignes {sender, body} du fil, de la plus récente à la plus
+// ancienne. Toute la « mémoire » du dialogue en dérive (stateless).
+async function botAnswer(message, history = []) {
   const t = norm(message);
   const doc = await botPrices();
   const prices = (doc && doc.prices) || null;
-  const repair = BOT_REPAIRS.find((r) => r.rx.test(message)) || null;
-  let model = prices ? botFindModel(message, prices) : null;
-  if (!model && prices) {
-    for (const h of historyTexts) { model = botFindModel(h, prices); if (model) break; }
+  const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+  // norm() transforme les marqueurs « ::img::… » / « ::human:: » en
+  // « img … » / « human » (ponctuation → espaces) : on les écarte ici.
+  const userTexts = history
+    .filter((m) => m.sender === 'user')
+    .map((m) => norm(String(m.body || '')))
+    .filter((x) => x && !x.startsWith('img ') && x !== 'human');
+
+  // ── Intentions prioritaires (avant toute recherche catalogue) ──
+  if (hasWord(t, ['conseiller', 'humain', 'quelqu un', 'une personne', 'vrai personne'])) {
+    return { reply: 'Bien sûr, je préviens un conseiller — il vous répond ici même dès que possible. Vous pouvez aussi laisser votre question en attendant.', human: true };
+  }
+  if (hasWord(t, ['arnaque', 'inadmissible', 'scandale', 'honteux', 'nul', 'marre', 'enerve', 'furieux', 'porte plainte', 'rembourse moi'])) {
+    return { reply: 'Je suis désolé pour cette expérience — ce n\'est pas ce que nous voulons. Un conseiller prend votre dossier en priorité et revient vers vous ici très vite.', human: true };
+  }
+  // Vente de téléphones : SAFIX n'en vend pas (réparation + verres trempés).
+  const wantsBuy = hasWord(t, ['acheter', 'achete', 'acheterai', 'vendez', 'vendre', 'vente', 'en vente', 'a vendre']);
+  const phoneObj = hasWord(t, ['telephone', 'portable', 'smartphone', 'mobile', 'iphone', 'samsung', 'occasion', 'reconditionne', 'neuf']);
+  const repairCur = findRepair(t);
+  if (wantsBuy && phoneObj && !repairCur) {
+    return { reply: "Nous ne proposons pas la vente de téléphones pour le moment — SAFIX est spécialisé dans la réparation d'iPhone (pièces neuves) et les verres trempés. Dites-moi votre besoin, je vous aide avec plaisir 👍", human: false };
+  }
+  // Autres marques / autres appareils : iPhone uniquement.
+  if (hasWord(t, ['samsung', 'galaxy', 'android', 'xiaomi', 'huawei', 'oppo', 'honor', 'pixel', 'ipad', 'tablette', 'macbook', 'apple watch', 'montre connectee', 'airpods', 'console'])) {
+    return { reply: "Nous sommes spécialisés dans les iPhone uniquement — je ne peux pas vous aider pour un autre appareil ou une autre marque. Si vous avez un iPhone à réparer, je suis là 👍", human: false };
+  }
+  // Dégât liquide : diagnostic obligatoire, jamais de promesse à distance.
+  if (hasWord(t, ['dans l eau', 'tombe dans l eau', 'mouille', 'piscine', 'oxydation', 'oxyde', 'liquide', 'humidite', 'machine a laver'])) {
+    return { reply: "Pour un iPhone qui a pris l'eau, impossible d'être fiable à distance : l'oxydation peut toucher plusieurs composants, il faut un diagnostic. Un conseiller évalue votre cas 👇 En attendant, éteignez l'appareil et surtout ne le mettez pas en charge.", human: true };
+  }
+  // Hors catalogue connu : honnêteté totale, pas de « non » inventé.
+  if (hasWord(t, ['face id', 'faceid', 'touch id', 'carte mere', 'micro soudure', 'desoxydation'])) {
+    return { reply: "Cette intervention n'est pas dans notre catalogue en ligne, je préfère ne pas vous répondre au hasard : un conseiller vous confirme rapidement si nous pouvons la prendre en charge 👇", human: true };
+  }
+  if (hasWord(t, ['garantie', 'garanti', 'garantis'])) {
+    return { reply: 'Toutes nos réparations utilisent des pièces neuves, et une commande qui ne peut pas être honorée est intégralement remboursée. Pour les conditions précises de garantie, un conseiller vous confirme cela 👇', human: true };
+  }
+  if (hasWord(t, ['ma commande', 'suivi de commande', 'numero de commande', 'ou en est ma'])) {
+    return { reply: 'Pour le suivi de votre commande, un conseiller vérifie votre dossier et vous répond ici même 👇 (pensez à indiquer l\'e-mail utilisé lors de la commande).', human: true };
+  }
+  if (hasWord(t, ['coque', 'accessoire']) && !repairCur) {
+    return { reply: "Côté accessoires, notre catalogue en ligne propose les verres trempés (Classique et Anti-espion), posés avec soin. Pour les autres accessoires, un conseiller vous dira ce qui est disponible 👇", human: true };
   }
 
-  const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
-  if (repair && model && prices) {
-    const found = [];
-    let anyRef = false, allOOS = true;
-    for (const [id, tier] of repair.ids) {
-      const e = prices[id] && (prices[id][model] || prices[id].default);
-      if (!e) continue;
-      anyRef = true;
-      if (typeof e.final === 'number' && !e.outOfStock) { allOOS = false; found.push(tier ? `${tier} ${e.final} €` : `${e.final} €`); }
+  // ── Compréhension réparation : pièce nommée, symptôme décrit, ou mémoire ──
+  let repair = repairCur;
+  let symptomHint = '';
+  if (!repair) {
+    const sym = findSymptom(t);
+    if (sym) { repair = BOT_REPAIRS.find((r) => r.kw[0] === sym.ridKw || r.kw.includes(sym.ridKw)) || null; symptomHint = sym.hint ? ` ${sym.hint}` : ''; }
+  }
+  // Modèle : message courant (strict), puis « 13 pro » sans le mot iphone si
+  // le fil parle déjà réparation, puis mémoire de l'historique.
+  let model = prices ? botFindModel(t, prices) : null;
+  // Le contexte « on parle d'un iPhone / d'une réparation » peut venir du
+  // message courant OU de n'importe quel message précédent du fil.
+  const contextEstablished = !!repair || userTexts.some((h) => h.includes('iphone') || findRepair(h) || findSymptom(h));
+  if (!model && prices && contextEstablished) model = botFindModelLoose(t, prices);
+  const modelInCurrent = !!model;
+  if (!model && prices) {
+    for (const h of userTexts) { model = botFindModel(h, prices); if (model) break; }
+    if (!model && contextEstablished) for (const h of userTexts) { model = botFindModelLoose(h, prices); if (model) break; }
+  }
+  // Slot-filling inverse : le message n'apporte QUE le modèle (« 13 pro »)
+  // ou QUE « combien ? » → on retrouve la réparation en attente dans le fil.
+  if (!repair && prices && (modelInCurrent || hasWord(t, ['combien', 'prix', 'tarif', 'cout', 'coute']))) {
+    for (const h of userTexts) {
+      const r = findRepair(h) || (findSymptom(h) && BOT_REPAIRS.find((x) => x.kw.includes(findSymptom(h).ridKw)));
+      if (r) { repair = r; break; }
     }
+  }
+
+  if (repair && model && prices) {
+    const { found, anyRef, allOOS } = botPriceLine(repair, model, prices);
     if (found.length) {
       const detail = found.length > 1 ? `plusieurs qualités au choix — ${found.join(' · ')}` : `${found[0]} tout compris`;
-      return { reply: `Oui ✅ ${cap(repair.label)} de l'${model} est disponible : ${detail} (pièce neuve + pose). Vous pouvez commander directement depuis la fiche « ${model} » du site.`, human: false };
+      return { reply: `Oui ✅ ${cap(repair.label)} de l'${model} est disponible : ${detail} (pièce neuve + pose).${symptomHint} Vous pouvez commander depuis la fiche « ${model} » du site — le rendez-vous se choisit à cette étape.`, human: false };
     }
     if (anyRef && allOOS) return { reply: `${cap(repair.label)} de l'${model} est actuellement en rupture chez notre fournisseur. Un conseiller peut vous prévenir dès le retour en stock 👇`, human: true };
     return { reply: `Je ne trouve pas ${repair.label} pour l'${model} dans notre catalogue en ligne. Un conseiller peut vérifier une disponibilité spéciale pour vous 👇`, human: true };
   }
-  if (repair && !model) return { reply: `Bien sûr ! Pour quel modèle d'iPhone souhaitez-vous ${repair.label} ? (ex. : iPhone 13 Pro)`, human: false };
+  if (repair && !model) return { reply: `Bien sûr !${symptomHint} Pour quel modèle d'iPhone est-ce ? (ex. : iPhone 13 Pro)`, human: false };
   if (model && !repair && prices) {
+    // Panne évoquée sans pièce identifiable (« il est casse », « ne s'allume plus ») ?
+    if (hasWord(t, ['casse', 'allume plus', 'allume pas', 'demarre plus', 'demarre pas', 'ecran noir', 'marche plus', 'probleme', 'panne', 'hs'])) {
+      return { reply: `D'accord, un souci sur votre ${model}. Pouvez-vous me préciser ce qui ne va pas — l'écran, la batterie, la charge, le son… ? Je vous donne le prix exact tout de suite.`, human: false };
+    }
     const avail = [];
     for (const r of BOT_REPAIRS) {
       let best = null;
@@ -192,17 +340,29 @@ async function botAnswer(message, historyTexts = []) {
       }
       if (best != null) avail.push(`${r.label.replace(/^l['ae] ?|^le |^la /, '')} dès ${best} €`);
     }
-    if (avail.length) return { reply: `Pour l'${model}, voici ce qui est disponible : ${avail.slice(0, 6).join(' · ')}. Tout le détail est sur la fiche « ${model} » du site.`, human: false };
+    if (avail.length) return { reply: `Pour l'${model}, voici ce qui est disponible : ${avail.slice(0, 6).join(' · ')}. Tout le détail est sur la fiche « ${model} » du site. Que souhaitez-vous réparer ?`, human: false };
     return { reply: `Je vois l'${model}, mais je ne peux pas confirmer les disponibilités à l'instant. Un conseiller vous répond au plus vite 👇`, human: true };
   }
-  if (/adresse|localis|o[uù] (êtes|etes|vous trouve)|situ[ée]/.test(t)) return { reply: 'Nous sommes au 48 Bd Alexandre III, 59140 Dunkerque. Le dépôt de votre iPhone se fait sur rendez-vous, réservable directement lors de la commande.', human: false };
-  if (/horaire|ouvert|quelle heure/.test(t)) return { reply: 'Nous fonctionnons sur rendez-vous : créneaux matin (9h–12h), après-midi (14h–18h) et soir (18h–20h), à choisir lors de votre commande.', human: false };
-  if (/livraison|d[ée]lai|combien de temps|rapide/.test(t)) return { reply: "La pièce arrive en Standard (sous 48 h, 6 €) ou Express (dès le lendemain 15h, 8 €) — c'est ce qui fixe la date de votre réparation. Les détails exacts s'affichent dans le panier.", human: false };
-  if (/paiement|payer|carte|paypal|apple pay/.test(t)) return { reply: 'Vous pouvez régler par carte bancaire, Apple Pay, Google Pay ou PayPal — paiement 100 % sécurisé au moment de la commande.', human: false };
-  if (/rendez|rdv|d[ée]poser|apporter/.test(t)) return { reply: "Le rendez-vous se choisit en 3 étapes dans le panier : lieu de dépôt, date (dès demain) et créneau. Vous recevez ensuite une confirmation par e-mail.", human: false };
-  if (/zone|dunkerque|d[ée]placement|loin|lille|calais/.test(t)) return { reply: 'Nos réparations sont réalisées à Dunkerque et dans les communes environnantes. Si vous êtes plus loin, il faudra vous déplacer jusqu\'à notre point de réparation.', human: false };
-  if (/bonjour|salut|hello|bonsoir|hey/.test(t) && t.length < 25) return { reply: 'Bonjour 👋 Je peux vous renseigner sur nos réparations, les prix, les délais ou les rendez-vous. Que puis-je faire pour vous ?', human: false };
-  if (/merci|top|parfait|super/.test(t) && t.length < 30) return { reply: 'Avec plaisir 🙌 Je reste là si vous avez une autre question.', human: false };
+  // Panne décrite sans modèle ni pièce (« mon telephone est casse »).
+  if (hasWord(t, ['casse', 'tombe', 'allume plus', 'allume pas', 'demarre plus', 'demarre pas', 'ecran noir', 'marche plus', 'panne', 'probleme', 'souci', 'hs'])) {
+    return { reply: "Je vais vous aider 👍 Deux petites précisions : quel modèle d'iPhone, et qu'est-ce qui ne va pas exactement (écran, batterie, charge, son…) ?", human: false };
+  }
+
+  // ── FAQ vérifiée ──
+  if (hasWord(t, ['adresse', 'localisation', 'ou etes vous', 'vous etes ou', 'etes ou', 'ou vous trouve', 'vous situez', 'situe', 'ou aller'])) return { reply: 'Nous sommes au 48 Bd Alexandre III, 59140 Dunkerque. Le dépôt de votre iPhone se fait sur rendez-vous, réservable directement lors de la commande.', human: false };
+  if (hasWord(t, ['horaire', 'horaires', 'ouvert', 'quelle heure'])) return { reply: 'Nous fonctionnons sur rendez-vous : créneaux matin (9h–12h), après-midi (14h–18h) et soir (18h–20h), à choisir lors de votre commande.', human: false };
+  if (hasWord(t, ['livraison', 'delai', 'delais', 'combien de temps', 'rapide', 'rapidement', '48h', '48 h', 'sous 48', 'demain', 'aujourd hui'])) return { reply: "La pièce arrive en Standard (sous 48 h, 6 €) ou Express (dès le lendemain 15h, 8 €) — c'est ce qui fixe la date de votre réparation. Les détails exacts s'affichent dans le panier.", human: false };
+  if (hasWord(t, ['paiement', 'payer', 'carte', 'paypal', 'apple pay', 'google pay'])) return { reply: 'Vous pouvez régler par carte bancaire, Apple Pay, Google Pay ou PayPal — paiement 100 % sécurisé au moment de la commande.', human: false };
+  if (hasWord(t, ['rendez vous', 'rdv', 'deposer', 'apporter', 'depot'])) return { reply: 'Le rendez-vous se choisit en 3 étapes dans le panier : lieu de dépôt, date (dès demain) et créneau. Vous recevez ensuite une confirmation par e-mail.', human: false };
+  if (hasWord(t, ['zone', 'dunkerque', 'deplacement', 'loin', 'lille', 'calais', 'deplacez'])) return { reply: 'Nos réparations sont réalisées à Dunkerque et dans les communes environnantes. Si vous êtes plus loin, il faudra vous déplacer jusqu\'à notre point de réparation.', human: false };
+  // Question de prix sans réparation identifiable (après la FAQ : « combien
+  // de temps » doit rester une question de délai, pas de prix).
+  if (hasWord(t, ['combien', 'prix', 'tarif', 'cout', 'coute'])) {
+    return { reply: "Avec plaisir ! Dites-moi le modèle d'iPhone et la réparation souhaitée (écran, batterie, connecteur…) et je vous donne le prix exact tout de suite.", human: false };
+  }
+  if (hasWord(t, ['bonjour', 'salut', 'hello', 'bonsoir', 'coucou', 'hey']) && t.length < 25) return { reply: 'Bonjour 👋 Je peux vous renseigner sur nos réparations, les prix, les délais ou les rendez-vous. Que puis-je faire pour vous ?', human: false };
+  if (hasWord(t, ['merci', 'top', 'parfait', 'super', 'genial', 'nickel']) && t.length < 30) return { reply: 'Avec plaisir 🙌 Je reste là si vous avez une autre question.', human: false };
+  if (hasWord(t, ['au revoir', 'bonne journee', 'bonne soiree', 'a bientot', 'bye'])) return { reply: 'Merci à vous, et à bientôt chez SAFIX 👋', human: false };
   return { reply: "Je préfère ne pas vous répondre au hasard sur ce point. Un conseiller va prendre le relais — vous pouvez aussi cliquer sur « Parler à un conseiller » 👇", human: true };
 }
 
@@ -329,7 +489,7 @@ export default async function handler(req, res) {
         }
       }
       // 1) Réponse déterministe (repli garanti + ancrage anti-hallucination)
-      const det = await botAnswer(message, rows.filter((m) => m.sender === 'user').map((m) => String(m.body || '')));
+      const det = await botAnswer(message, rows);
       // 2) Réponse Claude ancrée (si ANTHROPIC_API_KEY) : historique + catalogue réel
       let reply = null;
       if (process.env.ANTHROPIC_API_KEY) {
