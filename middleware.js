@@ -10,8 +10,11 @@
 // ─────────────────────────────────────────────────────────────────────────
 export const config = {
   // Exclut : admin (dashboard), api, scraper (prix publics — nécessaires à
-  // l'assistant IA et au Dashboard même pendant la maintenance), _next, favicon.
-  matcher: '/((?!admin|api|scraper|_next|favicon).*)',
+  // l'assistant IA et au Dashboard même pendant la maintenance), _next,
+  // favicon, et .well-known (fichier de validation Apple Pay/Google Pay de
+  // Stripe — s'il renvoyait 503 pendant une maintenance, Stripe pourrait
+  // invalider le domaine et faire disparaître les boutons wallet).
+  matcher: '/((?!admin|api|scraper|_next|favicon|.well-known).*)',
 };
 
 let _cache = { on: null, ts: 0 };
