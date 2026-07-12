@@ -2955,7 +2955,16 @@ header {
   background:linear-gradient(135deg, var(--accent) 0%, #5AC8FA 100%); color:#fff; cursor:pointer;
   display:flex; align-items:center; justify-content:center;
   box-shadow:0 6px 18px rgba(var(--accent-rgb),.32), 0 2px 6px rgba(0,0,0,.16);
-  transition:transform .25s var(--spring), box-shadow .25s, bottom .32s var(--ease);
+  transition:transform .25s var(--spring), box-shadow .25s, bottom .32s var(--ease), opacity .22s ease;
+}
+/* La bulle DEVIENT la fenêtre : invisible pendant toute l'ouverture (elle se
+   fond dans le panneau qui grandit), et ne réapparaît qu'à la FIN de la
+   résorption — le JS pose la classe transitoire chat-returning le temps de
+   l'animation de fermeture, puis la retire → pop de retour à ressort. */
+body.chat-open .chat-fab,
+body.chat-returning .chat-fab {
+  opacity:0; visibility:hidden; transform:scale(.4); pointer-events:none;
+  transition:opacity .14s ease, transform .16s ease, visibility 0s linear .14s;
 }
 .chat-fab:hover { transform:translateY(-2px) scale(1.05); box-shadow:0 10px 26px rgba(var(--accent-rgb),.4), 0 2px 8px rgba(0,0,0,.18); }
 .chat-fab:active { transform:scale(.93); }
@@ -14085,7 +14094,13 @@ setInterval(refreshDeliveryAvailability, 60000); // ré-évalue chaque minute (c
     if(pollT) clearInterval(pollT); pollT=setInterval(load,6000);
   }
   function closeChat(){
-    open=false; document.body.classList.remove('chat-open'); panel.setAttribute('aria-hidden','true');
+    open=false;
+    // La bulle ne réapparaît qu'à la FIN de la résorption du panneau (~300 ms) :
+    // chat-returning la maintient cachée pendant l'animation inverse.
+    document.body.classList.add('chat-returning');
+    document.body.classList.remove('chat-open');
+    panel.setAttribute('aria-hidden','true');
+    setTimeout(function(){ document.body.classList.remove('chat-returning'); }, 320);
     if(pollT){ clearInterval(pollT); pollT=null; }
     slowPoll();
   }
