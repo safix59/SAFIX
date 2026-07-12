@@ -2979,10 +2979,24 @@ body.chat-open .chat-fab .chat-fab-close { opacity:1; transform:none; }
   border-radius:20px; overflow:hidden;
   display:flex; flex-direction:column;
   box-shadow:0 24px 64px rgba(0,0,0,.4), 0 0 0 1px rgba(255,255,255,.03) inset;
-  opacity:0; transform:translateY(14px) scale(.98); pointer-events:none;
-  transition:opacity .28s var(--ease), transform .34s var(--spring);
+  /* Naissance depuis la bulle (pattern Intercom) : l'origine de transformation
+     est ancrée sur le CENTRE de la bulle — 24px du bord droit du panneau,
+     34px sous son bord bas (géométrie constante desktop / mobile / barre
+     panier, par construction des offsets). Fermé = résorbé dans la bulle. */
+  transform-origin: calc(100% - 24px) calc(100% + 34px);
+  opacity:0; transform:scale(.12); pointer-events:none;
+  will-change: transform, opacity;
+  /* Fermeture : résorption rapide et nette vers la bulle. */
+  transition:opacity .16s ease-in .06s, transform .26s cubic-bezier(.5,0,.75,.35);
 }
-body.chat-open .chat-panel { opacity:1; transform:none; pointer-events:all; }
+body.chat-open .chat-panel {
+  opacity:1; transform:none; pointer-events:all;
+  /* Ouverture : déploiement à ressort depuis la bulle. */
+  transition:opacity .18s var(--ease), transform .46s var(--spring);
+}
+@media (prefers-reduced-motion:reduce) {
+  .chat-panel, body.chat-open .chat-panel { transform:none; transition:opacity .2s ease; }
+}
 /* En-tête sobre, dans la matière du site (surface + hairline) — le dégradé
    signature reste réservé aux accents (bulle, envoi, messages du client). */
 .chat-head {
@@ -2996,7 +3010,17 @@ body.chat-open .chat-panel { opacity:1; transform:none; pointer-events:all; }
 .chat-dot { width:7px; height:7px; border-radius:50%; background:#30d158; animation:chatDot 2s infinite; }
 .chat-dot.off { background:var(--border2); animation:none; box-shadow:none; }
 @keyframes chatDot { 0%{box-shadow:0 0 0 0 rgba(48,209,88,.5);} 70%{box-shadow:0 0 0 6px rgba(48,209,88,0);} 100%{box-shadow:0 0 0 0 rgba(48,209,88,0);} }
-/* (fermeture unique : la bulle flottante fait office de bouton fermer — pas de ✕ redondant) */
+/* Croix de fermeture — discrète dans l'en-tête (la bulle reste aussi un
+   bouton de fermeture, comme Intercom : deux chemins, même animation). */
+.chat-head-close {
+  width:30px; height:30px; border-radius:50%; border:none; cursor:pointer;
+  background:transparent; color:var(--text2);
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  transition:background .2s, color .2s, transform .15s;
+}
+.chat-head-close:hover { background:var(--surface); color:var(--text); }
+.chat-head-close:active { transform:scale(.85); }
+.chat-head-close svg { width:15px; height:15px; }
 .chat-body { flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:9px; background:var(--bg); }
 .chat-welcome { margin-bottom:2px; }
 .chat-welcome p { margin:0; font-size:13px; line-height:1.5; color:var(--text2); background:var(--surface); border:1px solid var(--border); padding:11px 14px; border-radius:14px; }
@@ -3092,7 +3116,7 @@ body:has(.cart-overlay.open) .chat-panel { opacity:0; pointer-events:none; }
 .chat-send:disabled { opacity:.5; pointer-events:none; }
 .chat-send svg { width:17px; height:17px; }
 @media (max-width:480px) {
-  .chat-panel { right:12px; left:12px; width:auto; max-width:none; bottom:calc(76px + env(safe-area-inset-bottom)); height:min(72vh, calc(100vh - 116px)); }
+  .chat-panel { right:12px; left:12px; width:auto; max-width:none; bottom:calc(76px + env(safe-area-inset-bottom)); height:min(72vh, calc(100vh - 116px)); transform-origin: calc(100% - 27px) calc(100% + 34px); }
   .chat-fab { width:46px; height:46px; right:16px; bottom:calc(18px + env(safe-area-inset-bottom)); }
 }
 /* La bulle chat monte au-dessus de la barre panier flottante quand elle
@@ -13902,6 +13926,9 @@ setInterval(refreshDeliveryAvailability, 60000); // ré-évalue chaque minute (c
       <div class="chat-head-title">SAFIX</div>
       <div class="chat-head-sub"><span class="chat-dot" id="chatDot"></span> <span id="chatStatus">Hors ligne</span></div>
     </div>
+    <button type="button" class="chat-head-close" id="chatClose" aria-label="Fermer la conversation" title="Fermer">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+    </button>
   </div>
   <div class="chat-body" id="chatBody">
     <div class="chat-welcome" id="chatWelcome">
@@ -14063,6 +14090,8 @@ setInterval(refreshDeliveryAvailability, 60000); // ré-évalue chaque minute (c
     slowPoll();
   }
   fab.addEventListener('click', function(){ open?closeChat():openChat(); });
+  var closeBtn=document.getElementById('chatClose');
+  if(closeBtn) closeBtn.addEventListener('click', closeChat);
   document.addEventListener('keydown', function(e){ if(e.key==='Escape'&&open) closeChat(); });
 
   // ── Prénom OBLIGATOIRE avant le premier message (validation douce) ──
