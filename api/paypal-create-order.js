@@ -43,16 +43,20 @@ async function getAccessToken() {
   return j.access_token;
 }
 
-const allowOrigin = process.env.ALLOWED_ORIGIN || '*';
-function withCors(res) {
+// CORS durci : reflet limité à nos origines (l'app iOS ignore CORS).
+const CORS_ALLOWED = ['https://safix59.fr', 'https://www.safix59.fr'];
+function withCors(res, req) {
+  const origin = req && req.headers ? req.headers.origin : undefined;
+  const allowOrigin = process.env.ALLOWED_ORIGIN || (CORS_ALLOWED.includes(origin) ? origin : 'https://safix59.fr');
   res.setHeader('Access-Control-Allow-Origin', allowOrigin);
+  res.setHeader('Vary', 'Origin');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   return res;
 }
 
 export default async function handler(req, res) {
-  withCors(res);
+  withCors(res, req);
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST')   return res.status(405).json({ error: 'Method not allowed' });
 

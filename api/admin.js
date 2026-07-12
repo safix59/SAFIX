@@ -437,6 +437,9 @@ export default async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
     const pw = (req.body && req.body.password) != null ? String(req.body.password) : '';
     const real = process.env.ADMIN_PASSWORD || '';
+    // Config incomplète → erreur franche plutôt qu'un cookie qui ne validera
+    // jamais (le login « réussirait » puis tout renverrait 401 : déroutant).
+    if (!process.env.ADMIN_SESSION_SECRET) return res.status(500).json({ error: 'server_config' });
     // ── Verrouillage progressif anti force-brute (état dans la table settings,
     // clé login_guard = {fails, first, until}). 8 échecs / 10 min → blocage
     // 15 min. Un login réussi remet à zéro. DB indisponible → on n'enferme

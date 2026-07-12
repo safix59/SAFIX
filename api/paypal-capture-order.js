@@ -38,16 +38,20 @@ async function getAccessToken() {
   return j.access_token;
 }
 
-const allowOrigin = process.env.ALLOWED_ORIGIN || '*';
-function withCors(res) {
+// CORS durci : reflet limité à nos origines (l'app iOS ignore CORS).
+const CORS_ALLOWED = ['https://safix59.fr', 'https://www.safix59.fr'];
+function withCors(res, req) {
+  const origin = req && req.headers ? req.headers.origin : undefined;
+  const allowOrigin = process.env.ALLOWED_ORIGIN || (CORS_ALLOWED.includes(origin) ? origin : 'https://safix59.fr');
   res.setHeader('Access-Control-Allow-Origin', allowOrigin);
+  res.setHeader('Vary', 'Origin');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   return res;
 }
 
 export default async function handler(req, res) {
-  withCors(res);
+  withCors(res, req);
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST')   return res.status(405).json({ error: 'Method not allowed' });
 
@@ -62,7 +66,7 @@ export default async function handler(req, res) {
     const accessToken = await getAccessToken();
 
     // Capture le paiement
-    const r = await fetch(`${PAYPAL_BASE}/v2/checkout/orders/${orderID}/capture`, {
+    const r = await fetch(`${PAYPAL_BASE}/v2/checkout/orders/${encodeURIComponent(orderID)}/capture`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
@@ -147,22 +151,28 @@ export default async function handler(req, res) {
         const orderId = Array.isArray(insRow) ? insRow[0]?.id : insRow?.id;
         console.log(`[PayPal] order persistée ${dedupeRef} → ${orderId} (HTTP ${ins.status})`);
 
+        // Tâches ATTENDUES avant la réponse (Promise.allSettled ci-dessous) :
+        // en serverless, un travail lancé après la réponse peut être gelé et
+        // perdu. Chaque tâche reste non-fatale.
+        const pending = [];
         const botUrl = process.env.BOT_TRIGGER_URL;
         if (botUrl && ins.ok && orderId) {
-          fetch(botUrl, {
+          pending.push(fetch(botUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-SAFIX-Secret': process.env.BOT_TRIGGER_SECRET || '' },
             body: JSON.stringify({ orderId }),
+            signal: AbortSignal.timeout(8000),
           }).then(r => console.log('[PayPal] bot trigger HTTP', r.status))
-            .catch(e => console.warn('[PayPal] bot trigger fail:', e.message));
+            .catch(e => console.warn('[PayPal] bot trigger fail:', e.message)));
         }
 
         const RK = process.env.RESEND_API_KEY, RF = process.env.RESEND_FROM, RT = process.env.RESEND_TO;
         if (RK && RF && RT) {
           const e = (v) => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
           const rows = lineItems.map(li => `<tr><td>${e(li.name)}</td><td>×${li.qty}</td></tr>`).join('');
-          fetch('https://api.resend.com/emails', {
+          pending.push(fetch('https://api.resend.com/emails', {
             method: 'POST',
+            signal: AbortSignal.timeout(8000),
             headers: { Authorization: `Bearer ${RK}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({
               from: RF, to: RT,
@@ -174,8 +184,9 @@ export default async function handler(req, res) {
 <p>⚠️ custom_id PayPal limité à 127 c. → vérifier RDV/adresse avec le client.</p>`,
             }),
           }).then(r => console.log('[PayPal] mail shop HTTP', r.status))
-            .catch(e2 => console.warn('[PayPal] mail shop fail:', e2.message));
+            .catch(e2 => console.warn('[PayPal] mail shop fail:', e2.message)));
         }
+        await Promise.allSettled(pending);
       } else {
         console.warn('[PayPal] Supabase non configuré — capture NON persistée (à traiter manuellement):', orderID, capture.id);
       }

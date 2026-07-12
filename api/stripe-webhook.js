@@ -7,9 +7,8 @@
 
 import Stripe from 'stripe';
 
-// Adresse de contact affichée dans les e-mails clients. Bascule vers
-// support@safix59.fr (env SHOP_CONTACT_EMAIL ou défaut ici) UNIQUEMENT quand
-// la boîte OVH existera — sinon les clients écriraient à une adresse qui rebondit.
+// Adresse de contact affichée dans les e-mails clients (boîte OVH active,
+// vérifiée par sonde SMTP le 2026-07-11).
 const CONTACT_EMAIL = process.env.SHOP_CONTACT_EMAIL || 'support@safix59.fr';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
@@ -345,6 +344,7 @@ Reçu le : ${new Date().toLocaleString('fr-FR')}`;
   if (accessKey) try {
     const r = await fetch('https://api.web3forms.com/submit', {
       method: 'POST',
+      signal: AbortSignal.timeout(8000),
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         access_key: accessKey,
@@ -366,6 +366,7 @@ Reçu le : ${new Date().toLocaleString('fr-FR')}`;
     try {
       const r = await fetch('https://api.resend.com/emails', {
         method: 'POST',
+        signal: AbortSignal.timeout(8000),
         headers: {
           Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
           'Content-Type': 'application/json',
@@ -409,6 +410,7 @@ async function sendEmailToClient({ session, lineItems }) {
   try {
     const r = await fetch('https://api.resend.com/emails', {
       method: 'POST',
+      signal: AbortSignal.timeout(8000),
       headers: {
         Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
         'Content-Type': 'application/json',
@@ -480,6 +482,13 @@ export default async function handler(req, res) {
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
+    // Garde : ne traiter que les sessions réellement PAYÉES. Sans effet avec
+    // carte/Apple Pay (toujours 'paid' à ce stade), protège si un moyen de
+    // paiement différé (SEPA, virement…) est activé un jour.
+    if (session.payment_status && session.payment_status !== 'paid') {
+      console.log('[webhook] Session complétée mais non payée (', session.payment_status, ') — ignorée :', session.id);
+      return res.status(200).json({ received: true, ignored: 'unpaid' });
+    }
     // Déduplication : si une order existe déjà pour ce PI (cas où PI.succeeded
     // est arrivé avant la session) → on UPDATE au lieu de re-insert
     let existingOrderId = null;
@@ -508,10 +517,15 @@ export default async function handler(req, res) {
     }
 
     // 1) Mails (shop + client) — UNIQUEMENT si order pas déjà existante (idempotence)
-    // Si existingOrderId est set → l'event est un replay/retry → pas de re-mail
+    // Si existingOrderId est set → l'event est un replay/retry → pas de re-mail.
+    // ⚠️ Ces envois sont ATTENDUS avant la réponse (Promise.allSettled plus
+    // bas) : en serverless, un travail lancé après la réponse peut être gelé
+    // et perdu — et les replays Stripe étant dédupliqués, il ne serait jamais
+    // rejoué. Chaque tâche reste non-fatale (allSettled, jamais de throw).
+    const pending = [];
     if (!existingOrderId) {
-      sendEmailToShop({ session, lineItems }).catch(e => console.warn('mail shop', e.message));
-      sendEmailToClient({ session, lineItems }).catch(e => console.warn('mail client', e.message));
+      pending.push(sendEmailToShop({ session, lineItems }).catch(e => console.warn('mail shop', e.message)));
+      pending.push(sendEmailToClient({ session, lineItems }).catch(e => console.warn('mail client', e.message)));
     } else {
       console.log(`[webhook] Order ${existingOrderId} déjà traitée — skip mails (event replay)`);
     }
@@ -574,14 +588,18 @@ export default async function handler(req, res) {
     const botUrl    = process.env.BOT_TRIGGER_URL;
     const botSecret = process.env.BOT_TRIGGER_SECRET;
     if (botUrl && result.ok && result.row?.id) {
-      fetch(botUrl, {
+      pending.push(fetch(botUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-SAFIX-Secret': botSecret || '' },
         body: JSON.stringify({ orderId: result.row.id }),
+        signal: AbortSignal.timeout(8000),
       }).then(r => console.log('[webhook] Bot trigger HTTP', r.status))
-        .catch(e => console.warn('[webhook] Bot trigger fail :', e.message));
+        .catch(e => console.warn('[webhook] Bot trigger fail :', e.message)));
     }
 
+    // Attendre (sans jamais échouer) que mails + bot soient partis AVANT de
+    // répondre — sinon Vercel peut geler la fonction et perdre ces tâches.
+    await Promise.allSettled(pending);
     return res.status(200).json({ received: true, orderId: result.row?.id });
   }
 
@@ -637,8 +655,10 @@ export default async function handler(req, res) {
       }));
     } catch {}
 
-    sendEmailToShop({ session: fakeSession, lineItems }).catch(e => console.warn('mail shop pi', e.message));
-    sendEmailToClient({ session: fakeSession, lineItems }).catch(e => console.warn('mail client pi', e.message));
+    // Même logique que la branche session : tâches ATTENDUES avant la réponse.
+    const pendingPi = [];
+    pendingPi.push(sendEmailToShop({ session: fakeSession, lineItems }).catch(e => console.warn('mail shop pi', e.message)));
+    pendingPi.push(sendEmailToClient({ session: fakeSession, lineItems }).catch(e => console.warn('mail client pi', e.message)));
 
     // Persistence Supabase
     let cartFull = [];
@@ -663,12 +683,14 @@ export default async function handler(req, res) {
     const botUrl    = process.env.BOT_TRIGGER_URL;
     const botSecret = process.env.BOT_TRIGGER_SECRET;
     if (botUrl && result.ok && result.row?.id) {
-      fetch(botUrl, {
+      pendingPi.push(fetch(botUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-SAFIX-Secret': botSecret || '' },
         body: JSON.stringify({ orderId: result.row.id }),
-      }).catch(e => console.warn('[webhook] Bot trigger fail :', e.message));
+        signal: AbortSignal.timeout(8000),
+      }).catch(e => console.warn('[webhook] Bot trigger fail :', e.message)));
     }
+    await Promise.allSettled(pendingPi);
     return res.status(200).json({ received: true, orderId: result.row?.id });
   }
 
