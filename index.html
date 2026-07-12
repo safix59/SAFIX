@@ -5878,7 +5878,7 @@ header { padding-left: max(20px, env(safe-area-inset-left));
         <div class="hero-3d-sideguard hero-3d-sideguard--r" aria-hidden="true"></div>
         <!-- Fallback PNG si iframe échoue -->
         <div class="hero-iphone-wrap fallback-png" id="heroIphoneWrap" aria-hidden="true">
-          <img class="hero-iphone-img" src="images/iphone17promax.png" alt="" draggable="false">
+          <img class="hero-iphone-img" src="images/iphone17promax.webp" alt="" draggable="false">
         </div>
         <!-- Invite UX : main blanche minimaliste semi-transparente,
              CENTRÉE sur le modèle 3D, qui glisse gauche↔droite en boucle
@@ -5916,7 +5916,7 @@ header { padding-left: max(20px, env(safe-area-inset-left));
       <div class="scroll-story-pin">
         <!-- Visuel iPhone partagé entre les scènes -->
         <div class="story-iphone-visual" id="storyIphone">
-          <img src="images/iphone17promax.png" alt="" aria-hidden="true">
+          <img src="images/iphone17promax.webp" alt="" aria-hidden="true">
           <svg class="crack-svg" viewBox="0 0 200 400" aria-hidden="true">
             <path d="M 100 60 L 88 110 L 120 150 L 92 195 L 130 240 L 78 285 L 110 330" />
             <path d="M 92 110 L 60 140 M 120 150 L 158 175 M 92 195 L 50 220 M 130 240 L 168 268 M 78 285 L 40 305" />
@@ -6886,12 +6886,14 @@ function getModelHeightRatio(model) {
 // aucune mise en cache, 44 images re-téléchargées à chaque visite/retour
 // = grille vide quelques secondes). Bumper cette valeur quand on change
 // une image (ex : '20260516b') pour forcer le rafraîchissement.
-const IMG_CB = '20260516';
-function imgPath(m) { return 'images/' + (IMG_MAP[m] || m.replace(/\s+/g,'').toLowerCase()) + '.png?v=' + IMG_CB; }
+const IMG_CB = '20260712';
+// WebP (\u221292 % de poids, m\u00eames rendus) \u2014 les .png restent en place (repli,
+// app iOS, partages sociaux).
+function imgPath(m) { return 'images/' + (IMG_MAP[m] || m.replace(/\s+/g,'').toLowerCase()) + '.webp?v=' + IMG_CB; }
 
 function iconPath(id) {
   return 'Icon/' + id.normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-    .replace(/['']/g,'').replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_-]/g,'').toLowerCase() + '.png';
+    .replace(/['']/g,'').replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_-]/g,'').toLowerCase() + '.webp';
 }
 
 // Alias : id \u2192 id de r\u00e9f\u00e9rence pour r\u00e9utiliser une ic\u00f4ne existante.
@@ -12358,7 +12360,7 @@ setInterval(refreshDeliveryAvailability, 60000); // ré-évalue chaque minute (c
     var hero = document.querySelector('.hero');
     if (!hero || hero.querySelector('.hero-phone-ambient')) return;
     // Cherche une image iPhone dispo (par défaut : iPhone 17 Pro Max)
-    var src = 'images/iphone17promax.png';
+    var src = 'images/iphone17promax.webp';
     // Préférence : iPhone 17 Pro Max (hero du catalogue)
     var test = new Image();
     test.onload = function(){
@@ -13848,7 +13850,7 @@ setInterval(refreshDeliveryAvailability, 60000); // ré-évalue chaque minute (c
     console.warn('[SAFIX] Three.js load failed, fallback PNG:', err);
     canvas.style.display = 'none';
     const fallback = document.createElement('img');
-    fallback.src = 'images/iphone17promax.png';
+    fallback.src = 'images/iphone17promax.webp';
     fallback.alt = '';
     fallback.style.cssText = 'width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 40px 80px rgba(0,0,0,.6));animation:phoneFloat 6s ease-in-out infinite;';
     canvas.parentNode.appendChild(fallback);

@@ -437,12 +437,47 @@ export default async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
     const pw = (req.body && req.body.password) != null ? String(req.body.password) : '';
     const real = process.env.ADMIN_PASSWORD || '';
+    // ── Verrouillage progressif anti force-brute (état dans la table settings,
+    // clé login_guard = {fails, first, until}). 8 échecs / 10 min → blocage
+    // 15 min. Un login réussi remet à zéro. DB indisponible → on n'enferme
+    // jamais l'admin dehors (fail-open), le délai de 400 ms reste.
+    const SUPA = process.env.SUPABASE_URL, SKEY = process.env.SUPABASE_SERVICE_ROLE;
+    const gHead = SUPA && SKEY ? { apikey: SKEY, Authorization: `Bearer ${SKEY}` } : null;
+    let guard = { fails: 0, first: 0, until: 0 };
+    if (gHead) {
+      try {
+        const r = await fetch(`${SUPA}/rest/v1/settings?select=value&key=eq.login_guard`, { headers: gHead });
+        const rows = r.ok ? await r.json() : [];
+        if (Array.isArray(rows) && rows[0] && rows[0].value) guard = { fails: 0, first: 0, until: 0, ...rows[0].value };
+      } catch {}
+    }
+    const now = Date.now();
+    if (guard.until && now < guard.until) {
+      await new Promise(r => setTimeout(r, 400));
+      return res.status(429).json({ error: 'locked', retry_minutes: Math.ceil((guard.until - now) / 60000) });
+    }
     let ok = false;
     if (real.length > 0) {
       const a = Buffer.from(pw), b = Buffer.from(real);
       ok = a.length === b.length && crypto.timingSafeEqual(a, b);
     }
     await new Promise(r => setTimeout(r, 400));
+    if (gHead) {
+      try {
+        let next;
+        if (ok) next = { fails: 0, first: 0, until: 0 };
+        else {
+          const windowOk = guard.first && now - guard.first < 600000;
+          const fails = windowOk ? guard.fails + 1 : 1;
+          next = { fails, first: windowOk ? guard.first : now, until: fails >= 8 ? now + 900000 : 0 };
+        }
+        await fetch(`${SUPA}/rest/v1/settings?on_conflict=key`, {
+          method: 'POST',
+          headers: { ...gHead, 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates,return=minimal' },
+          body: JSON.stringify({ key: 'login_guard', value: next }),
+        });
+      } catch {}
+    }
     if (!ok) return res.status(401).json({ error: 'bad_password' });
     res.setHeader('Set-Cookie', cookieHeader(issueToken()));
     return res.status(200).json({ ok: true });
@@ -483,6 +518,16 @@ export default async function handler(req, res) {
     if (!session || (!body && !b.image)) return res.status(400).json({ error: 'invalid' });
     if (!S || !K) return res.status(200).json({ ok: false });
     try {
+      // Anti-spam : max 10 messages visiteur / minute et par session.
+      // DB muette → on laisse passer (jamais de client légitime bloqué).
+      try {
+        const since = new Date(Date.now() - 60000).toISOString();
+        const rc = await fetch(`${S}/rest/v1/messages?select=id&session=eq.${encodeURIComponent(session)}&sender=eq.user&created_at=gte.${encodeURIComponent(since)}`, {
+          headers: { apikey: K, Authorization: `Bearer ${K}`, Prefer: 'count=exact', Range: '0-0' },
+        });
+        const total = Number((rc.headers.get('content-range') || '').split('/')[1] || 0);
+        if (total >= 10) return res.status(429).json({ error: 'too_many' });
+      } catch {}
       if (b.image) {
         const url = await uploadChatImage(S, K, session, b.image);
         if (!url && !body) return res.status(400).json({ error: 'image_invalid' });
@@ -530,7 +575,7 @@ export default async function handler(req, res) {
     try {
       // Un humain a-t-il pris la main ? (message admin sans ::bot::, ou demande ::human::)
       let rows = [];
-      const th = await fetch(`${S}/rest/v1/messages?select=sender,body&session=eq.${encodeURIComponent(session)}&order=created_at.desc&limit=40`,
+      const th = await fetch(`${S}/rest/v1/messages?select=sender,body,created_at&session=eq.${encodeURIComponent(session)}&order=created_at.desc&limit=40`,
         { headers: { apikey: K, Authorization: `Bearer ${K}` } });
       if (th.ok) {
         rows = await th.json();
@@ -540,6 +585,10 @@ export default async function handler(req, res) {
           if (m.sender === 'admin' && String(m.body || '').indexOf('::bot::') !== 0) return res.status(200).json({ ok: true, human: true });
         }
       }
+      // Anti-spam assistant : max 8 sollicitations / minute par session.
+      const cut = Date.now() - 60000;
+      const recent = rows.filter((m) => m.sender === 'user' && m.created_at && new Date(m.created_at).getTime() > cut).length;
+      if (recent >= 8) return res.status(429).json({ error: 'too_many' });
       // 1) Réponse déterministe (repli garanti + ancrage anti-hallucination)
       const det = await botAnswer(message, rows);
       // 2) Réponse Claude ancrée (si ANTHROPIC_API_KEY) : historique + catalogue réel

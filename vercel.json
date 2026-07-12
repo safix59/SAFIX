@@ -30,7 +30,7 @@
         { "key": "Referrer-Policy",        "value": "strict-origin-when-cross-origin" },
         { "key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains; preload" },
         { "key": "Permissions-Policy",     "value": "geolocation=(self), microphone=(), camera=(), payment=(self \"https://js.stripe.com\" \"https://www.paypal.com\" \"https://pay.google.com\"), interest-cohort=(), browsing-topics=(), accelerometer=(), gyroscope=(), magnetometer=(), usb=(), midi=(), display-capture=(), fullscreen=(self), encrypted-media=()" },
-        { "key": "X-Robots-Tag",           "value": "index, follow, noarchive, nosnippet, noimageindex, max-snippet:120, max-image-preview:none" },
+        { "key": "X-Robots-Tag",           "value": "index, follow, max-snippet:160, max-image-preview:large" },
         { "key": "X-Permitted-Cross-Domain-Policies", "value": "none" },
         { "key": "Origin-Agent-Cluster",   "value": "?1" },
         { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://js.stripe.com https://*.stripe.com https://*.stripe.network https://b.stripecdn.com https://www.paypal.com https://www.paypalobjects.com https://*.paypal.com https://pay.google.com https://www.gstatic.com https://*.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://plausible.io https://static.sketchfab.com https://ajax.googleapis.com https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://*.supabase.co https://*.stripe.com https://*.stripe.network https://b.stripecdn.com https://www.paypal.com https://www.paypalobjects.com https://*.paypal.com https://pay.google.com https://*.gstatic.com https://*.googleusercontent.com https://api.qrserver.com https://*.sketchfab.com https://media.sketchfab.com https://modelviewer.dev; connect-src 'self' https://api.stripe.com https://*.stripe.com https://*.stripe.network https://b.stripecdn.com https://www.paypal.com https://*.paypal.com https://pay.google.com https://*.googleapis.com https://api.web3forms.com https://*.supabase.co https://plausible.io https://*.sketchfab.com https://modelviewer.dev; frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://checkout.stripe.com https://*.stripe.com https://*.stripe.network https://www.paypal.com https://*.paypal.com https://pay.google.com https://sketchfab.com https://*.sketchfab.com; form-action 'self' https://checkout.stripe.com https://*.stripe.com https://www.paypal.com https://*.paypal.com https://pay.google.com; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; manifest-src 'self'; worker-src 'self' blob:; upgrade-insecure-requests; block-all-mixed-content" }
@@ -65,8 +65,7 @@
     {
       "source": "/(.*)\\.(png|jpg|jpeg|webp|svg|gif|ico)",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=2592000, immutable" },
-        { "key": "X-Robots-Tag",  "value": "noimageindex, noarchive, nosnippet" }
+        { "key": "Cache-Control", "value": "public, max-age=2592000, immutable" }
       ]
     },
     {
