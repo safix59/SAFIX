@@ -19,7 +19,7 @@
 //   5. Utilisateur valide → SDK appelle onApprove() → fetch /api/paypal-capture-order
 // ─────────────────────────────────────────────────────────────────────────
 
-import { loadPrices, enforcePrices } from './_prices.js';
+import { loadPrices, enforcePrices, loadCardsCfg } from './_prices.js';
 
 const PAYPAL_BASE = process.env.PAYPAL_MODE === 'live'
   ? 'https://api-m.paypal.com'
@@ -77,7 +77,8 @@ export default async function handler(req, res) {
     // ── ANTI-FRAUDE (même garde que Carte/Apple Pay) : PayPal créait
     // l'order avec les prix CLIENT sans aucune vérification → fraude.
     const PRICES = await loadPrices();
-    const chk = enforcePrices(PRICES, lineItems);
+    const CARDS = await loadCardsCfg();
+    const chk = enforcePrices(PRICES, lineItems, CARDS);
     if (chk.error) {
       return res.status(chk.error === 'out_of_stock' ? 409 : 400)
         .json({ error: chk.error, item: chk.item, model: chk.model });

@@ -10,7 +10,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 
 import Stripe from 'stripe';
-import { loadPrices, enforcePrices } from './_prices.js';
+import { loadPrices, enforcePrices, loadCardsCfg } from './_prices.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: '2024-06-20',
@@ -46,7 +46,8 @@ export default async function handler(req, res) {
     // ── ANTI-FRAUDE (même garde que la Carte) : Apple Pay / Google Pay
     // passaient ici SANS aucune validation de prix → on recalcule.
     const PRICES = await loadPrices();
-    const chk = enforcePrices(PRICES, lineItems);
+    const CARDS = await loadCardsCfg();
+    const chk = enforcePrices(PRICES, lineItems, CARDS);
     if (chk.error) {
       return res.status(chk.error === 'out_of_stock' ? 409 : 400)
         .json({ error: chk.error, item: chk.item, model: chk.model });

@@ -12,12 +12,13 @@ import { Orders } from './pages/Orders';
 import { Finance } from './pages/Finance';
 import { Visitors } from './pages/Visitors';
 import { Catalog } from './pages/Catalog';
+import { Cartes } from './pages/Cartes';
 import { History } from './pages/History';
 import { System } from './pages/System';
 import { Settings } from './pages/Settings';
 import { Messages } from './pages/Messages';
 
-type Section = 'home' | 'orders' | 'finance' | 'visitors' | 'messages' | 'catalog' | 'history' | 'system' | 'settings';
+type Section = 'home' | 'orders' | 'finance' | 'visitors' | 'messages' | 'catalog' | 'cards' | 'history' | 'system' | 'settings';
 
 const NAV: { key: Section; label: string; icon: IconName; sub: string }[] = [
   { key: 'home', label: "Vue d'ensemble", icon: 'overview', sub: "Résumé de l'activité" },
@@ -26,6 +27,7 @@ const NAV: { key: Section; label: string; icon: IconName; sub: string }[] = [
   { key: 'visitors', label: 'Visiteurs', icon: 'visitors', sub: 'Fréquentation en temps réel' },
   { key: 'messages', label: 'Messages', icon: 'chat', sub: 'Conversations avec les visiteurs' },
   { key: 'catalog', label: 'Catalogue & prix', icon: 'catalog', sub: 'Stock, couverture et tarifs' },
+  { key: 'cards', label: 'Cartes', icon: 'cards', sub: 'Visibilité, promos et contenu du site' },
   { key: 'history', label: 'Historique prix', icon: 'history', sub: 'Mouvements de prix' },
   { key: 'system', label: 'Système & santé', icon: 'system', sub: 'État technique et alertes' },
   { key: 'settings', label: 'Réglages', icon: 'gear', sub: 'Zone d’intervention et préférences' },
@@ -33,7 +35,7 @@ const NAV: { key: Section; label: string; icon: IconName; sub: string }[] = [
 const NAV_GROUPS: { title: string; keys: Section[] }[] = [
   { title: 'Pilotage', keys: ['home'] },
   { title: 'Activité', keys: ['orders', 'finance', 'visitors', 'messages'] },
-  { title: 'Catalogue', keys: ['catalog', 'history'] },
+  { title: 'Catalogue', keys: ['catalog', 'cards', 'history'] },
   { title: 'Système', keys: ['system', 'settings'] },
 ];
 
@@ -261,6 +263,8 @@ function Shell() {
             <Messages />
           ) : section === 'catalog' ? (
             <Catalog data={data} />
+          ) : section === 'cards' ? (
+            <Cartes />
           ) : section === 'history' ? (
             <History data={data} />
           ) : section === 'system' ? (

@@ -31,6 +31,51 @@ const SERVICE_FLOORS = {
   reparation_express: 10,
 };
 
+// ── CMS cartes (Dashboard → Cartes) : surcharges stockées dans la table
+// settings, clé `cards_config`. Le SERVEUR applique les mêmes règles que
+// l'affichage : carte masquée = invendable (fail-closed), promo active =
+// prix officiel ajusté (sinon prix affiché ≠ prix facturé), carte custom =
+// prix fixé par l'admin. Cache 60 s, fail-open (config indisponible →
+// comportement d'origine, jamais de vente bloquée par le CMS).
+let _cardsCache = null;
+let _cardsAt = 0;
+export async function loadCardsCfg() {
+  if (_cardsCache !== null && Date.now() - _cardsAt < 60000) return _cardsCache;
+  try {
+    const S = process.env.SUPABASE_URL, K = process.env.SUPABASE_SERVICE_ROLE;
+    if (!S || !K) return _cardsCache;
+    const r = await fetch(`${S}/rest/v1/settings?select=value&key=eq.cards_config`, {
+      headers: { apikey: K, Authorization: `Bearer ${K}` },
+    });
+    if (r.ok) {
+      const rows = await r.json();
+      _cardsCache = (rows && rows[0] && rows[0].value && rows[0].value.cards) || {};
+      _cardsAt = Date.now();
+    }
+  } catch { /* fail-open */ }
+  return _cardsCache;
+}
+export function promoActive(p, now = Date.now()) {
+  if (!p || !p.active) return false;
+  if (p.start && now < Date.parse(p.start)) return false;
+  if (p.end && now > Date.parse(p.end) + 86399999) return false; // fin de journée incluse
+  return true;
+}
+export function applyPromoEuros(euros, p) {
+  const v = Number(p && p.value) || 0;
+  if (p.type === 'percent' && v > 0) return Math.max(1, Math.round(euros * (1 - v / 100)));
+  if (p.type === 'amount' && v > 0) return Math.max(1, Math.round(euros - v));
+  return euros; // badge purement visuel (Nouveau, Meilleure vente…)
+}
+// Ajustements CMS sur le prix officiel résolu (override admin puis promo).
+function cardAdjust(euros, ov) {
+  let v = euros;
+  const forced = Number(ov && ov.price);
+  if (Number.isFinite(forced) && forced > 0) v = forced;
+  if (ov && promoActive(ov.promo)) v = applyPromoEuros(v, ov.promo);
+  return v;
+}
+
 // Normalisation tolérante : NFKC, espaces compactés, casse ignorée.
 // Neutralise "iphone 11", "iPhone 11 ", "iPhone  11" → même clé.
 function norm(s) {
@@ -135,12 +180,23 @@ export async function loadPrices() {
 //   { oos:true }               rupture de stock
 //   { reject:true }            catalogue mais prix introuvable → FAIL-CLOSED
 //   { euros:Number, kind }     prix officiel ('catalog') ou plancher ('service')
-function resolve(PRICES, it) {
+function resolve(PRICES, it, CARDS) {
   const rid = norm(it && it.repairId);
+  const ov = (CARDS && (CARDS[rid] || CARDS[String((it && it.repairId) || '').trim()])) || null;
+
+  // Carte masquée depuis le Dashboard → invendable (fail-closed).
+  if (ov && ov.hidden) return { oos: true };
+
+  // Carte CRÉÉE depuis le Dashboard : prix fixé par l'admin (comme un service).
+  if (ov && ov.custom) {
+    const v = cardAdjust(Number(ov.price), ov);
+    if (!Number.isFinite(v) || v <= 0) return { reject: true };
+    return { euros: v, kind: 'service' };
+  }
 
   // Service à plancher fixe (indépendant du modèle).
   if (rid && Object.prototype.hasOwnProperty.call(SERVICE_FLOORS, rid)) {
-    return { euros: SERVICE_FLOORS[rid], kind: 'service' };
+    return { euros: cardAdjust(SERVICE_FLOORS[rid], ov), kind: 'service' };
   }
 
   if (!PRICES) return { skip: true };          // catalogue down → ne pas bloquer
@@ -165,7 +221,7 @@ function resolve(PRICES, it) {
     }
   }
   if (!Number.isFinite(v) || v <= 0) return { reject: true }; // prix non résolu → FAIL-CLOSED
-  return { euros: v, kind: 'catalog' };
+  return { euros: cardAdjust(v, ov), kind: 'catalog' };
 }
 
 // Valide + clampe lineItems EN PLACE.
@@ -174,11 +230,11 @@ function resolve(PRICES, it) {
 //   - pièce   : refuse si client < 70% officiel, sinon max(client, officiel).
 //   - rupture / prix introuvable / repairId inconnu → refus (fail-closed).
 // Renvoie { error, item, model } si fraude/rupture, sinon {}.
-export function enforcePrices(PRICES, lineItems) {
+export function enforcePrices(PRICES, lineItems, CARDS) {
   for (const it of lineItems) {
     it.qty = Math.max(1, Math.min(20, Math.floor(Number(it.qty)) || 1));
 
-    const r = resolve(PRICES, it);
+    const r = resolve(PRICES, it, CARDS);
     if (r.skip) continue;                       // catalogue indisponible
     if (r.oos) {
       return { error: 'out_of_stock', item: it.repairId, model: it.modelKey };

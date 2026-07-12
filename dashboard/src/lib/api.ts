@@ -138,6 +138,29 @@ export interface GeoConfig {
   city: string;
 }
 
+// ── CMS cartes (page Cartes) ──
+export interface CardPromo {
+  active: boolean;
+  type: 'percent' | 'amount' | 'badge';
+  value?: number;
+  label?: string;
+  color?: string;
+  start?: string | null;
+  end?: string | null;
+}
+export interface CardOverride {
+  hidden?: boolean;
+  order?: number | null;
+  title?: string | null;
+  subtitle?: string | null;
+  price?: number | null;
+  category?: string;
+  custom?: boolean;
+  promo?: CardPromo | null;
+}
+export type CardsMap = Record<string, CardOverride>;
+export interface CardsHistorySnap { ts: string; note: string; count: number; }
+
 export type Res<T> = { status: number; data: T | null };
 
 const BASE = '/api/admin';
@@ -154,9 +177,11 @@ async function call<T>(action: string, init?: RequestInit): Promise<Res<T>> {
 let devAuthed = false;
 let devGeo: GeoConfig = { enabled: true, lat: 51.0344, lng: 2.3768, radiusKm: 30, city: 'Dunkerque' };
 let devMaint = false;
+let devCards: CardsMap = {};
+const devSnaps: CardsHistorySnap[] = [];
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 async function devCall<T>(
-  kind: 'login' | 'logout' | 'data' | 'live' | 'visits' | 'sessions' | 'del' | 'geo' | 'geo-set' | 'msg-threads' | 'msg-thread' | 'msg-reply' | 'msg-del' | 'msg-del-thread' | 'suggest' | 'admin-ping' | 'maintenance-get' | 'maintenance-set',
+  kind: 'login' | 'logout' | 'data' | 'live' | 'visits' | 'sessions' | 'del' | 'geo' | 'geo-set' | 'msg-threads' | 'msg-thread' | 'msg-reply' | 'msg-del' | 'msg-del-thread' | 'suggest' | 'admin-ping' | 'maintenance-get' | 'maintenance-set' | 'cards-get' | 'cards-set' | 'cards-history' | 'cards-restore',
   pw?: string,
   payload?: unknown,
 ): Promise<Res<T>> {
@@ -176,6 +201,10 @@ async function devCall<T>(
   if (kind === 'suggest') return { status: 200, data: { ready: false, suggestions: [] } as unknown as T };
   if (kind === 'maintenance-get') return { status: 200, data: { ok: true, on: devMaint } as unknown as T };
   if (kind === 'maintenance-set') { devMaint = !!(payload as { on: boolean }).on; return { status: 200, data: { ok: true, on: devMaint } as unknown as T }; }
+  if (kind === 'cards-get') return { status: 200, data: { ok: true, cards: devCards } as unknown as T };
+  if (kind === 'cards-set') { devSnaps.unshift({ ts: new Date().toISOString(), note: '', count: Object.keys(devCards).length }); devCards = (payload as { cards: CardsMap }).cards; return { status: 200, data: { ok: true } as unknown as T }; }
+  if (kind === 'cards-history') return { status: 200, data: { ok: true, snaps: devSnaps } as unknown as T };
+  if (kind === 'cards-restore') return { status: 200, data: { ok: true, cards: devCards } as unknown as T };
   if (kind === 'data') return { status: 200, data: m.MOCK_DATA as unknown as T };
   if (kind === 'live') return { status: 200, data: m.MOCK_LIVE as unknown as T };
   if (kind === 'sessions') return { status: 200, data: m.mockSessions() as unknown as T };
@@ -211,4 +240,12 @@ export const api = {
     DEV ? devCall('maintenance-set', undefined, { on }) : call('maintenance-set', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ on }) }),
   deleteOrder: (id: number): Promise<Res<{ ok: boolean }>> =>
     DEV ? devCall('del') : call(`order-del&id=${encodeURIComponent(id)}`, { method: 'POST' }),
+  cardsGet: (): Promise<Res<{ ok: boolean; cards: CardsMap; updated_at?: string }>> =>
+    DEV ? devCall('cards-get') : call('cards'),
+  cardsSet: (cards: CardsMap, note?: string): Promise<Res<{ ok: boolean }>> =>
+    DEV ? devCall('cards-set', undefined, { cards }) : call('cards-set', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cards, note: note || '' }) }),
+  cardsHistory: (): Promise<Res<{ ok: boolean; snaps: CardsHistorySnap[] }>> =>
+    DEV ? devCall('cards-history') : call('cards-history'),
+  cardsRestore: (ts: string): Promise<Res<{ ok: boolean; cards: CardsMap }>> =>
+    DEV ? devCall('cards-restore', undefined, { ts }) : call('cards-restore', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ts }) }),
 };

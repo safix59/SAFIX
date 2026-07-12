@@ -1343,6 +1343,19 @@ header {
 .repair-card.selected .repair-price { display:none; }
 .repair-card.out-of-stock { opacity:.6; cursor:not-allowed; }
 .repair-card.out-of-stock:hover { transform:none; border-color:var(--border); }
+/* ── CMS cartes : badge promo + prix barré (pilotés depuis le Dashboard) ── */
+.promo-badge {
+  position:absolute; top:8px; right:10px; z-index:2;
+  padding:3px 9px; border-radius:100px;
+  font-size:9.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase;
+  color:#fff; background:var(--accent);
+  box-shadow:0 3px 10px rgba(0,0,0,.28);
+  pointer-events:none;
+}
+.price-was {
+  display:block; font-size:11.5px; color:var(--text3);
+  text-decoration:line-through; font-weight:600; margin-bottom:1px;
+}
 .repair-card.out-of-stock .repair-price {
   font-size:10.5px; font-weight:800; line-height:1.15;
   color:var(--red); text-transform:uppercase; letter-spacing:.4px;
@@ -7116,6 +7129,46 @@ let compareA = null, compareB = null, comparePickingFor = 'B';
 let currentTotal = 0;
 let toastTimer;
 
+/* ── CMS cartes (Dashboard → Cartes) : visibilité, promos, textes, ordre.
+   Config publique servie par /api/admin?action=cards (cache 30 s côté CDN),
+   re-synchronisée toutes les 60 s → une modification admin est visible sur
+   le site en ≤ ~90 s sans redéploiement. Fail-open : sans config, le site
+   se comporte exactement comme avant. ── */
+let cardsCfg = {};
+function cardOv(id) { return cardsCfg[id] || null; }
+function cardPromoActive(p) {
+  if (!p || !p.active) return false;
+  const n = Date.now();
+  if (p.start && n < Date.parse(p.start)) return false;
+  if (p.end && n > Date.parse(p.end) + 86399999) return false; // fin de journée incluse
+  return true;
+}
+function cardPromoPrice(base, p) {
+  const v = Number(p && p.value) || 0;
+  if (p.type === 'percent' && v > 0) return Math.max(1, Math.round(base * (1 - v / 100)));
+  if (p.type === 'amount' && v > 0) return Math.max(1, Math.round(base - v));
+  return base;
+}
+async function loadCardsConfig(rerender) {
+  try {
+    const r = await fetch('/api/admin?action=cards', { cache: 'no-store' });
+    const j = await r.json();
+    if (j && j.ok) {
+      const next = j.cards || {};
+      const changed = JSON.stringify(next) !== JSON.stringify(cardsCfg);
+      cardsCfg = next;
+      if (changed && rerender) {
+        const dv = document.getElementById('viewDetail');
+        if (dv && !dv.classList.contains('gone') && dv.dataset.model && typeof renderDetail === 'function') {
+          renderDetail(dv.dataset.model);
+        }
+      }
+    }
+  } catch (e) { /* fail-open */ }
+}
+loadCardsConfig(true);
+setInterval(function () { if (!document.hidden) loadCardsConfig(true); }, 60000);
+
 /* ═══════════════════════════════════════════════════
    DATA
 ═══════════════════════════════════════════════════ */
@@ -7262,6 +7315,13 @@ function applyLivePrices(payload) {
 function updateCardInPlace(card, repair, model) {
   const price   = getPrice(repair, model);
   const oos     = price === 'OOS';
+  // Mêmes surcharges CMS que renderDetail (override de prix + promo).
+  const ovU = cardOv(repair.id);
+  const finalPriceU = (typeof price === 'number' && ovU && ovU.price != null && Number.isFinite(Number(ovU.price)))
+    ? Number(ovU.price) : price;
+  const hasPromoU = !!(ovU && cardPromoActive(ovU.promo));
+  const promoPriceU = hasPromoU && typeof finalPriceU === 'number' ? cardPromoPrice(finalPriceU, ovU.promo) : null;
+  const effPriceU = promoPriceU != null ? promoPriceU : finalPriceU;
   const cat     = data.repairs.find(c => c.repairs.includes(repair));
   // "!" affiché pour toutes les catégories qui nécessitent un lien fournisseur
   // (= Réparations, Protections, Accessoires). Pour Services, le prix est
@@ -7277,7 +7337,7 @@ function updateCardInPlace(card, repair, model) {
 
   // Si la carte devient bloquée, on retire 'selected' (cohérence avec le panier)
   if (blocked) card.classList.remove('selected');
-  card.dataset.price = price;
+  card.dataset.price = effPriceU;
 
   // Mini-bulle couleur si applicable
   const cartItem    = cart.find(c => c.modelKey === model && c.repairId === repair.id);
@@ -7290,11 +7350,13 @@ function updateCardInPlace(card, repair, model) {
   // Texte du prix
   const priceDisplay = oos
     ? (currentLang === 'en' ? 'Out of<br>stock' : 'Rupture<br>de stock')
-    : (noLink ? '!' : (unavail ? '?' : `${price} €`));
+    : (noLink ? '!' : (unavail ? '?' : `${effPriceU} €`));
+  const wasHtmlU = (promoPriceU != null && promoPriceU !== finalPriceU)
+    ? `<span class="price-was">${finalPriceU} €</span>` : '';
 
   const priceEl = card.querySelector('.repair-price');
   if (priceEl) {
-    priceEl.innerHTML = `${miniBubbleHtml}${oos || noLink || unavail ? priceDisplay : `<span>${priceDisplay}</span>`}`;
+    priceEl.innerHTML = `${miniBubbleHtml}${oos || noLink || unavail ? priceDisplay : `${wasHtmlU}<span>${priceDisplay}</span>`}`;
     // Mini-bulle redevient cliquable pour rouvrir le picker
     const miniBubble = priceEl.querySelector('.color-bubble-mini[data-change-color]');
     if (miniBubble) {
@@ -7990,7 +8052,8 @@ function renderHome() {
       grid.appendChild(card);
     });
     block.appendChild(grid);
-    container.appendChild(block);
+    // Catégorie vidée par le CMS (toutes cartes masquées) → pas de bloc vide.
+    if (list.length) container.appendChild(block);
   });
 }
 
@@ -8286,7 +8349,25 @@ function renderDetail(model) {
       <div class="repair-grid"></div>`;
     const grid = block.querySelector('.repair-grid');
 
-    cat.repairs.forEach((repair, ri) => {
+    // ── CMS cartes : masquées retirées, cartes créées injectées, ordre admin ──
+    const baseList = cat.repairs.map((r, i) => ({ r, i }));
+    Object.keys(cardsCfg).forEach((cid) => {
+      const o = cardsCfg[cid];
+      if (o && o.custom && !o.hidden && (o.category || 'Réparations') === cat.category) {
+        baseList.push({ r: { id: cid, name: o.title || cid, description: o.subtitle || '', price: { default: (o.price != null ? Number(o.price) : '?') }, _custom: true }, i: 500 });
+      }
+    });
+    const list = baseList
+      .filter((e) => !(cardsCfg[e.r.id] && cardsCfg[e.r.id].hidden))
+      .sort((a, b) => {
+        const oa = cardsCfg[a.r.id] && cardsCfg[a.r.id].order != null ? Number(cardsCfg[a.r.id].order) : a.i;
+        const ob = cardsCfg[b.r.id] && cardsCfg[b.r.id].order != null ? Number(cardsCfg[b.r.id].order) : b.i;
+        return (oa - ob) || (a.i - b.i);
+      });
+
+    list.forEach((entry, ri) => {
+      const repair = entry.r;
+      const ov = cardOv(repair.id);
       const price = getPrice(repair, model);
       const oos = price === 'OOS';
       // "!" pour toutes les catégories nécessitant un lien fournisseur
@@ -8294,6 +8375,13 @@ function renderDetail(model) {
       const noLink = price === '?' && cat.category !== 'Services';
       const unavail = price === '?' && !noLink;
       const blocked = oos || unavail || noLink;
+      // Surcharge de prix admin + promo active (le serveur applique les
+      // MÊMES règles dans _prices.js → affiché = facturé, toujours).
+      const finalPrice = (typeof price === 'number' && ov && ov.price != null && Number.isFinite(Number(ov.price)))
+        ? Number(ov.price) : price;
+      const hasPromo = !!(ov && cardPromoActive(ov.promo));
+      const promoPrice = hasPromo && typeof finalPrice === 'number' ? cardPromoPrice(finalPrice, ov.promo) : null;
+      const effPrice = promoPrice != null ? promoPrice : finalPrice;
       const inCart  = cart.some(c => c.repairId === repair.id && c.modelKey === model);
       if (!blocked && cat.category === 'Réparations') available++;
 
@@ -8309,13 +8397,18 @@ function renderDetail(model) {
       card.className = cls;
       card.style.animationDelay = `${(ci * 6 + ri) * 0.04}s`;
       card.dataset.name     = repair.name;
-      card.dataset.price    = price;
+      card.dataset.price    = effPrice;
       card.dataset.repairId = repair.id;
       if (needsRepair) card.dataset.needsRepair = '1';
 
       const priceDisplay = oos
         ? (currentLang === 'en' ? 'Out of<br>stock' : 'Rupture<br>de stock')
-        : (noLink ? '!' : (unavail ? '?' : `${price} €`));
+        : (noLink ? '!' : (unavail ? '?' : `${effPrice} €`));
+      const wasHtml = (promoPrice != null && promoPrice !== finalPrice)
+        ? `<span class="price-was">${finalPrice} €</span>` : '';
+      const badgeHtml = hasPromo
+        ? `<span class="promo-badge"${ov.promo.color ? ` style="background:${escHtml(ov.promo.color)}"` : ''}>${escHtml(ov.promo.label || (ov.promo.type === 'percent' ? '-' + ov.promo.value + ' %' : ov.promo.type === 'amount' ? '-' + ov.promo.value + ' €' : 'PROMO'))}</span>`
+        : '';
 
       // Mini bulle couleur si une couleur a été choisie (à gauche du prix, cliquable pour changer)
       const cartItem = cart.find(c => c.modelKey === model && c.repairId === repair.id);
@@ -8328,15 +8421,15 @@ function renderDetail(model) {
       // Détection : cette carte a-t-elle besoin de couleur ? (connecteur uniquement)
       const needsColor = !!(repair.colorVariants && repair.colorVariants[model] && repair.colorVariants[model].length);
 
-      card.innerHTML = `
+      card.innerHTML = `${badgeHtml}
         <div class="repair-icon"><img src="" alt=""></div>
         <div class="repair-text">
-          <div class="repair-name">${tr(repair.name)}</div>
-          <div class="repair-desc">${tr(repair.description)}</div>
+          <div class="repair-name">${ov && ov.title ? escHtml(ov.title) : tr(repair.name)}</div>
+          <div class="repair-desc">${ov && ov.subtitle != null && ov.subtitle !== '' ? escHtml(ov.subtitle) : tr(repair.description)}</div>
         </div>
-        <div class="repair-price">${miniBubbleHtml}${oos ? priceDisplay : (noLink || unavail ? priceDisplay : `<span>${priceDisplay}</span>`)}</div>`;
+        <div class="repair-price">${miniBubbleHtml}${oos ? priceDisplay : (noLink || unavail ? priceDisplay : `${wasHtml}<span>${priceDisplay}</span>`)}</div>`;
 
-      setupIcon(card.querySelector('.repair-icon img'), repair.id);
+      setupIcon(card.querySelector('.repair-icon img'), repair._custom ? 'diagnostic_expert' : repair.id);
 
       // Clic sur la mini bulle (à gauche du prix) → réouvre le picker pour changer
       const miniBubble = card.querySelector('.color-bubble-mini[data-change-color]');
@@ -8368,7 +8461,7 @@ function renderDetail(model) {
           const itemName = chosenColor
             ? `${tr(repair.name)} (${colorLabel(chosenColor)})`
             : tr(repair.name);
-          toggleRepair(card, itemName, price, model, { repairId: repair.id, colorName: chosenColor });
+          toggleRepair(card, itemName, effPrice, model, { repairId: repair.id, colorName: chosenColor });
         });
       }
       grid.appendChild(card);

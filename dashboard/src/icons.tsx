@@ -8,6 +8,7 @@ const P: Record<string, ReactNode> = {
   finance: <><path d="M3 3v16a2 2 0 0 0 2 2h16" /><path d="M7 15l3.5-4 3 2.5L21 7" /><path d="M17 7h4v4" /></>,
   visitors: <><circle cx="12" cy="12" r="2.4" /><path d="M12 5.5a6.5 6.5 0 0 1 0 13" opacity=".9" /><path d="M12 2.2a9.8 9.8 0 0 1 0 19.6" opacity=".5" /><path d="M12 5.5a6.5 6.5 0 0 0 0 13" opacity="0" /></>,
   catalog: <><path d="M20.6 13.4 12 22l-9-9V4h9l8.6 8.6a1.4 1.4 0 0 1 0 2z" /><circle cx="7.5" cy="7.5" r="1.4" /></>,
+  cards: <><rect x="3" y="7.5" width="13.5" height="13" rx="2" /><path d="M8 7.5V5.5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2.5" /><path d="M6.5 12.5h6.5M6.5 16h4" /></>,
   history: <><path d="M3.1 12a9 9 0 1 0 3-6.9" /><path d="M3 4v4h4" /><path d="M12 8v4.4l3 1.8" /></>,
   system: <><path d="M2.5 12h4l2-6 4 15 2.5-9H21.5" /></>,
   search: <><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" /></>,

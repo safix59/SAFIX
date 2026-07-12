@@ -510,6 +510,23 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, geo: def });
   }
 
+  // ── CMS CARTES — config publique (lue par le site à chaque visite) ──
+  if (action === 'cards') {
+    const S = process.env.SUPABASE_URL, K = process.env.SUPABASE_SERVICE_ROLE;
+    res.setHeader('Cache-Control', 'public, max-age=30, stale-while-revalidate=120');
+    if (!S || !K) return res.status(200).json({ ok: true, cards: {} });
+    try {
+      const r = await fetch(`${S}/rest/v1/settings?select=value,updated_at&key=eq.cards_config`,
+        { headers: { apikey: K, Authorization: `Bearer ${K}` } });
+      if (r.ok) {
+        const rows = await r.json();
+        const v = Array.isArray(rows) && rows[0] ? rows[0] : null;
+        return res.status(200).json({ ok: true, cards: (v && v.value && v.value.cards) || {}, updated_at: v && v.updated_at });
+      }
+    } catch { /* fail-open : site sans surcharges */ }
+    return res.status(200).json({ ok: true, cards: {} });
+  }
+
   // ── MESSAGERIE — envoi d'un message par le visiteur (PUBLIC) ──
   if (action === 'msg-send') {
     if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
@@ -856,6 +873,80 @@ Réponds UNIQUEMENT avec un tableau JSON de 3 chaînes, sans autre texte : ["...
         body: JSON.stringify({ key: 'geozone', value, updated_at: new Date().toISOString() }),
       });
       return res.status(r.ok ? 200 : 500).json({ ok: r.ok, geo: value });
+    } catch (e) { return res.status(500).json({ error: e.message }); }
+  }
+
+  // ── CMS CARTES — écriture (auth) : sauvegarde + instantané d'historique ──
+  if (action === 'cards-set') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+    if (!SUPA || !KEY) return res.status(500).json({ error: 'supabase_absent' });
+    const b = req.body || {};
+    const cards = (b.cards && typeof b.cards === 'object' && !Array.isArray(b.cards)) ? b.cards : null;
+    if (!cards) return res.status(400).json({ error: 'invalid' });
+    if (JSON.stringify(cards).length > 200000) return res.status(400).json({ error: 'too_large' });
+    const H = { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' };
+    try {
+      // 1) instantané de l'état actuel → historique (undo), 25 max
+      const cur = await fetch(`${SUPA}/rest/v1/settings?select=value&key=eq.cards_config`, { headers: H });
+      const curRows = cur.ok ? await cur.json() : [];
+      const prev = (curRows[0] && curRows[0].value && curRows[0].value.cards) || {};
+      const hi = await fetch(`${SUPA}/rest/v1/settings?select=value&key=eq.cards_history`, { headers: H });
+      const hiRows = hi.ok ? await hi.json() : [];
+      const snaps = ((hiRows[0] && hiRows[0].value && hiRows[0].value.snaps) || []);
+      snaps.unshift({ ts: new Date().toISOString(), cards: prev, note: String(b.note || '').slice(0, 120) });
+      await fetch(`${SUPA}/rest/v1/settings?on_conflict=key`, {
+        method: 'POST', headers: { ...H, Prefer: 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify({ key: 'cards_history', value: { snaps: snaps.slice(0, 25) }, updated_at: new Date().toISOString() }),
+      });
+      // 2) sauvegarde de la nouvelle config
+      const r = await fetch(`${SUPA}/rest/v1/settings?on_conflict=key`, {
+        method: 'POST', headers: { ...H, Prefer: 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify({ key: 'cards_config', value: { cards }, updated_at: new Date().toISOString() }),
+      });
+      return res.status(r.ok ? 200 : 500).json({ ok: r.ok });
+    } catch (e) { return res.status(500).json({ error: e.message }); }
+  }
+
+  // ── CMS CARTES — historique des sauvegardes (auth) ──
+  if (action === 'cards-history') {
+    if (!SUPA || !KEY) return res.status(200).json({ ok: true, snaps: [] });
+    try {
+      const r = await fetch(`${SUPA}/rest/v1/settings?select=value&key=eq.cards_history`,
+        { headers: { apikey: KEY, Authorization: `Bearer ${KEY}` } });
+      const rows = r.ok ? await r.json() : [];
+      const snaps = ((rows[0] && rows[0].value && rows[0].value.snaps) || [])
+        .map((s) => ({ ts: s.ts, note: s.note || '', count: Object.keys(s.cards || {}).length }));
+      return res.status(200).json({ ok: true, snaps });
+    } catch (e) { return res.status(500).json({ error: e.message }); }
+  }
+
+  // ── CMS CARTES — restauration d'un instantané (auth, undo) ──
+  if (action === 'cards-restore') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+    if (!SUPA || !KEY) return res.status(500).json({ error: 'supabase_absent' });
+    const ts = String((req.body || {}).ts || '');
+    if (!ts) return res.status(400).json({ error: 'invalid' });
+    const H = { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' };
+    try {
+      const hi = await fetch(`${SUPA}/rest/v1/settings?select=value&key=eq.cards_history`, { headers: H });
+      const hiRows = hi.ok ? await hi.json() : [];
+      const snaps = ((hiRows[0] && hiRows[0].value && hiRows[0].value.snaps) || []);
+      const snap = snaps.find((s) => s.ts === ts);
+      if (!snap) return res.status(404).json({ error: 'not_found' });
+      // l'état actuel devient lui-même un instantané (permet de re-annuler)
+      const cur = await fetch(`${SUPA}/rest/v1/settings?select=value&key=eq.cards_config`, { headers: H });
+      const curRows = cur.ok ? await cur.json() : [];
+      const prev = (curRows[0] && curRows[0].value && curRows[0].value.cards) || {};
+      snaps.unshift({ ts: new Date().toISOString(), cards: prev, note: 'avant restauration' });
+      await fetch(`${SUPA}/rest/v1/settings?on_conflict=key`, {
+        method: 'POST', headers: { ...H, Prefer: 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify({ key: 'cards_history', value: { snaps: snaps.slice(0, 25) }, updated_at: new Date().toISOString() }),
+      });
+      const r = await fetch(`${SUPA}/rest/v1/settings?on_conflict=key`, {
+        method: 'POST', headers: { ...H, Prefer: 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify({ key: 'cards_config', value: { cards: snap.cards || {} }, updated_at: new Date().toISOString() }),
+      });
+      return res.status(r.ok ? 200 : 500).json({ ok: r.ok, cards: snap.cards || {} });
     } catch (e) { return res.status(500).json({ error: e.message }); }
   }
 
