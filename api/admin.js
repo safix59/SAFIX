@@ -428,6 +428,15 @@ async function getJson(path, ms = 8000) {
   } catch { return null; } finally { clearTimeout(to); }
 }
 
+// Sépare un en-tête « From » (« "Jean Dupont" <jean@x.fr> ») en {name,email}.
+function parseFrom(raw) {
+  const s = String(raw || '').trim();
+  const m = /^\s*"?([^"<]*?)"?\s*<([^>]+)>\s*$/.exec(s);
+  if (m) return { name: (m[1] || '').trim() || null, email: (m[2] || '').trim().toLowerCase() || null };
+  if (/@/.test(s)) return { name: null, email: s.toLowerCase() };
+  return { name: s || null, email: null };
+}
+
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   const action = (req.query && req.query.action) || (req.body && req.body.action) || '';
@@ -672,6 +681,54 @@ export default async function handler(req, res) {
     return res.status(200).json({ online: false });
   }
 
+  // ── E-MAILS SUPPORT — RÉCEPTION (PUBLIC, jeton partagé) ──
+  // Un service de parsing d'e-mails (Cloudflare Email Worker, Pipedream, Zapier
+  // « Email Parser »…) POST ici chaque message reçu sur support@safix59.fr.
+  // Sécurité : jeton secret (en-tête « x-inbound-token » de préférence, sinon
+  // ?token=), JAMAIS le cookie admin. Le corps est du JSON ; on tolère les noms
+  // de champs les plus courants d'un service à l'autre.
+  if (action === 'inbound-email') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+    const secret = process.env.INBOUND_EMAIL_TOKEN || '';
+    if (!secret) return res.status(500).json({ error: 'server_config' }); // jeton non configuré
+    const given = String((req.headers && req.headers['x-inbound-token']) || (req.query && req.query.token) || '');
+    let ok = false;
+    if (given.length > 0) { const a = Buffer.from(given), b = Buffer.from(secret); ok = a.length === b.length && crypto.timingSafeEqual(a, b); }
+    if (!ok) return res.status(401).json({ error: 'unauthorized' });
+    const S = process.env.SUPABASE_URL, K = process.env.SUPABASE_SERVICE_ROLE;
+    if (!S || !K) return res.status(500).json({ error: 'supabase_absent' });
+    const p = (req.body && typeof req.body === 'object') ? req.body : {};
+    const pick = (...keys) => { for (const k of keys) { const v = p[k]; if (v != null && String(v).trim() !== '') return String(v); } return ''; };
+    const f = parseFrom(pick('from', 'sender', 'From', 'from_email', 'email'));
+    const from_email = ((pick('from_email') || f.email || '') || '').toLowerCase() || null;
+    const from_name = pick('from_name', 'fromName') || f.name;
+    const subject = (pick('subject', 'Subject', 'sujet').slice(0, 500)) || '(sans objet)';
+    const textRaw = pick('text', 'body', 'plain', 'body-plain', 'stripped-text', 'snippet', 'html');
+    const text = textRaw.replace(/<[^>]+>/g, ' ').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+    let received_at = new Date().toISOString();
+    const dRaw = pick('date', 'Date', 'received_at', 'timestamp');
+    if (dRaw) { const d = new Date(dRaw); if (!isNaN(d.getTime())) received_at = d.toISOString(); }
+    const message_id = pick('message_id', 'Message-Id', 'messageId', 'message-id').slice(0, 300) || null;
+    const row = {
+      received_at, from_email, from_name: from_name || null, subject,
+      preview: text.slice(0, 280), body: text.slice(0, 20000) || null,
+      status: 'non_lu', message_id,
+    };
+    try {
+      // Anti-doublon : si message_id fourni, on ignore les ré-livraisons (unique index).
+      const r = await fetch(`${S}/rest/v1/support_emails${message_id ? '?on_conflict=message_id' : ''}`, {
+        method: 'POST',
+        headers: {
+          apikey: K, Authorization: `Bearer ${K}`, 'Content-Type': 'application/json',
+          Prefer: message_id ? 'resolution=ignore-duplicates,return=minimal' : 'return=minimal',
+        },
+        body: JSON.stringify(row),
+      });
+      if (r.status === 404) return res.status(200).json({ ok: false, reason: 'table_absente' });
+      return res.status(r.ok ? 200 : 500).json({ ok: r.ok });
+    } catch (e) { return res.status(500).json({ error: e.message }); }
+  }
+
   // ── (tout le reste exige l'authentification) ──
   if (!requireAuth(req)) return res.status(401).json({ error: 'unauthorized' });
 
@@ -715,6 +772,56 @@ export default async function handler(req, res) {
         body: JSON.stringify({ key: 'maintenance', value: { on }, updated_at: new Date().toISOString() }),
       });
       return res.status(r.ok ? 200 : 500).json({ ok: r.ok, on });
+    } catch (e) { return res.status(500).json({ error: e.message }); }
+  }
+
+  // ── E-MAILS SUPPORT — liste pour le Dashboard + compteur de non-lus ──
+  if (action === 'emails') {
+    if (!SUPA || !KEY) return res.status(200).json({ ready: false, emails: [], unread: 0 });
+    try {
+      const r = await fetch(`${SUPA}/rest/v1/support_emails?select=id,received_at,from_email,from_name,subject,preview,body,status&order=received_at.desc&limit=300`,
+        { headers: { apikey: KEY, Authorization: `Bearer ${KEY}` } });
+      if (r.status === 404) return res.status(200).json({ ready: false, emails: [], unread: 0, reason: 'table_absente' });
+      if (!r.ok) return res.status(200).json({ ready: false, emails: [], unread: 0, reason: 'http_' + r.status });
+      const rows = await r.json().catch(() => []);
+      const emails = Array.isArray(rows) ? rows : [];
+      return res.status(200).json({ ready: true, emails, unread: emails.filter((e) => e.status === 'non_lu').length });
+    } catch (e) { return res.status(200).json({ ready: false, emails: [], unread: 0, reason: e.message }); }
+  }
+
+  // ── E-MAILS SUPPORT — changer le statut (non_lu | lu | traite) d'un ou plusieurs ──
+  if (action === 'email-status') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+    if (!SUPA || !KEY) return res.status(500).json({ error: 'supabase_absent' });
+    const b = req.body || {};
+    const status = ['non_lu', 'lu', 'traite'].includes(b.status) ? b.status : null;
+    const ids = Array.isArray(b.ids) ? b.ids.map(Number).filter(Number.isFinite)
+      : (Number.isFinite(Number(b.id)) ? [Number(b.id)] : []);
+    if (!status || !ids.length) return res.status(400).json({ error: 'invalid' });
+    try {
+      const r = await fetch(`${SUPA}/rest/v1/support_emails?id=in.(${ids.join(',')})`, {
+        method: 'PATCH',
+        headers: { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify({ status }),
+      });
+      return res.status(r.ok ? 200 : 500).json({ ok: r.ok });
+    } catch (e) { return res.status(500).json({ error: e.message }); }
+  }
+
+  // ── E-MAILS SUPPORT — suppression (nettoyage) ──
+  if (action === 'email-del') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+    if (!SUPA || !KEY) return res.status(500).json({ error: 'supabase_absent' });
+    const b = req.body || {};
+    const ids = Array.isArray(b.ids) ? b.ids.map(Number).filter(Number.isFinite)
+      : (Number.isFinite(Number(b.id)) ? [Number(b.id)] : []);
+    if (!ids.length) return res.status(400).json({ error: 'invalid' });
+    try {
+      const r = await fetch(`${SUPA}/rest/v1/support_emails?id=in.(${ids.join(',')})`, {
+        method: 'DELETE',
+        headers: { apikey: KEY, Authorization: `Bearer ${KEY}`, Prefer: 'return=minimal' },
+      });
+      return res.status(r.ok ? 200 : 500).json({ ok: r.ok });
     } catch (e) { return res.status(500).json({ error: e.message }); }
   }
 

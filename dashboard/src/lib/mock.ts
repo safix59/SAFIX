@@ -10,6 +10,8 @@ import type {
   VisitsData,
   VisitorSession,
   SessionsData,
+  SupportEmail,
+  EmailStatus,
 } from './api';
 
 const MODELS = [
@@ -369,4 +371,23 @@ export function mockThreads() {
     return { session, name: named ? named.name || null : null, last_body: last.body, last_sender: last.sender, last_ts: last.created_at, unread, count: arr.length };
   }).sort((a, b) => +new Date(b.last_ts) - +new Date(a.last_ts));
   return { ready: true, threads, total_unread: threads.reduce((s, t) => s + t.unread, 0) };
+}
+
+// ── E-mails support (démo) ──
+let _emailStore: SupportEmail[] = [
+  { id: 101, received_at: new Date(_mNow - 6e4 * 12).toISOString(), from_email: 'julie.mercier@gmail.com', from_name: 'Julie Mercier', subject: 'Devis remplacement écran iPhone 14 Pro', preview: "Bonjour, mon écran est fissuré suite à une chute. Pouvez-vous me faire un devis et me dire sous combien de temps c'est réparable ? Merci d'avance.", body: "Bonjour,\n\nMon écran est fissuré suite à une chute hier soir. L'iPhone fonctionne encore mais le tactile répond mal dans le coin haut droit.\n\nPouvez-vous me faire un devis pour un iPhone 14 Pro et me dire sous combien de temps c'est réparable ?\n\nMerci d'avance,\nJulie", status: 'non_lu' },
+  { id: 102, received_at: new Date(_mNow - 36e5 * 3).toISOString(), from_email: 'k.benali@outlook.fr', from_name: 'Karim Benali', subject: 'Question garantie batterie', preview: 'Bonjour, la batterie que vous avez posée le mois dernier se décharge vite. Est-ce couvert ? Cordialement.', body: 'Bonjour,\n\nVous avez remplacé la batterie de mon iPhone 12 il y a environ un mois. Depuis quelques jours elle se décharge assez vite. Est-ce que c\'est couvert par une garantie ?\n\nCordialement,\nKarim Benali', status: 'lu' },
+  { id: 103, received_at: new Date(_mNow - 36e5 * 28).toISOString(), from_email: 'contact@boutique-nord.fr', from_name: null, subject: 'Partenariat réparation', preview: 'Bonjour, nous sommes une boutique à Calais et cherchons un partenaire pour la réparation. Seriez-vous intéressés ?', body: 'Bonjour,\n\nNous sommes une boutique de téléphonie à Calais et nous cherchons un partenaire fiable pour la réparation d\'iPhone. Seriez-vous intéressés par une collaboration ?\n\nBien à vous', status: 'traite' },
+];
+export function mockEmails() {
+  const emails = [..._emailStore].sort((a, b) => +new Date(b.received_at) - +new Date(a.received_at));
+  return { ready: true, emails, unread: emails.filter((e) => e.status === 'non_lu').length };
+}
+export function mockEmailStatus(ids: number[], status: EmailStatus) {
+  _emailStore = _emailStore.map((e) => (ids.includes(e.id) ? { ...e, status } : e));
+  return { ok: true };
+}
+export function mockEmailDel(ids: number[]) {
+  _emailStore = _emailStore.filter((e) => !ids.includes(e.id));
+  return { ok: true };
 }

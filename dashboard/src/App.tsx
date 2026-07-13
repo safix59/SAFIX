@@ -17,8 +17,9 @@ import { History } from './pages/History';
 import { System } from './pages/System';
 import { Settings } from './pages/Settings';
 import { Messages } from './pages/Messages';
+import { Emails } from './pages/Emails';
 
-type Section = 'home' | 'orders' | 'finance' | 'visitors' | 'messages' | 'catalog' | 'cards' | 'history' | 'system' | 'settings';
+type Section = 'home' | 'orders' | 'finance' | 'visitors' | 'messages' | 'emails' | 'catalog' | 'cards' | 'history' | 'system' | 'settings';
 
 const NAV: { key: Section; label: string; icon: IconName; sub: string }[] = [
   { key: 'home', label: "Vue d'ensemble", icon: 'overview', sub: "Résumé de l'activité" },
@@ -26,6 +27,7 @@ const NAV: { key: Section; label: string; icon: IconName; sub: string }[] = [
   { key: 'finance', label: 'Finances', icon: 'finance', sub: 'Chiffre d’affaires, coûts et marge' },
   { key: 'visitors', label: 'Visiteurs', icon: 'visitors', sub: 'Fréquentation en temps réel' },
   { key: 'messages', label: 'Messages', icon: 'chat', sub: 'Conversations avec les visiteurs' },
+  { key: 'emails', label: 'E-mails support', icon: 'inbox', sub: 'Messages reçus sur support@safix59.fr' },
   { key: 'catalog', label: 'Catalogue & prix', icon: 'catalog', sub: 'Stock, couverture et tarifs' },
   { key: 'cards', label: 'Cartes', icon: 'cards', sub: 'Visibilité, promos et contenu du site' },
   { key: 'history', label: 'Historique prix', icon: 'history', sub: 'Mouvements de prix' },
@@ -34,7 +36,8 @@ const NAV: { key: Section; label: string; icon: IconName; sub: string }[] = [
 ];
 const NAV_GROUPS: { title: string; keys: Section[] }[] = [
   { title: 'Pilotage', keys: ['home'] },
-  { title: 'Activité', keys: ['orders', 'finance', 'visitors', 'messages'] },
+  { title: 'Support', keys: ['messages', 'emails'] },
+  { title: 'Activité', keys: ['orders', 'finance', 'visitors'] },
   { title: 'Catalogue', keys: ['catalog', 'cards', 'history'] },
   { title: 'Système', keys: ['system', 'settings'] },
 ];
@@ -58,6 +61,8 @@ function Shell() {
   const [sessions, setSessions] = useState<SessionsData | null>(null);
   const [msgUnread, setMsgUnread] = useState(0);
   const prevUnread = useRef<number | null>(null);
+  const [emailUnread, setEmailUnread] = useState(0);
+  const prevEmailUnread = useRef<number | null>(null);
   const [section, setSection] = useState<Section>(() => (location.hash.slice(1) as Section) || 'home');
   const [drawer, setDrawer] = useState(false);
   const [palette, setPalette] = useState(false);
@@ -119,7 +124,20 @@ function Shell() {
         }
         prevUnread.current = n;
         setMsgUnread(n);
-        document.title = n > 0 ? `(${n}) SAFIX · Administration` : 'SAFIX · Administration';
+      }
+    } catch { /* silencieux */ }
+  }
+  async function loadEmailUnread() {
+    try {
+      const res = await api.emails();
+      if (res.status === 200 && res.data && res.data.ready) {
+        const n = res.data.unread || 0;
+        // Notification temps réel : toast à l'arrivée d'un nouvel e-mail support.
+        if (prevEmailUnread.current != null && n > prevEmailUnread.current) {
+          toast({ title: 'Nouvel e-mail support', msg: 'Un message est arrivé sur support@safix59.fr.', tone: 'accent' });
+        }
+        prevEmailUnread.current = n;
+        setEmailUnread(n);
       }
     } catch { /* silencieux */ }
   }
@@ -131,13 +149,21 @@ function Shell() {
     void loadVisits();
     void loadSessions();
     void loadMsgUnread();
+    void loadEmailUnread();
     const t1 = window.setInterval(() => void loadLive(), 10000);
     const t2 = window.setInterval(() => void loadData(), 45000);
     const t3 = window.setInterval(() => void loadVisits(), 60000);
     const t4 = window.setInterval(() => void loadSessions(), 15000);
     const t5 = window.setInterval(() => void loadMsgUnread(), 15000);
-    return () => { window.clearInterval(t1); window.clearInterval(t2); window.clearInterval(t3); window.clearInterval(t4); window.clearInterval(t5); };
+    const t6 = window.setInterval(() => void loadEmailUnread(), 15000);
+    return () => { [t1, t2, t3, t4, t5, t6].forEach(window.clearInterval); };
   }, [authed]);
+
+  // Titre d'onglet : compteur global des non-lus (messages + e-mails support).
+  useEffect(() => {
+    const n = msgUnread + emailUnread;
+    document.title = n > 0 ? `(${n}) SAFIX · Administration` : 'SAFIX · Administration';
+  }, [msgUnread, emailUnread]);
 
   useHotkey('k', (e) => { e.preventDefault(); setPalette((p) => !p); }, { meta: true });
 
@@ -205,6 +231,9 @@ function Shell() {
                     {k === 'messages' && msgUnread > 0 && (
                       <span className="ml-auto text-[10.5px] font-bold text-white bg-danger rounded-full min-w-[18px] h-[18px] grid place-items-center px-1">{msgUnread}</span>
                     )}
+                    {k === 'emails' && emailUnread > 0 && (
+                      <span className="ml-auto text-[10.5px] font-bold text-white bg-danger rounded-full min-w-[18px] h-[18px] grid place-items-center px-1">{emailUnread}</span>
+                    )}
                     {k === 'system' && errorCount > 0 && (
                       <span className="ml-auto text-[10.5px] font-bold text-white bg-danger rounded-full min-w-[18px] h-[18px] grid place-items-center px-1">{errorCount}</span>
                     )}
@@ -261,6 +290,8 @@ function Shell() {
             <Visitors visits={visits} live={live} sessions={sessions} />
           ) : section === 'messages' ? (
             <Messages />
+          ) : section === 'emails' ? (
+            <Emails onChanged={() => void loadEmailUnread()} />
           ) : section === 'catalog' ? (
             <Catalog data={data} />
           ) : section === 'cards' ? (

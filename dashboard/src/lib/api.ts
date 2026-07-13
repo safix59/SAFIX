@@ -152,6 +152,20 @@ export interface ChatMessage { id: number; sender: 'user' | 'admin'; body: strin
 export interface MsgThread { session: string; name: string | null; last_body: string; last_sender: string; last_ts: string; unread: number; count: number; }
 export interface ThreadsData { ready: boolean; threads: MsgThread[]; total_unread: number; }
 
+// ── E-mails support (support@safix59.fr, reçus par webhook) ──
+export type EmailStatus = 'non_lu' | 'lu' | 'traite';
+export interface SupportEmail {
+  id: number;
+  received_at: string;
+  from_email: string | null;
+  from_name: string | null;
+  subject: string;
+  preview: string | null;
+  body: string | null;
+  status: EmailStatus;
+}
+export interface EmailsData { ready: boolean; emails: SupportEmail[]; unread: number; reason?: string; }
+
 export interface GeoConfig {
   enabled: boolean;
   lat: number;
@@ -216,7 +230,7 @@ let devCards: CardsMap = {};
 const devSnaps: CardsHistorySnap[] = [];
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 async function devCall<T>(
-  kind: 'login' | 'logout' | 'data' | 'live' | 'visits' | 'sessions' | 'del' | 'geo' | 'geo-set' | 'msg-threads' | 'msg-thread' | 'msg-reply' | 'msg-del' | 'msg-del-thread' | 'suggest' | 'admin-ping' | 'maintenance-get' | 'maintenance-set' | 'cards-get' | 'cards-set' | 'cards-history' | 'cards-restore',
+  kind: 'login' | 'logout' | 'data' | 'live' | 'visits' | 'sessions' | 'del' | 'geo' | 'geo-set' | 'msg-threads' | 'msg-thread' | 'msg-reply' | 'msg-del' | 'msg-del-thread' | 'suggest' | 'admin-ping' | 'maintenance-get' | 'maintenance-set' | 'cards-get' | 'cards-set' | 'cards-history' | 'cards-restore' | 'emails' | 'email-status' | 'email-del',
   pw?: string,
   payload?: unknown,
 ): Promise<Res<T>> {
@@ -240,6 +254,9 @@ async function devCall<T>(
   if (kind === 'cards-set') { devSnaps.unshift({ ts: new Date().toISOString(), note: '', count: Object.keys(devCards).length }); devCards = (payload as { cards: CardsMap }).cards; return { status: 200, data: { ok: true } as unknown as T }; }
   if (kind === 'cards-history') return { status: 200, data: { ok: true, snaps: devSnaps } as unknown as T };
   if (kind === 'cards-restore') return { status: 200, data: { ok: true, cards: devCards } as unknown as T };
+  if (kind === 'emails') return { status: 200, data: m.mockEmails() as unknown as T };
+  if (kind === 'email-status') { m.mockEmailStatus((payload as { ids: number[]; status: EmailStatus }).ids, (payload as { status: EmailStatus }).status); return { status: 200, data: { ok: true } as unknown as T }; }
+  if (kind === 'email-del') { m.mockEmailDel((payload as { ids: number[] }).ids); return { status: 200, data: { ok: true } as unknown as T }; }
   if (kind === 'data') return { status: 200, data: m.MOCK_DATA as unknown as T };
   if (kind === 'live') return { status: 200, data: m.MOCK_LIVE as unknown as T };
   if (kind === 'sessions') return { status: 200, data: m.mockSessions() as unknown as T };
@@ -283,4 +300,9 @@ export const api = {
     DEV ? devCall('cards-history') : call('cards-history'),
   cardsRestore: (ts: string): Promise<Res<{ ok: boolean; cards: CardsMap }>> =>
     DEV ? devCall('cards-restore', undefined, { ts }) : call('cards-restore', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ts }) }),
+  emails: (): Promise<Res<EmailsData>> => (DEV ? devCall('emails') : call('emails')),
+  emailStatus: (ids: number[], status: EmailStatus): Promise<Res<{ ok: boolean }>> =>
+    DEV ? devCall('email-status', undefined, { ids, status }) : call('email-status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids, status }) }),
+  emailDel: (ids: number[]): Promise<Res<{ ok: boolean }>> =>
+    DEV ? devCall('email-del', undefined, { ids }) : call('email-del', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids }) }),
 };
