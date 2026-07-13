@@ -6,7 +6,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../lib/api';
-import type { CardOverride, CardPromo, CardsHistorySnap, CardsMap } from '../lib/api';
+import type { CardModelOverride, CardOverride, CardPromo, CardsHistorySnap, CardsMap } from '../lib/api';
 import { Badge, Button, Card, Empty, Modal, SearchInput, Segmented, Switch, useToast } from '../components';
 import { Icon } from '../icons';
 
@@ -101,6 +101,27 @@ export function Cartes() {
   const [draft, setDraft] = useState<CardOverride | null>(null);
   const [histOpen, setHistOpen] = useState(false);
   const [snaps, setSnaps] = useState<CardsHistorySnap[]>([]);
+  // Portée d'édition : 'ALL' = réglage général, sinon un modèle précis
+  // (« iPhone 13 Pro ») dont la couche écrase le général champ à champ.
+  const [scope, setScope] = useState<string>('ALL');
+  const [models, setModels] = useState<string[]>([]);
+  useEffect(() => {
+    void (async () => {
+      try {
+        const r = await fetch('https://safix59.fr/scraper/prices.json');
+        const j = (await r.json()) as { prices?: Record<string, Record<string, unknown>> };
+        const set = new Set<string>();
+        Object.values(j.prices || {}).forEach((catMap) => Object.keys(catMap).forEach((m) => { if (m !== 'default') set.add(m); }));
+        const rank = (m: string) => {
+          const n = /(\d+)/.exec(m); let v = n ? Number(n[1]) : 10;
+          if (/pro max/i.test(m)) v += 0.4; else if (/pro/i.test(m)) v += 0.3;
+          else if (/plus|max/i.test(m)) v += 0.2; else if (/mini|e\b/i.test(m)) v += 0.1;
+          return v;
+        };
+        setModels([...set].sort((a, b) => rank(b) - rank(a)));
+      } catch { /* liste indisponible → portée générale seulement */ }
+    })();
+  }, []);
 
   const load = async () => {
     const r = await api.cardsGet();
@@ -181,6 +202,7 @@ export function Cartes() {
   };
 
   const openEdit = (row: Row | null) => {
+    setScope('ALL');
     if (!row) {
       setEditId('__new__');
       setDraft({ custom: true, category: 'Réparations', title: '', subtitle: '', price: null, hidden: false, promo: null });
@@ -189,6 +211,39 @@ export function Cartes() {
       setDraft({ ...(cfg[row.id] || {}), custom: row.custom, category: row.cat });
     }
   };
+
+  // ── Édition par couche : selon la portée, on écrit soit dans le réglage
+  // général (draft), soit dans draft.models[scope]. Un champ retiré de la
+  // couche modèle = retour à l'héritage. ──
+  const layer: Partial<CardModelOverride> = draft ? (scope === 'ALL' ? (draft as Partial<CardModelOverride>) : ((draft.models || {})[scope] || {})) : {};
+  const has = (k: string) => Object.prototype.hasOwnProperty.call(layer, k);
+  const setLayer = (p: Partial<CardModelOverride>, removeKeys: string[] = []) => {
+    if (!draft) return;
+    if (scope === 'ALL') {
+      const d = { ...draft, ...p } as Record<string, unknown>;
+      removeKeys.forEach((k) => { delete d[k]; });
+      setDraft(d as CardOverride);
+    } else {
+      const cur = { ...((draft.models || {})[scope] || {}) } as Record<string, unknown>;
+      Object.assign(cur, p);
+      removeKeys.forEach((k) => { delete cur[k]; });
+      const ms = { ...(draft.models || {}) };
+      if (Object.keys(cur).length) ms[scope] = cur as CardModelOverride; else delete ms[scope];
+      setDraft({ ...draft, models: ms });
+    }
+  };
+  const pr: CardPromo | null | undefined = draft ? (scope === 'ALL' ? draft.promo : (has('promo') ? (layer.promo ?? null) : undefined)) : undefined;
+  const setPromo = (p: CardPromo | null) => setLayer({ promo: p });
+  // Valeurs effectives (couche modèle par-dessus le général) pour l'aperçu.
+  const effPreview: CardOverride = (() => {
+    if (!draft) return {};
+    if (scope === 'ALL') return draft;
+    const e = { ...draft } as Record<string, unknown>;
+    ['hidden', 'price', 'promo', 'title', 'subtitle'].forEach((f) => {
+      if (has(f)) e[f] = (layer as Record<string, unknown>)[f];
+    });
+    return e as CardOverride;
+  })();
   const commitEdit = async () => {
     if (!draft || !editId) return;
     let id = editId;
@@ -284,6 +339,9 @@ export function Cartes() {
                           style={{ background: r.ov.promo.color || '#0A84FF' }}>{promoLabel(r.ov.promo)}</span>
                       )}
                       {r.ov?.price != null && <Badge tone="neutral">{r.ov.price} €</Badge>}
+                      {r.ov?.models && Object.keys(r.ov.models).length > 0 && (
+                        <Badge tone="accent">{Object.keys(r.ov.models).length} modèle{Object.keys(r.ov.models).length > 1 ? 's' : ''} ⚙</Badge>
+                      )}
                     </div>
                     <div className="text-[11.5px] text-fg3 truncate">{r.cat} · {r.ov?.subtitle ?? r.desc}</div>
                   </div>
@@ -310,81 +368,137 @@ export function Cartes() {
           <div className="space-y-4 p-1">
             <h2 className="text-[16px] font-bold">{editId === '__new__' ? 'Nouvelle carte' : `Modifier — ${draft.title || rows.find((r) => r.id === editId)?.name || editId}`}</h2>
 
+            {/* Portée : réglage général ou spécifique à UN modèle d'iPhone */}
+            {editId !== '__new__' && (
+              <div className={`rounded-ctl border p-3 space-y-2 ${scope !== 'ALL' ? 'border-accent/40 bg-accent/5' : 'border-line'}`}>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[11.5px] font-semibold text-fg3 uppercase tracking-wide">Portée du réglage</span>
+                  <select className="h-9 px-3 rounded-ctl bg-panel2 border border-line text-[13px] outline-none"
+                    value={scope} onChange={(e) => setScope(e.target.value)}>
+                    <option value="ALL">Tous les modèles (général)</option>
+                    {models.map((m) => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                  {scope !== 'ALL' && <Badge tone="accent">n'affecte QUE {scope}</Badge>}
+                </div>
+                {draft.models && Object.keys(draft.models).length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-[11px] text-fg3">Réglages par modèle :</span>
+                    {Object.keys(draft.models).map((m) => (
+                      <span key={m}
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border cursor-pointer ${scope === m ? 'border-accent text-accentFg bg-accent/10' : 'border-line text-fg2 hover:border-accent/40'}`}
+                        onClick={() => setScope(m)}>
+                        {m}
+                        <button className="opacity-60 hover:opacity-100" title="Supprimer ce réglage (revenir au général)"
+                          onClick={(e) => { e.stopPropagation(); const ms = { ...(draft.models || {}) }; delete ms[m]; setDraft({ ...draft, models: ms }); if (scope === m) setScope('ALL'); }}>✕</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-3">
               <label className="block col-span-2 sm:col-span-1">
-                <span className="text-[11.5px] font-semibold text-fg3 uppercase tracking-wide">Titre</span>
+                <span className="text-[11.5px] font-semibold text-fg3 uppercase tracking-wide">Titre {scope !== 'ALL' && !has('title') ? '· hérité' : ''}</span>
                 <input className="mt-1 w-full h-10 px-3 rounded-ctl bg-panel2 border border-line text-[13.5px] outline-none focus:border-accent/50"
-                  value={draft.title ?? ''} placeholder={rows.find((r) => r.id === editId)?.name || 'Titre de la carte'}
-                  onChange={(e) => setDraft({ ...draft, title: e.target.value || null })} />
+                  value={(has('title') ? layer.title : (scope === 'ALL' ? draft.title : '')) ?? ''}
+                  placeholder={(scope !== 'ALL' && draft.title) || rows.find((r) => r.id === editId)?.name || 'Titre de la carte'}
+                  onChange={(e) => e.target.value === '' ? setLayer({}, ['title']) : setLayer({ title: e.target.value })} />
               </label>
               <label className="block col-span-2 sm:col-span-1">
-                <span className="text-[11.5px] font-semibold text-fg3 uppercase tracking-wide">Sous-titre</span>
+                <span className="text-[11.5px] font-semibold text-fg3 uppercase tracking-wide">Sous-titre {scope !== 'ALL' && !has('subtitle') ? '· hérité' : ''}</span>
                 <input className="mt-1 w-full h-10 px-3 rounded-ctl bg-panel2 border border-line text-[13.5px] outline-none focus:border-accent/50"
-                  value={draft.subtitle ?? ''} placeholder={rows.find((r) => r.id === editId)?.desc || 'Description courte'}
-                  onChange={(e) => setDraft({ ...draft, subtitle: e.target.value })} />
+                  value={(has('subtitle') ? layer.subtitle : (scope === 'ALL' ? draft.subtitle : '')) ?? ''}
+                  placeholder={(scope !== 'ALL' && (draft.subtitle || undefined)) || rows.find((r) => r.id === editId)?.desc || 'Description courte'}
+                  onChange={(e) => e.target.value === '' ? setLayer({}, ['subtitle']) : setLayer({ subtitle: e.target.value })} />
               </label>
               <label className="block">
-                <span className="text-[11.5px] font-semibold text-fg3 uppercase tracking-wide">Prix (€) {draft.custom ? '· requis' : '· vide = prix temps réel'}</span>
+                <span className="text-[11.5px] font-semibold text-fg3 uppercase tracking-wide">Prix (€) {draft.custom && scope === 'ALL' ? '· requis' : scope !== 'ALL' && !has('price') ? '· hérité' : '· vide = prix temps réel'}</span>
                 <input type="number" min={1} className="mt-1 w-full h-10 px-3 rounded-ctl bg-panel2 border border-line text-[13.5px] outline-none focus:border-accent/50"
-                  value={draft.price ?? ''} placeholder="—"
-                  onChange={(e) => setDraft({ ...draft, price: e.target.value === '' ? null : Number(e.target.value) })} />
+                  value={(has('price') ? layer.price : (scope === 'ALL' ? draft.price : '')) ?? ''}
+                  placeholder={scope !== 'ALL' && draft.price != null ? String(draft.price) : '—'}
+                  onChange={(e) => e.target.value === '' ? setLayer({}, ['price']) : setLayer({ price: Number(e.target.value) })} />
               </label>
               <label className="block">
                 <span className="text-[11.5px] font-semibold text-fg3 uppercase tracking-wide">Catégorie</span>
                 <select className="mt-1 w-full h-10 px-3 rounded-ctl bg-panel2 border border-line text-[13.5px] outline-none"
-                  value={draft.category || 'Réparations'} disabled={!draft.custom}
+                  value={draft.category || 'Réparations'} disabled={!draft.custom || scope !== 'ALL'}
                   onChange={(e) => setDraft({ ...draft, category: e.target.value })}>
                   {CATS.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </label>
             </div>
 
+            {/* Visibilité : switch simple en général, tri-état en portée modèle */}
             <div className="flex items-center justify-between rounded-ctl bg-panel2 border border-line px-3 py-2.5">
-              <span className="text-[13px] font-semibold">Visible sur le site</span>
-              <Switch checked={!draft.hidden} onChange={(v) => setDraft({ ...draft, hidden: !v })} />
+              <span className="text-[13px] font-semibold">Visible sur le site{scope !== 'ALL' ? ` — ${scope}` : ''}</span>
+              {scope === 'ALL' ? (
+                <Switch checked={!draft.hidden} onChange={(v) => setDraft({ ...draft, hidden: !v })} />
+              ) : (
+                <Segmented value={!has('hidden') ? 'inherit' : (layer.hidden ? 'hidden' : 'visible')}
+                  onChange={(v) => v === 'inherit' ? setLayer({}, ['hidden']) : setLayer({ hidden: v === 'hidden' })}
+                  options={[
+                    { value: 'inherit', label: `Hériter (${draft.hidden ? 'masquée' : 'visible'})` },
+                    { value: 'visible', label: 'Visible' },
+                    { value: 'hidden', label: 'Masquée' },
+                  ]} />
+              )}
             </div>
 
-            {/* Promotion */}
+            {/* Promotion (générale ou spécifique au modèle) */}
             <div className="rounded-ctl border border-line p-3 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-[13px] font-bold">Promotion / badge</span>
-                <Switch checked={!!draft.promo?.active}
-                  onChange={(v) => setDraft({ ...draft, promo: { type: 'percent', value: 10, ...(draft.promo || {}), active: v } })} />
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-[13px] font-bold">Promotion / badge{scope !== 'ALL' ? ` — ${scope}` : ''}</span>
+                {scope === 'ALL' ? (
+                  <Switch checked={!!pr?.active} onChange={(v) => setPromo({ type: 'percent', value: 10, ...(pr || {}), active: v })} />
+                ) : (
+                  <Segmented value={!has('promo') ? 'inherit' : (layer.promo ? 'custom' : 'none')}
+                    onChange={(v) => v === 'inherit' ? setLayer({}, ['promo']) : v === 'none' ? setPromo(null) : setPromo({ type: 'percent', value: 10, ...(draft.promo || {}), active: true })}
+                    options={[
+                      { value: 'inherit', label: draft.promo?.active ? `Hériter (${promoLabel(draft.promo)})` : 'Hériter (aucune)' },
+                      { value: 'custom', label: 'Spécifique' },
+                      { value: 'none', label: 'Aucune' },
+                    ]} />
+                )}
               </div>
-              {draft.promo?.active && (
+              {pr?.active && (
                 <>
                   <div className="flex flex-wrap items-center gap-2.5">
-                    <Segmented value={draft.promo.type} onChange={(t) => setDraft({ ...draft, promo: { ...draft.promo!, type: t } })}
+                    <Segmented value={pr.type} onChange={(t) => setPromo({ ...pr, type: t })}
                       options={[{ value: 'percent', label: '-X %' }, { value: 'amount', label: '-X €' }, { value: 'badge', label: 'Badge seul' }]} />
-                    {draft.promo.type !== 'badge' && (
+                    {pr.type !== 'badge' && (
                       <input type="number" min={1} className="w-24 h-9 px-3 rounded-ctl bg-panel2 border border-line text-[13px] outline-none"
-                        value={draft.promo.value ?? ''} placeholder={draft.promo.type === 'percent' ? '%' : '€'}
-                        onChange={(e) => setDraft({ ...draft, promo: { ...draft.promo!, value: Number(e.target.value) } })} />
+                        value={pr.value ?? ''} placeholder={pr.type === 'percent' ? '%' : '€'}
+                        onChange={(e) => setPromo({ ...pr, value: Number(e.target.value) })} />
                     )}
                     <input className="flex-1 min-w-32 h-9 px-3 rounded-ctl bg-panel2 border border-line text-[13px] outline-none"
-                      value={draft.promo.label ?? ''} placeholder='Texte du badge (ex. « PROMO ÉTÉ », « NOUVEAU »)'
-                      onChange={(e) => setDraft({ ...draft, promo: { ...draft.promo!, label: e.target.value } })} />
+                      value={pr.label ?? ''} placeholder='Texte du badge (ex. « PROMO ÉTÉ », « NOUVEAU »)'
+                      onChange={(e) => setPromo({ ...pr, label: e.target.value })} />
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-[11.5px] font-semibold text-fg3 uppercase tracking-wide">Couleur</span>
                     {PROMO_COLORS.map((c) => (
                       <button key={c} className="w-6 h-6 rounded-full border-2 transition-transform hover:scale-110"
-                        style={{ background: c, borderColor: (draft.promo!.color || '#0A84FF') === c ? 'white' : 'transparent' }}
-                        onClick={() => setDraft({ ...draft, promo: { ...draft.promo!, color: c } })} />
+                        style={{ background: c, borderColor: (pr.color || '#0A84FF') === c ? 'white' : 'transparent' }}
+                        onClick={() => setPromo({ ...pr, color: c })} />
                     ))}
                     <div className="flex items-center gap-2 ml-2">
                       <label className="text-[11.5px] text-fg3">Du <input type="date" className="ml-1 h-8 px-2 rounded-ctl bg-panel2 border border-line text-[12px]"
-                        value={draft.promo.start?.slice(0, 10) ?? ''} onChange={(e) => setDraft({ ...draft, promo: { ...draft.promo!, start: e.target.value || null } })} /></label>
+                        value={pr.start?.slice(0, 10) ?? ''} onChange={(e) => setPromo({ ...pr, start: e.target.value || null })} /></label>
                       <label className="text-[11.5px] text-fg3">au <input type="date" className="ml-1 h-8 px-2 rounded-ctl bg-panel2 border border-line text-[12px]"
-                        value={draft.promo.end?.slice(0, 10) ?? ''} onChange={(e) => setDraft({ ...draft, promo: { ...draft.promo!, end: e.target.value || null } })} /></label>
+                        value={pr.end?.slice(0, 10) ?? ''} onChange={(e) => setPromo({ ...pr, end: e.target.value || null })} /></label>
                     </div>
                   </div>
                 </>
               )}
+              {scope !== 'ALL' && !has('promo') && draft.promo?.active && (
+                <div className="text-[11.5px] text-fg3">Ce modèle hérite de la promo générale : {promoLabel(draft.promo)}</div>
+              )}
             </div>
 
-            {/* Aperçu */}
-            <SitePreview row={{ name: rows.find((r) => r.id === editId)?.name || draft.title || 'Carte', desc: rows.find((r) => r.id === editId)?.desc || '' }} ov={draft} />
+            {/* Aperçu (valeurs effectives pour la portée choisie) */}
+            {scope !== 'ALL' && <div className="text-[11px] font-semibold text-accentFg -mb-2">Aperçu pour {scope} :</div>}
+            <SitePreview row={{ name: rows.find((r) => r.id === editId)?.name || draft.title || 'Carte', desc: rows.find((r) => r.id === editId)?.desc || '' }} ov={effPreview} />
 
             <div className="flex items-center gap-2 pt-1">
               {editId !== '__new__' && draft.custom && (

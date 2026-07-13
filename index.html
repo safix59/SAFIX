@@ -7135,7 +7135,25 @@ let toastTimer;
    le site en ≤ ~90 s sans redéploiement. Fail-open : sans config, le site
    se comporte exactement comme avant. ── */
 let cardsCfg = {};
-function cardOv(id) { return cardsCfg[id] || null; }
+// Surcharge EFFECTIVE pour (carte, modèle) : la couche par-modèle
+// (cfg.models["iPhone 13 Pro"]) écrase champ à champ le réglage général —
+// champ présent (même null) = écrase, champ absent = hérite. Mêmes règles
+// que le serveur de paiement (_prices.js) → affiché = facturé.
+function cardOv(id, model) {
+  const base = cardsCfg[id];
+  if (!base) return null;
+  const layers = base.models;
+  if (!layers || !model) return base;
+  const mL = String(model).toLowerCase().trim();
+  const mk = Object.keys(layers).find(k => k === model || String(k).toLowerCase().trim() === mL);
+  if (!mk) return base;
+  const mo = layers[mk] || {};
+  const eff = Object.assign({}, base);
+  ['hidden', 'price', 'promo', 'title', 'subtitle', 'order'].forEach(f => {
+    if (Object.prototype.hasOwnProperty.call(mo, f)) eff[f] = mo[f];
+  });
+  return eff;
+}
 function cardPromoActive(p) {
   if (!p || !p.active) return false;
   const n = Date.now();
@@ -7315,8 +7333,8 @@ function applyLivePrices(payload) {
 function updateCardInPlace(card, repair, model) {
   const price   = getPrice(repair, model);
   const oos     = price === 'OOS';
-  // Mêmes surcharges CMS que renderDetail (override de prix + promo).
-  const ovU = cardOv(repair.id);
+  // Mêmes surcharges CMS que renderDetail (override de prix + promo, par modèle).
+  const ovU = cardOv(repair.id, model);
   const finalPriceU = (typeof price === 'number' && ovU && ovU.price != null && Number.isFinite(Number(ovU.price)))
     ? Number(ovU.price) : price;
   const hasPromoU = !!(ovU && cardPromoActive(ovU.promo));
@@ -8348,25 +8366,28 @@ function renderDetail(model) {
       <div class="repair-grid"></div>`;
     const grid = block.querySelector('.repair-grid');
 
-    // ── CMS cartes : masquées retirées, cartes créées injectées, ordre admin ──
+    // ── CMS cartes : masquées retirées, cartes créées injectées, ordre admin —
+    //    le tout ÉVALUÉ PAR MODÈLE (cardOv(id, model)) : chaque iPhone a ses
+    //    propres visibilités/promos/prix, indépendamment des autres. ──
     const baseList = cat.repairs.map((r, i) => ({ r, i }));
     Object.keys(cardsCfg).forEach((cid) => {
       const o = cardsCfg[cid];
-      if (o && o.custom && !o.hidden && (o.category || 'Réparations') === cat.category) {
+      if (o && o.custom && (o.category || 'Réparations') === cat.category) {
         baseList.push({ r: { id: cid, name: o.title || cid, description: o.subtitle || '', price: { default: (o.price != null ? Number(o.price) : '?') }, _custom: true }, i: 500 });
       }
     });
     const list = baseList
-      .filter((e) => !(cardsCfg[e.r.id] && cardsCfg[e.r.id].hidden))
+      .filter((e) => { const o = cardOv(e.r.id, model); return !(o && o.hidden); })
       .sort((a, b) => {
-        const oa = cardsCfg[a.r.id] && cardsCfg[a.r.id].order != null ? Number(cardsCfg[a.r.id].order) : a.i;
-        const ob = cardsCfg[b.r.id] && cardsCfg[b.r.id].order != null ? Number(cardsCfg[b.r.id].order) : b.i;
+        const va = cardOv(a.r.id, model), vb = cardOv(b.r.id, model);
+        const oa = va && va.order != null ? Number(va.order) : a.i;
+        const ob = vb && vb.order != null ? Number(vb.order) : b.i;
         return (oa - ob) || (a.i - b.i);
       });
 
     list.forEach((entry, ri) => {
       const repair = entry.r;
-      const ov = cardOv(repair.id);
+      const ov = cardOv(repair.id, model);
       const price = getPrice(repair, model);
       const oos = price === 'OOS';
       // "!" pour toutes les catégories nécessitant un lien fournisseur

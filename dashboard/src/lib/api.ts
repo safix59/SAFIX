@@ -148,6 +148,16 @@ export interface CardPromo {
   start?: string | null;
   end?: string | null;
 }
+// Couche par-modèle : un champ PRÉSENT (même null) écrase le réglage
+// général de la carte pour CE modèle ; un champ absent hérite.
+export interface CardModelOverride {
+  hidden?: boolean;
+  price?: number | null;
+  title?: string | null;
+  subtitle?: string | null;
+  promo?: CardPromo | null;
+  order?: number | null;
+}
 export interface CardOverride {
   hidden?: boolean;
   order?: number | null;
@@ -157,6 +167,7 @@ export interface CardOverride {
   category?: string;
   custom?: boolean;
   promo?: CardPromo | null;
+  models?: Record<string, CardModelOverride>;
 }
 export type CardsMap = Record<string, CardOverride>;
 export interface CardsHistorySnap { ts: string; note: string; count: number; }

@@ -67,6 +67,27 @@ export function applyPromoEuros(euros, p) {
   if (p.type === 'amount' && v > 0) return Math.max(1, Math.round(euros - v));
   return euros; // badge purement visuel (Nouveau, Meilleure vente…)
 }
+// Surcharge EFFECTIVE d'une carte pour un modèle donné : la couche
+// par-modèle (ov.models["iPhone 13 Pro"]) remplace champ à champ le réglage
+// général — un champ présent (même null) écrase, un champ absent hérite.
+// → l'admin peut promouvoir/masquer une carte sur UN modèle sans toucher
+// les autres, ou au contraire ré-afficher un modèle d'une carte masquée.
+export function effectiveOv(CARDS, ridNorm, ridRaw, modelKey) {
+  const base = (CARDS && (CARDS[ridNorm] || CARDS[ridRaw])) || null;
+  if (!base) return null;
+  const layers = base.models;
+  if (!layers || !modelKey) return base;
+  const mNorm = norm(modelKey);
+  const mk = Object.keys(layers).find((k) => k === modelKey || norm(k) === mNorm);
+  if (!mk) return base;
+  const mo = layers[mk] || {};
+  const eff = { ...base };
+  for (const f of ['hidden', 'price', 'promo', 'title', 'subtitle', 'order']) {
+    if (Object.prototype.hasOwnProperty.call(mo, f)) eff[f] = mo[f];
+  }
+  return eff;
+}
+
 // Ajustements CMS sur le prix officiel résolu (override admin puis promo).
 function cardAdjust(euros, ov) {
   let v = euros;
@@ -182,7 +203,7 @@ export async function loadPrices() {
 //   { euros:Number, kind }     prix officiel ('catalog') ou plancher ('service')
 function resolve(PRICES, it, CARDS) {
   const rid = norm(it && it.repairId);
-  const ov = (CARDS && (CARDS[rid] || CARDS[String((it && it.repairId) || '').trim()])) || null;
+  const ov = effectiveOv(CARDS, rid, String((it && it.repairId) || '').trim(), it && it.modelKey);
 
   // Carte masquée depuis le Dashboard → invendable (fail-closed).
   if (ov && ov.hidden) return { oos: true };
