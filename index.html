@@ -1207,7 +1207,10 @@ header {
 .cat-block { margin-bottom:32px; }
 .cat-block.hidden-cat { display:none; }
 .cat-label { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
-.cat-name  { font-size:12.5px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--accent2); white-space:nowrap; }
+.cat-name  { font-size:12px; font-weight:700; letter-spacing:2px; text-transform:uppercase; white-space:nowrap;
+  /* Même dégradé bleu→cyan que l'eyebrow « RÉPARATION IPHONE » et l'accueil. */
+  background:linear-gradient(135deg, var(--accent) 0%, #5AC8FA 100%);
+  -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; color:transparent; }
 .cat-rule  { flex:1; height:.5px; background:var(--border); }
 
 .repair-grid { display:grid; grid-template-columns:1fr; gap:14px; }
@@ -4418,11 +4421,16 @@ body.premium-mode .cat-label {
   margin-bottom: 18px !important;
 }
 body.premium-mode .cat-name {
-  font-size: 12.5px !important;
+  font-size: 12px !important;
   font-weight: 700 !important;
   letter-spacing: .34em !important;
   text-transform: uppercase !important;
-  color: var(--accent2) !important;
+  /* Même dégradé bleu→cyan que l'eyebrow « RÉPARATION IPHONE ». */
+  background: linear-gradient(135deg, var(--accent) 0%, #5AC8FA 100%) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
   white-space: nowrap;
 }
 .cat-rule {
