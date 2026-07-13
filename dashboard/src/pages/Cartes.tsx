@@ -6,7 +6,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../lib/api';
-import type { CardModelOverride, CardOverride, CardPromo, CardsHistorySnap, CardsMap } from '../lib/api';
+import type { CardModelOverride, CardOverride, CardPromo, CardsHistorySnap, CardsMap, PriceEntry } from '../lib/api';
 import { Badge, Button, Card, Empty, Modal, SearchInput, Segmented, Switch, useToast } from '../components';
 import { Icon } from '../icons';
 
@@ -40,6 +40,10 @@ const BASE: { id: string; name: string; desc: string; cat: string }[] = [
 ];
 const CATS = ['Réparations', 'Protections', 'Services', 'Accessoires'];
 const PROMO_COLORS = ['#0A84FF', '#FF3B30', '#FF9500', '#30D158', '#BF5AF2', '#FF2D55'];
+// Alias d'icônes (miroir de index.html) : certaines cartes réutilisent
+// l'icône d'une autre (ex. Batterie Original → Batterie).
+const ICON_ALIAS: Record<string, string> = { batterie_original: 'batterie' };
+const iconUrl = (id: string) => `https://safix59.fr/Icon/${ICON_ALIAS[id] || id}.webp`;
 
 type Row = { id: string; name: string; desc: string; cat: string; custom: boolean; ov: CardOverride | null; baseIdx: number };
 
@@ -55,15 +59,18 @@ function promoLabel(p: CardPromo): string {
 }
 
 // Aperçu fidèle d'une carte telle qu'elle apparaît sur le site (fond sombre).
-function SitePreview({ row, ov }: { row: { name: string; desc: string }; ov: CardOverride }) {
+function SitePreview({ row, ov, computedBase }: { row: { name: string; desc: string }; ov: CardOverride; computedBase?: number | null }) {
   const promo = ov.promo && promoIsLive(ov.promo) ? ov.promo : null;
-  const base = ov.price != null && Number.isFinite(Number(ov.price)) ? Number(ov.price) : 49;
+  // Priorité d'affichage : prix fixe > prix calculé par marge > exemple 49 €.
+  const exact = ov.price != null && Number.isFinite(Number(ov.price));
+  const base = exact ? Number(ov.price) : (computedBase != null ? computedBase : 49);
+  const isExample = !exact && computedBase == null;
   const promoPrice = promo && promo.type === 'percent' ? Math.max(1, Math.round(base * (1 - (promo.value ?? 0) / 100)))
     : promo && promo.type === 'amount' ? Math.max(1, Math.round(base - (promo.value ?? 0))) : null;
   return (
     <div className="rounded-xl p-4" style={{ background: '#050508' }}>
       <div className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: '#8a93a0' }}>
-        Aperçu sur le site {ov.price == null && <span className="normal-case font-medium">(prix d'exemple — le vrai prix vient du catalogue temps réel)</span>}
+        Aperçu sur le site {isExample && <span className="normal-case font-medium">(prix d'exemple — le vrai prix vient du catalogue temps réel)</span>}
       </div>
       <div className="relative flex items-center gap-3 rounded-2xl px-4 py-3.5"
         style={{ background: 'rgba(255,255,255,.045)', border: '1px solid rgba(255,255,255,.09)', opacity: ov.hidden ? 0.35 : 1 }}>
@@ -105,13 +112,19 @@ export function Cartes() {
   // (« iPhone 13 Pro ») dont la couche écrase le général champ à champ.
   const [scope, setScope] = useState<string>('ALL');
   const [models, setModels] = useState<string[]>([]);
+  // Catalogue de prix complet (prices.json) : donne, par carte et par modèle,
+  // le prix fournisseur (step1), la marge scraper et le prix final — pour
+  // afficher la transparence du calcul dans l'éditeur.
+  const [priceDoc, setPriceDoc] = useState<Record<string, Record<string, PriceEntry>>>({});
   useEffect(() => {
     void (async () => {
       try {
         const r = await fetch('https://safix59.fr/scraper/prices.json');
-        const j = (await r.json()) as { prices?: Record<string, Record<string, unknown>> };
+        const j = (await r.json()) as { prices?: Record<string, Record<string, PriceEntry>> };
+        const prices = j.prices || {};
+        setPriceDoc(prices);
         const set = new Set<string>();
-        Object.values(j.prices || {}).forEach((catMap) => Object.keys(catMap).forEach((m) => { if (m !== 'default') set.add(m); }));
+        Object.values(prices).forEach((catMap) => Object.keys(catMap).forEach((m) => { if (m !== 'default') set.add(m); }));
         const rank = (m: string) => {
           const n = /(\d+)/.exec(m); let v = n ? Number(n[1]) : 10;
           if (/pro max/i.test(m)) v += 0.4; else if (/pro/i.test(m)) v += 0.3;
@@ -122,6 +135,15 @@ export function Cartes() {
       } catch { /* liste indisponible → portée générale seulement */ }
     })();
   }, []);
+  // Infos de prix scraper pour (carte, modèle). En portée générale, on prend
+  // le premier modèle disponible comme exemple représentatif.
+  const priceInfoFor = (repairId: string, model: string): PriceEntry | null => {
+    const cat = priceDoc[repairId];
+    if (!cat) return null;
+    if (model && model !== 'ALL' && cat[model]) return cat[model];
+    const firstModel = models.find((m) => cat[m]);
+    return firstModel ? cat[firstModel] : null;
+  };
 
   const load = async () => {
     const r = await api.cardsGet();
@@ -239,11 +261,23 @@ export function Cartes() {
     if (!draft) return {};
     if (scope === 'ALL') return draft;
     const e = { ...draft } as Record<string, unknown>;
-    ['hidden', 'price', 'promo', 'title', 'subtitle'].forEach((f) => {
+    ['hidden', 'price', 'promo', 'title', 'subtitle', 'margin'].forEach((f) => {
       if (has(f)) e[f] = (layer as Record<string, unknown>)[f];
     });
     return e as CardOverride;
   })();
+  // ── Transparence du calcul de prix (marge) pour la carte + portée ──
+  const priceEntry = editId && editId !== '__new__' ? priceInfoFor(editId, scope) : null;
+  const supplierStep1 = priceEntry && typeof priceEntry.step1 === 'number' ? priceEntry.step1 : null;
+  const scraperMargin = priceEntry && typeof priceEntry.margin === 'number' ? priceEntry.margin : null;
+  const marginOverride: number | null | undefined = has('margin') ? layer.margin : (scope === 'ALL' ? draft?.margin : undefined);
+  const effMargin = (marginOverride != null && Number.isFinite(Number(marginOverride)))
+    ? Number(marginOverride)
+    : (scope !== 'ALL' && draft?.margin != null ? Number(draft.margin) : scraperMargin);
+  const computedFinal = supplierStep1 != null && effMargin != null ? supplierStep1 + effMargin : null;
+  const marginExampleModel = scope === 'ALL' && priceEntry
+    ? (models.find((m) => priceDoc[editId || '']?.[m]) || '')
+    : '';
   const commitEdit = async () => {
     if (!draft || !editId) return;
     let id = editId;
@@ -328,7 +362,7 @@ export function Cartes() {
                 <li key={r.id} className={`flex items-center gap-3 px-4 py-3 hover:bg-panel2/50 transition-colors ${hidden ? 'opacity-60' : ''}`}>
                   <input type="checkbox" className="accent-[#0A84FF] w-4 h-4 shrink-0" checked={sel.has(r.id)}
                     onChange={(e) => { const n = new Set(sel); e.target.checked ? n.add(r.id) : n.delete(r.id); setSel(n); }} />
-                  <img src={`https://safix59.fr/Icon/${r.id}.webp`} alt="" className="w-8 h-8 rounded-lg object-contain bg-panel2 p-1 shrink-0"
+                  <img src={iconUrl(r.id)} alt="" className="w-8 h-8 rounded-lg object-contain bg-panel2 p-1 shrink-0"
                     onError={(e) => { (e.target as HTMLImageElement).style.visibility = 'hidden'; }} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -429,6 +463,38 @@ export function Cartes() {
               </label>
             </div>
 
+            {/* Marge & prix (transparence du calcul + édition de la marge) */}
+            {supplierStep1 != null && !draft.custom && (
+              <div className="rounded-ctl border border-line p-3 space-y-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-[13px] font-bold">Marge & prix{scope !== 'ALL' ? ` — ${scope}` : ''}</span>
+                  {scope === 'ALL' && marginExampleModel && <Badge tone="neutral">exemple : {marginExampleModel}</Badge>}
+                </div>
+                <div className="text-[12.5px] space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-fg3">Prix fournisseur <span className="text-fg3/70">(Utopya +20 %)</span></span>
+                    <span className="font-semibold tnum">{supplierStep1} €</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-fg3">+ Marge (€){scope !== 'ALL' && !has('margin') ? ' · héritée' : ''}</span>
+                    <input type="number" className="w-24 h-9 px-3 rounded-ctl bg-panel2 border border-line text-[13px] tnum text-right outline-none focus:border-accent/50"
+                      value={(marginOverride ?? '') as number | string}
+                      placeholder={String(effMargin ?? scraperMargin ?? '')}
+                      onChange={(e) => e.target.value === '' ? setLayer({}, ['margin']) : setLayer({ margin: Number(e.target.value) })} />
+                  </div>
+                  <div className="flex items-center justify-between border-t border-line pt-2">
+                    <span className="font-semibold">= Prix final</span>
+                    <span className="font-bold text-accentFg tnum text-[15px]">{computedFinal != null ? `${computedFinal} €` : '—'}</span>
+                  </div>
+                </div>
+                <div className="text-[11px] text-fg3 leading-relaxed">
+                  Formule : <b>prix fournisseur + marge</b>. Marge par défaut du scraper : {scraperMargin ?? '—'} €.
+                  {marginOverride != null && <span className="text-accentFg"> Marge personnalisée active.</span>}
+                  {(has('price') || (scope === 'ALL' && draft.price != null)) && <span className="text-warn"> Un prix fixe est défini ci-dessus — il remplace ce calcul.</span>}
+                </div>
+              </div>
+            )}
+
             {/* Visibilité : switch simple en général, tri-état en portée modèle */}
             <div className="flex items-center justify-between rounded-ctl bg-panel2 border border-line px-3 py-2.5">
               <span className="text-[13px] font-semibold">Visible sur le site{scope !== 'ALL' ? ` — ${scope}` : ''}</span>
@@ -498,7 +564,7 @@ export function Cartes() {
 
             {/* Aperçu (valeurs effectives pour la portée choisie) */}
             {scope !== 'ALL' && <div className="text-[11px] font-semibold text-accentFg -mb-2">Aperçu pour {scope} :</div>}
-            <SitePreview row={{ name: rows.find((r) => r.id === editId)?.name || draft.title || 'Carte', desc: rows.find((r) => r.id === editId)?.desc || '' }} ov={effPreview} />
+            <SitePreview row={{ name: rows.find((r) => r.id === editId)?.name || draft.title || 'Carte', desc: rows.find((r) => r.id === editId)?.desc || '' }} ov={effPreview} computedBase={computedFinal} />
 
             <div className="flex items-center gap-2 pt-1">
               {editId !== '__new__' && draft.custom && (

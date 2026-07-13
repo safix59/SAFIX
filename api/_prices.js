@@ -82,7 +82,7 @@ export function effectiveOv(CARDS, ridNorm, ridRaw, modelKey) {
   if (!mk) return base;
   const mo = layers[mk] || {};
   const eff = { ...base };
-  for (const f of ['hidden', 'price', 'promo', 'title', 'subtitle', 'order']) {
+  for (const f of ['hidden', 'price', 'promo', 'title', 'subtitle', 'order', 'margin']) {
     if (Object.prototype.hasOwnProperty.call(mo, f)) eff[f] = mo[f];
   }
   return eff;
@@ -242,6 +242,14 @@ function resolve(PRICES, it, CARDS) {
     }
   }
   if (!Number.isFinite(v) || v <= 0) return { reject: true }; // prix non résolu → FAIL-CLOSED
+  // Override de MARGE (Dashboard → Cartes) : le prix final est recalculé
+  // prix_fournisseur(step1) + marge admin. step1 est le prix Utopya +20 %
+  // déjà arrondi (cf. scraper/lib/pricing.js). Ne s'applique qu'au prix de
+  // base (pas aux variantes couleur, qui gardent leur propre final).
+  if (ov && ov.margin != null && Number.isFinite(Number(ov.margin))
+      && !(it && it.colorName) && Number.isFinite(Number(entry.step1))) {
+    v = Math.max(1, Number(entry.step1) + Number(ov.margin));
+  }
   return { euros: cardAdjust(v, ov), kind: 'catalog' };
 }
 

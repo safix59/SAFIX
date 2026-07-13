@@ -7167,6 +7167,17 @@ function cardPromoPrice(base, p) {
   if (p.type === 'amount' && v > 0) return Math.max(1, Math.round(base - v));
   return base;
 }
+// Prix de base d'une carte AVANT promo : si une marge admin est définie
+// (CMS), on recalcule final = prix fournisseur (step1) + marge ; sinon on
+// garde le prix catalogue. Mêmes règles que le serveur (_prices.js).
+function cardBasePrice(id, model, rawFinal) {
+  const ov = cardOv(id, model);
+  if (ov && ov.margin != null && typeof rawFinal === 'number') {
+    const s1 = (window.__safixStep1 && window.__safixStep1[id]) ? window.__safixStep1[id][model] : null;
+    if (typeof s1 === 'number') return Math.max(1, s1 + Number(ov.margin));
+  }
+  return rawFinal;
+}
 async function loadCardsConfig(rerender) {
   try {
     const r = await fetch('/api/admin?action=cards', { cache: 'no-store' });
@@ -7299,6 +7310,12 @@ function applyLivePrices(payload) {
         const entry = byModel[model];
         if (!entry) return;
 
+        // Cache du prix fournisseur (step1 = prix Utopya +20 % arrondi) pour
+        // permettre l'override de MARGE côté CMS : final = step1 + marge.
+        window.__safixStep1 = window.__safixStep1 || {};
+        (window.__safixStep1[repair.id] = window.__safixStep1[repair.id] || {})[model] =
+          (typeof entry.step1 === 'number' ? entry.step1 : null);
+
         const oldVal = repair.price[model];
         let newVal = oldVal;
         if (entry.outOfStock) newVal = 'OOS';
@@ -7335,8 +7352,9 @@ function updateCardInPlace(card, repair, model) {
   const oos     = price === 'OOS';
   // Mêmes surcharges CMS que renderDetail (override de prix + promo, par modèle).
   const ovU = cardOv(repair.id, model);
-  const finalPriceU = (typeof price === 'number' && ovU && ovU.price != null && Number.isFinite(Number(ovU.price)))
-    ? Number(ovU.price) : price;
+  const baseWithMarginU = cardBasePrice(repair.id, model, price);
+  const finalPriceU = (typeof baseWithMarginU === 'number' && ovU && ovU.price != null && Number.isFinite(Number(ovU.price)))
+    ? Number(ovU.price) : baseWithMarginU;
   const hasPromoU = !!(ovU && cardPromoActive(ovU.promo));
   const promoPriceU = hasPromoU && typeof finalPriceU === 'number' ? cardPromoPrice(finalPriceU, ovU.promo) : null;
   const effPriceU = promoPriceU != null ? promoPriceU : finalPriceU;
@@ -8395,10 +8413,11 @@ function renderDetail(model) {
       const noLink = price === '?' && cat.category !== 'Services';
       const unavail = price === '?' && !noLink;
       const blocked = oos || unavail || noLink;
-      // Surcharge de prix admin + promo active (le serveur applique les
-      // MÊMES règles dans _prices.js → affiché = facturé, toujours).
-      const finalPrice = (typeof price === 'number' && ov && ov.price != null && Number.isFinite(Number(ov.price)))
-        ? Number(ov.price) : price;
+      // Surcharge admin (le serveur applique les MÊMES règles dans
+      // _prices.js → affiché = facturé). Ordre : marge → prix fixe → promo.
+      const baseWithMargin = cardBasePrice(repair.id, model, price);
+      const finalPrice = (typeof baseWithMargin === 'number' && ov && ov.price != null && Number.isFinite(Number(ov.price)))
+        ? Number(ov.price) : baseWithMargin;
       const hasPromo = !!(ov && cardPromoActive(ov.promo));
       const promoPrice = hasPromo && typeof finalPrice === 'number' ? cardPromoPrice(finalPrice, ov.promo) : null;
       const effPrice = promoPrice != null ? promoPrice : finalPrice;

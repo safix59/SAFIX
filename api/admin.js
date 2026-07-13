@@ -1159,7 +1159,7 @@ Réponds UNIQUEMENT avec un tableau JSON de 3 chaînes, sans autre texte : ["...
   const ageH = genAt ? (now - genAt) / 36e5 : null;
   const stale = ageH != null && ageH > 24 * 5;
   if (!pricesDoc) alerts.push({ level: 'error', msg: 'Fichier de prix injoignable.' });
-  else if (stale) alerts.push({ level: 'warn', msg: `Prix figés depuis ${Math.round(ageH / 24)} j — le rafraîchissement a peut-être échoué.` });
+  else if (stale) alerts.push({ level: 'warn', msg: `Prix inchangés depuis ${Math.round(ageH / 24)} j — le rafraîchissement automatique est suspendu (accord Utopya). Mise à jour manuelle via Cartes.` });
   if (broken > 0) alerts.push({ level: 'warn', msg: `${broken} lien(s) sans prix — à vérifier chez Utopya.` });
   if (overCeiling.length) alerts.push({ level: 'warn', msg: `${overCeiling.length} produit(s) dépassent le prix Apple.` });
   const orderErrors = orders.filter(o => o.status === 'error' || o.error_message).map(o => ({ id: o.id, email: o.customer_email, created_at: o.created_at, error: o.error_message || 'statut error', total: o.total_cents }));
@@ -1168,6 +1168,44 @@ Réponds UNIQUEMENT avec un tableau JSON de 3 chaînes, sans autre texte : ["...
   const changes = (hist && Array.isArray(hist.changes)) ? hist.changes : [];
   const c30 = { up: 0, down: 0, oos: 0, restock: 0 };
   for (const c of changes) if (new Date(c.t) >= d30 && c30[c.kind] != null) c30[c.kind]++;
+
+  // ── Bilan des variations de prix (rapport Historique) — sur tous les
+  // changements CHIFFRÉS (ancien & nouveau prix connus). ──
+  const catOf = (rid) => {
+    const r = String(rid || '');
+    if (/^verre_trempe/.test(r)) return 'Protections';
+    if (/^(diagnostic|deblocage|restauration|recuperation|reparation_express)/.test(r)) return 'Services';
+    if (/^(cable|adaptateur|coque|chargeur|accessoire)/.test(r)) return 'Accessoires';
+    return 'Réparations';
+  };
+  const numeric = changes.filter(c => typeof c.oldFinal === 'number' && typeof c.newFinal === 'number' && c.oldFinal > 0);
+  let priceStats = null;
+  if (numeric.length) {
+    let maxUp = null, maxDown = null, sumDelta = 0, sumPct = 0;
+    const products = new Set();
+    const byCat = {};
+    for (const c of numeric) {
+      const d = c.newFinal - c.oldFinal;
+      const pct = (d / c.oldFinal) * 100;
+      sumDelta += d; sumPct += pct;
+      products.add(`${c.repairId}|${c.model}`);
+      const cat = catOf(c.repairId);
+      byCat[cat] = (byCat[cat] || 0) + 1;
+      if (d > 0 && (!maxUp || d > maxUp.delta)) maxUp = { delta: d, pct, repairId: c.repairId, model: c.model, from: c.oldFinal, to: c.newFinal, t: c.t };
+      if (d < 0 && (!maxDown || d < maxDown.delta)) maxDown = { delta: d, pct, repairId: c.repairId, model: c.model, from: c.oldFinal, to: c.newFinal, t: c.t };
+    }
+    priceStats = {
+      total_changes: numeric.length,
+      products_affected: products.size,
+      avg_delta_eur: Math.round((sumDelta / numeric.length) * 100) / 100,
+      avg_pct: Math.round((sumPct / numeric.length) * 10) / 10,
+      max_up: maxUp,
+      max_down: maxDown,
+      by_category: Object.entries(byCat).sort((a, b) => b[1] - a[1]).map(([cat, n]) => ({ cat, n })),
+      oos_events: changes.filter(c => c.kind === 'oos').length,
+      restock_events: changes.filter(c => c.kind === 'restock').length,
+    };
+  }
 
   return res.status(200).json({
     orders,
@@ -1180,7 +1218,7 @@ Réponds UNIQUEMENT avec un tableau JSON de 3 chaînes, sans autre texte : ["...
       upcoming_appointments: upcoming.slice(0, 40),
     },
     catalog: { combos, in_stock: inStock, out_of_stock: oos, broken, prices_generated_at: pricesDoc?.generatedAt || null, prices_age_hours: ageH, over_ceiling: overCeiling, broken_items: brokenItems.slice(0, 60), coverage, model_gaps: modelGaps },
-    price_changes: { updatedAt: hist?.updatedAt || null, total: changes.length, recent: changes.slice(0, 60), counts_30d: c30 },
+    price_changes: { updatedAt: hist?.updatedAt || null, total: changes.length, recent: changes.slice(0, 60), counts_30d: c30, stats: priceStats },
     health: { supabase_ok: !!(SUPA && KEY) && !alerts.some(a => a.level === 'error' && /Supabase/.test(a.msg)), prices_ok: !!pricesDoc && !stale, order_errors: orderErrors, paid_not_ordered: paidNotOrdered, alerts },
     serverTime: now.toISOString(),
   });

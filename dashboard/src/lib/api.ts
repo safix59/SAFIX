@@ -62,11 +62,33 @@ export interface Catalog {
   coverage: { repairId: string; models: number }[];
   model_gaps: { model: string; missing: string[] }[];
 }
+// Entrée de prix scraper (prices.json) : prix fournisseur, marge, prix final.
+export interface PriceEntry {
+  basePrice?: number;   // prix PRO Utopya HT
+  step1?: number;       // basePrice +20 %, arrondi (prix fournisseur affiché)
+  margin?: number;      // marge fixe scraper (25 / 35 / 50 €)
+  final?: number;       // step1 + margin
+  outOfStock?: boolean;
+}
+
+export interface PriceStatExtreme { delta: number; pct: number; repairId: string; model: string; from: number; to: number; t: string; }
+export interface PriceStats {
+  total_changes: number;
+  products_affected: number;
+  avg_delta_eur: number;
+  avg_pct: number;
+  max_up: PriceStatExtreme | null;
+  max_down: PriceStatExtreme | null;
+  by_category: { cat: string; n: number }[];
+  oos_events: number;
+  restock_events: number;
+}
 export interface PriceChanges {
   updatedAt: string | null;
   total: number;
   recent: { t: string; repairId: string; model: string; oldFinal: number | null; newFinal: number | null; oldOOS: boolean; newOOS: boolean; kind: string }[];
   counts_30d: { up?: number; down?: number; oos?: number; restock?: number };
+  stats?: PriceStats | null;
 }
 export interface DashboardData {
   orders: Order[];
@@ -153,6 +175,7 @@ export interface CardPromo {
 export interface CardModelOverride {
   hidden?: boolean;
   price?: number | null;
+  margin?: number | null;
   title?: string | null;
   subtitle?: string | null;
   promo?: CardPromo | null;
@@ -164,6 +187,7 @@ export interface CardOverride {
   title?: string | null;
   subtitle?: string | null;
   price?: number | null;
+  margin?: number | null;
   category?: string;
   custom?: boolean;
   promo?: CardPromo | null;
