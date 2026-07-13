@@ -7,6 +7,13 @@
 
 import Stripe from 'stripe';
 
+// ⛔ Interrupteur d'arrêt du bot de commande Utopya (Render). Posé à '1' le
+// 2026-07-13 suite à la demande d'Utopya de cesser toute automatisation sur
+// leur site. Tant que UTOPYA_BOT_PAUSED === '1', les commandes payées ne
+// déclenchent PAS le bot → les commandes fournisseur se passent à la main.
+// Réversible : retirer/mettre à '0' la variable Vercel pour réactiver.
+const UTOPYA_BOT_PAUSED = process.env.UTOPYA_BOT_PAUSED === '1';
+
 // Adresse de contact affichée dans les e-mails clients (boîte OVH active,
 // vérifiée par sonde SMTP le 2026-07-11).
 const CONTACT_EMAIL = process.env.SHOP_CONTACT_EMAIL || 'support@safix59.fr';
@@ -585,9 +592,12 @@ export default async function handler(req, res) {
     }
 
     // 3) Trigger bot Render (commande Utopya immédiate, si configuré)
+    //    ⛔ Coupé tant que UTOPYA_BOT_PAUSED : commande fournisseur à la main.
     const botUrl    = process.env.BOT_TRIGGER_URL;
     const botSecret = process.env.BOT_TRIGGER_SECRET;
-    if (botUrl && result.ok && result.row?.id) {
+    if (UTOPYA_BOT_PAUSED && botUrl && result.row?.id) {
+      console.warn('[webhook] Bot Utopya EN PAUSE — commande', result.row.id, 'à passer manuellement chez Utopya.');
+    } else if (botUrl && result.ok && result.row?.id) {
       pending.push(fetch(botUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-SAFIX-Secret': botSecret || '' },
@@ -679,10 +689,12 @@ export default async function handler(req, res) {
     };
     const result = await insertOrder(order);
 
-    // Trigger bot Render
+    // Trigger bot Render (⛔ coupé tant que UTOPYA_BOT_PAUSED)
     const botUrl    = process.env.BOT_TRIGGER_URL;
     const botSecret = process.env.BOT_TRIGGER_SECRET;
-    if (botUrl && result.ok && result.row?.id) {
+    if (UTOPYA_BOT_PAUSED && botUrl && result.row?.id) {
+      console.warn('[webhook] Bot Utopya EN PAUSE — commande', result.row.id, 'à passer manuellement.');
+    } else if (botUrl && result.ok && result.row?.id) {
       pendingPi.push(fetch(botUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-SAFIX-Secret': botSecret || '' },

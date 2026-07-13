@@ -1,20 +1,25 @@
 name: Rafraîchir les prix Utopya
 
-# But : maintenir scraper/prices.json à jour automatiquement, sans dépendre du PC
-# du propriétaire. Tourne sur les serveurs GitHub (gratuit, repo public).
-# - schedule : 1×/jour à 04:47 UTC. Pas plus fréquent, à dessein : un scrape
-#   Playwright dure ~25 min, les tarifs fournisseur bougent au plus une fois
-#   par jour, et marteler Utopya (Cloudflare) ferait bannir le compte.
-#   (heure décalée de :00 : GitHub retarde fortement les crons pile à l'heure)
-# - workflow_dispatch : bouton "Run workflow" manuel (mode "login-test" pour
-#   simplement vérifier la connexion Utopya sans scraper, ou "full" pour tout)
-# - Reprise automatique : 2 tentatives espacées de 3 min (aléas Cloudflare).
-# - Alerte : échec → issue GitHub ouverte automatiquement (+ e-mail GitHub).
-# Le commit de prices.json sur main déclenche l'auto-déploiement Vercel → prix en ligne.
+# ⛔ SCRAPING SUSPENDU le 2026-07-13 à la demande d'Utopya (support@utopya.fr,
+#    Laingo) : « ne pas utiliser d'outils automatisés de récupération de
+#    données (scraping) sur notre site, ce type d'usage entraîne la
+#    désactivation DÉFINITIVE des comptes concernés ». Le compte a été
+#    réactivé une fois — il ne le sera pas deux fois.
+#
+#    Ce workflow est aussi DÉSACTIVÉ côté GitHub (Actions → … → Disable),
+#    donc il ne se déclenchera pas même si le cron ci-dessous était rétabli.
+#    Le déclencheur périodique `schedule:` est retiré ci-dessous ; seul le
+#    lancement 100 % MANUEL (workflow_dispatch) subsiste, et il faut D'ABORD
+#    réactiver le workflow sur GitHub pour l'utiliser.
+#
+#    Le CODE du scraper (dossier scraper/) est CONSERVÉ intact pour une
+#    éventuelle solution conforme future (API officielle, export manuel…).
+#    NE PAS rétablir le `schedule:` sans accord écrit d'Utopya.
 
 on:
-  schedule:
-    - cron: "47 4 * * *"
+  # schedule DÉSACTIVÉ (voir bandeau ci-dessus). Ne pas rétablir.
+  # schedule:
+  #   - cron: "47 4 * * *"
   workflow_dispatch:
     inputs:
       mode:

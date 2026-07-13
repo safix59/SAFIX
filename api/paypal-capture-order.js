@@ -156,7 +156,11 @@ export default async function handler(req, res) {
         // perdu. Chaque tâche reste non-fatale.
         const pending = [];
         const botUrl = process.env.BOT_TRIGGER_URL;
-        if (botUrl && ins.ok && orderId) {
+        // ⛔ Bot Utopya coupé tant que UTOPYA_BOT_PAUSED='1' (demande Utopya
+        // 2026-07-13) : commande fournisseur à passer manuellement.
+        if (process.env.UTOPYA_BOT_PAUSED === '1' && botUrl && orderId) {
+          console.warn('[PayPal] Bot Utopya EN PAUSE — commande', orderId, 'à passer manuellement.');
+        } else if (botUrl && ins.ok && orderId) {
           pending.push(fetch(botUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-SAFIX-Secret': process.env.BOT_TRIGGER_SECRET || '' },
