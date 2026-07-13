@@ -8052,8 +8052,7 @@ function renderHome() {
       grid.appendChild(card);
     });
     block.appendChild(grid);
-    // Catégorie vidée par le CMS (toutes cartes masquées) → pas de bloc vide.
-    if (list.length) container.appendChild(block);
+    container.appendChild(block);
   });
 }
 
@@ -8466,7 +8465,8 @@ function renderDetail(model) {
       }
       grid.appendChild(card);
     });
-    container.appendChild(block);
+    // Catégorie vidée par le CMS (toutes cartes masquées) → pas de bloc vide.
+    if (list.length) container.appendChild(block);
   });
 
   // Sous-titre traduit avec décompte
