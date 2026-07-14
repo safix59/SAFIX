@@ -51,40 +51,89 @@ const REPAIRS: { rx: RegExp; ids: [string, string][]; label: string }[] = [
   { rx: /connecteur|charge/i, label: 'le connecteur de charge', ids: [['connecteur_de_charge', '']] },
 ];
 const normTxt = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
-async function buildSuggestions(lastUserMsg: string, visitorName: string | null): Promise<string[]> {
-  const t = normTxt(lastUserMsg);
-  const hello = visitorName ? `Bonjour ${visitorName} !` : 'Bonjour !';
-  const out: string[] = [];
+
+type PriceTable = Record<string, Record<string, { final?: number | null; outOfStock?: boolean }>>;
+// Retrouve la clé EXACTE d'un modèle du catalogue dans un texte. `loose` =
+// accepte « 13 pro », « le 12 » sans le mot « iphone » (continuité de dialogue).
+function findModelKey(text: string, prices: PriceTable, loose = false): string | null {
+  const t = normTxt(text).replace(/promax/g, 'pro max');
+  let mm = /iphone\s*(se|xr|xs max|xs|x|\d{1,2})\s*(pro max|pro|plus|mini|e)?/.exec(t);
+  if (!mm && loose) mm = /(?:^|\s)(se|xr|xs max|xs|x|1[0-7]|[5-9])\s*(pro max|pro|plus|mini|e)?(?=\s|$)/.exec(t);
+  if (!mm) return null;
+  const wanted = normTxt('iphone ' + mm[1] + (mm[2] ? ' ' + mm[2] : '')).replace(/(\d+) e\b/, '$1e');
+  for (const table of Object.values(prices)) {
+    const key = Object.keys(table).find((k) => k !== 'default' && (normTxt(k) === wanted || normTxt(k).startsWith(wanted)));
+    if (key) return key;
+  }
+  return null;
+}
+
+// Suggestions locales CONTEXTUELLES (repli instantané, avant l'IA distante).
+// Reçoit TOUT le fil : détermine le stade (premier contact vs conversation en
+// cours → jamais de « Bonjour » au milieu) et retrouve le modèle évoqué
+// n'importe où dans l'historique (mémoire de dialogue), pas juste au dernier
+// message. La vraie finesse vient de la cascade IA côté serveur ; ceci reste
+// un filet correct quand elle est momentanément indisponible.
+async function buildSuggestions(messages: ChatMessage[], visitorName: string | null): Promise<string[]> {
+  const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
   const prices = await loadPrices();
-  const rep = REPAIRS.find((r) => r.rx.test(lastUserMsg));
-  const mm = /iphone\s*(se|xr|xs max|xs|x|\d{1,2})\s*(pro max|pro|plus|mini|e)?/.exec(t.replace(/promax/g, 'pro max'));
-  if (rep && mm && prices) {
-    const wanted = normTxt('iphone ' + mm[1] + (mm[2] ? ' ' + mm[2] : '')).replace(/(\d+) e\b/, '$1e');
+  const userTexts = [...messages].reverse()
+    .filter((m) => m.sender === 'user' && m.body !== '::human::' && !m.body.startsWith('::img::'))
+    .map((m) => m.body);
+  const lastUserMsg = userTexts[0] || '';
+  const t = normTxt(lastUserMsg);
+
+  const userCount = messages.filter((m) => m.sender === 'user' && m.body !== '::human::').length;
+  const weReplied = messages.some((m) => m.sender === 'admin');
+  const isOpening = userCount <= 1 && !weReplied;
+  const greet = isOpening ? (visitorName ? `Bonjour ${visitorName} ! ` : 'Bonjour ! ') : '';
+
+  // Réparation & modèle : dernier message d'abord, sinon tout l'historique.
+  const rep = REPAIRS.find((r) => r.rx.test(lastUserMsg)) || REPAIRS.find((r) => userTexts.some((x) => r.rx.test(x)));
+  let modelKey: string | null = null;
+  if (prices) {
+    modelKey = findModelKey(lastUserMsg, prices);
+    if (!modelKey) for (const x of userTexts) { modelKey = findModelKey(x, prices, true); if (modelKey) break; }
+  }
+
+  const out: string[] = [];
+  if (rep && modelKey && prices) {
     const tiers: string[] = [];
-    let modelKey: string | null = null;
     for (const [id, tier] of rep.ids) {
-      const table = prices[id];
-      if (!table) continue;
-      const key = Object.keys(table).find((k) => k !== 'default' && (normTxt(k) === wanted || normTxt(k).startsWith(wanted)));
-      if (!key) continue;
-      modelKey = modelKey || key;
-      const e = table[key];
+      const e = prices[id]?.[modelKey];
       if (e && typeof e.final === 'number' && !e.outOfStock) tiers.push(tier ? `${tier} ${e.final} €` : `${e.final} €`);
     }
-    if (tiers.length && modelKey)
-      out.push(`${hello} Oui, ${rep.label} de l'${modelKey} est disponible : ${tiers.join(' · ')} tout compris (pièce neuve + pose). Commande directe depuis la fiche « ${modelKey} » du site 👍`);
-    else if (modelKey)
-      out.push(`${hello} ${rep.label.charAt(0).toUpperCase() + rep.label.slice(1)} de l'${modelKey} est actuellement en rupture chez notre fournisseur. Je vous préviens dès son retour en stock si vous le souhaitez.`);
+    if (tiers.length)
+      out.push(`${greet}Oui, ${rep.label} de l'${modelKey} : ${tiers.join(' · ')} tout compris (pièce neuve + pose). Commande directe depuis la fiche « ${modelKey} » du site 👍`);
+    else
+      out.push(`${greet}${cap(rep.label)} de l'${modelKey} est actuellement en rupture chez notre fournisseur. Je vous préviens dès son retour en stock si vous le souhaitez.`);
+  } else if (rep && !modelKey) {
+    out.push(`${greet}Pour ${rep.label}, indiquez-moi le modèle exact de l'iPhone et je vous confirme le prix tout de suite.`);
   }
-  if (/rendez|rdv|deposer|apporter|quand/.test(t))
-    out.push(`${hello} Vous pouvez réserver votre créneau directement dans le panier : lieu de dépôt, date (dès demain) et créneau (matin, après-midi ou soir).`);
-  if (/prix|tarif|combien/.test(t) && out.length === 0)
-    out.push(`${hello} Tous nos tarifs sont affichés en temps réel sur la fiche de votre modèle. Dites-moi votre modèle exact et la panne, je vous confirme le prix immédiatement.`);
-  if (/livraison|delai|rapide/.test(t))
+
+  if (/rendez|rdv|deposer|apporter|quand|creneau/.test(t))
+    out.push(`${greet}Le rendez-vous se choisit directement dans le panier : lieu de dépôt, date (dès demain) et créneau (matin, après-midi ou soir). Vous recevez une confirmation par e-mail.`);
+  if (/livraison|delai|rapide|combien de temps|longtemps/.test(t))
     out.push(`La pièce arrive en Standard (sous 48 h) ou Express (dès le lendemain 15h) — c'est ce qui fixe la date de la réparation. Le détail exact s'affiche dans le panier.`);
-  out.push(`${hello} Merci pour votre message — je regarde ça et je reviens vers vous au plus vite.`);
-  out.push(`Pouvez-vous me préciser le modèle exact de votre iPhone et la panne constatée ? Je vous confirme prix et disponibilité dans la foulée.`);
-  return out.slice(0, 3);
+  if (/prix|tarif|combien|cout|coute/.test(t) && !out.length)
+    out.push(modelKey
+      ? `${greet}Dites-moi quelle réparation pour l'${modelKey} (écran, batterie, charge…) et je vous donne le prix exact immédiatement.`
+      : `${greet}Indiquez-moi le modèle exact et la panne, je vous confirme le prix en temps réel dans la foulée.`);
+
+  // Relances de secours — sensibles au contexte (jamais de « Bonjour » en cours).
+  out.push(isOpening
+    ? `${greet}Merci pour votre message ! Dites-moi le modèle de votre iPhone et ce qui ne va pas, je vous renseigne tout de suite.`
+    : modelKey
+      ? `Très bien pour l'${modelKey}. Souhaitez-vous que je vous accompagne pour passer la commande, ou avez-vous une autre question ?`
+      : `Je m'en occupe. Pouvez-vous me préciser le modèle exact de votre iPhone et la panne, pour que je confirme prix et disponibilité ?`);
+  out.push(rep && !modelKey
+    ? `Quel est le modèle exact de votre iPhone ? Je vous confirme prix et disponibilité aussitôt.`
+    : !rep
+      ? `Pouvez-vous me décrire précisément le souci rencontré ? Je vous oriente vers la bonne réparation.`
+      : `Souhaitez-vous réserver un créneau de dépôt, ou avez-vous besoin d'autres informations ?`);
+
+  const seen = new Set<string>();
+  return out.filter((s) => { const k = s.trim(); if (!k || seen.has(k)) return false; seen.add(k); return true; }).slice(0, 3);
 }
 
 // ─── Compression photo (même approche que le widget client) ───
@@ -177,8 +226,10 @@ export function Messages() {
     let alive = true;
     const th = threads?.find((t) => t.session === active);
     const sessionId = active;
-    // Repli local immédiat (affichage instantané), puis Claude si dispo.
-    void buildSuggestions(lastUser.body, th?.name ?? null).then((s) => { if (alive) setSuggestions((cur) => (cur.length ? cur : s)); });
+    // Repli local immédiat (affichage instantané), puis IA distante si dispo.
+    // On passe TOUT le fil : le repli connaît alors le modèle déjà évoqué et
+    // le stade de la conversation (pas de « Bonjour » au milieu).
+    void buildSuggestions(messages, th?.name ?? null).then((s) => { if (alive) setSuggestions((cur) => (cur.length ? cur : s)); });
     setSugLoading(true);
     const t = setTimeout(() => {
       void api.msgSuggest(sessionId)
