@@ -131,15 +131,14 @@ export function Emails({ onChanged }: { onChanged?: () => void }) {
 
   return (
     <div className="stagger">
-      {/* Bandeau d'aide si la table n'existe pas encore côté Supabase */}
-      {!ready && reason === 'table_absente' && (
+      {/* Bandeau si la base est momentanément injoignable (rare) */}
+      {!ready && (
         <Card className="mb-3.5 p-4 border-warn/30">
           <div className="flex items-start gap-3">
             <span className="text-warn mt-0.5"><Icon name="alert" size={18} /></span>
             <div className="text-[13px] text-fg2 leading-relaxed">
-              <b>Boîte support non initialisée.</b> La table <code className="text-fg">support_emails</code> n'existe pas encore
-              dans Supabase. Créez-la (script SQL fourni), puis branchez la réception des e-mails de
-              <code className="text-fg"> support@safix59.fr</code> vers le webhook. Les e-mails s'afficheront ensuite ici automatiquement.
+              <b>Boîte support momentanément indisponible.</b> La base de données est injoignable pour l'instant —
+              nouvel essai automatique dans quelques secondes.{reason ? <span className="text-fg3"> ({reason})</span> : null}
             </div>
           </div>
         </Card>

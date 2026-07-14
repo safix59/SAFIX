@@ -1,123 +1,59 @@
-# Boîte support centralisée — e-mails `support@safix59.fr`
+# Boîte support — voir les e-mails de `support@safix59.fr` dans le Dashboard
 
-Ce système affiche dans le Dashboard (**onglet « E-mails support »**) tous les
-e-mails reçus sur `support@safix59.fr` : notification, compteur de non-lus,
-badge rouge, aperçu du message, et statut (**Non lu / Lu / Traité**).
+## ✅ Déjà en place (rien à faire)
 
-Comme `support@safix59.fr` est une **redirection OVH** (pas de boîte IMAP), on ne
-peut pas « aller lire » la boîte. On procède donc dans l'autre sens : chaque
-e-mail est **poussé** vers le site via un petit webhook. Rien ne change pour toi :
-tu continues à recevoir les e-mails normalement sur ta boîte perso, on ajoute
-seulement une **copie** vers un service qui prévient le Dashboard.
+- Le site sait **recevoir et stocker** les e-mails (aucune table à créer, rien à toucher dans Supabase).
+- Le **code secret** est déjà configuré dans Vercel
+  (visible dans : Vercel → projet *safix* → **Settings → Environment Variables → `INBOUND_EMAIL_TOKEN`** → œil 👁 pour l'afficher).
+- L'onglet **« E-mails support »** du Dashboard est en ligne (badge rouge, compteur, aperçu, statuts Non lu / Lu / Traité).
 
-Il y a **3 étapes** (~15 min, une seule fois).
+## 👉 Il reste 2 étapes (~10 min, une seule fois)
 
----
+L'adresse `support@safix59.fr` est une simple **redirection** (pas une vraie boîte),
+donc le site ne peut pas « aller lire » les e-mails. La solution : envoyer une
+**copie** de chaque e-mail à un petit service gratuit (Pipedream) qui prévient le
+site. Tu continues à tout recevoir sur ta boîte perso comme avant.
 
-## Étape 1 — Créer la table dans Supabase
+### Étape 1 — Pipedream (le « facteur » qui prévient le site)
 
-Supabase → **SQL Editor** → colle le bloc `support_emails` du fichier
-[`SUPABASE_SCHEMA.sql`](./SUPABASE_SCHEMA.sql) (déjà prêt) → **Run**.
+1. Va sur **pipedream.com** → crée un compte (gratuit).
+2. Clique **New Workflow** → comme déclencheur (*trigger*), choisis **Email**.
+   → Pipedream t'affiche une adresse du type `xxxx@pipedream.net` : **copie-la** (il en faut pour l'étape 2).
+3. Clique **+** pour ajouter une étape → choisis **Run custom code** (Node) → efface tout et colle :
 
-Tant que la table n'existe pas, l'onglet affiche un bandeau d'avertissement
-(« Boîte support non initialisée ») — c'est normal.
-
----
-
-## Étape 2 — Définir le jeton secret dans Vercel
-
-Le webhook est protégé par un secret partagé pour que **seul** ton service
-d'e-mail puisse déposer des messages.
-
-Vercel → projet SAFIX → **Settings → Environment Variables** → **Add** :
-
-| Name | Value |
-|------|-------|
-| `INBOUND_EMAIL_TOKEN` | `jUy7ewbexnKlPWU_rxlOdsI3lI1rkF0L` |
-
-> Tu peux garder ce jeton suggéré ou en générer un autre (n'importe quelle
-> longue chaîne aléatoire). **Applique-le à Production**, puis **redeploy** pour
-> qu'il soit pris en compte.
-
----
-
-## Étape 3 — Brancher la réception des e-mails vers le webhook
-
-But : faire en sorte qu'une **copie** de chaque e-mail reçu sur
-`support@safix59.fr` déclenche un appel à :
-
-```
-POST https://safix59.fr/api/admin?action=inbound-email
-En-tête :  x-inbound-token: <ton INBOUND_EMAIL_TOKEN>
-Corps (JSON) :
-{
-  "from":       "{{ expéditeur, ex. \"Julie Mercier\" <julie@gmail.com> }}",
-  "subject":    "{{ objet }}",
-  "text":       "{{ corps du message en texte }}",
-  "date":       "{{ date de réception }}",
-  "message_id": "{{ en-tête Message-Id (anti-doublon) }}"
-}
+```javascript
+export default defineComponent({
+  async run({ steps }) {
+    const e = steps.trigger.event;
+    await fetch("https://safix59.fr/api/admin?action=inbound-email", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-inbound-token": "COLLE_ICI_LE_CODE_SECRET",
+      },
+      body: JSON.stringify({
+        from: e.headers?.from || e.from || "",
+        subject: e.subject || "",
+        text: e.text || e.html || "",
+        date: e.headers?.date || "",
+        message_id: e.headers?.["message-id"] || "",
+      }),
+    });
+  },
+});
 ```
 
-Le point de terminaison est **tolérant** : si un champ porte un autre nom
-courant (`sender`, `body`, `Subject`, `body-plain`…), il est quand même reconnu.
-Seul `from` (ou `sender`) et un contenu sont vraiment utiles ; le reste est
-optionnel.
+4. Remplace `COLLE_ICI_LE_CODE_SECRET` par le code secret (dans Vercel, voir plus haut).
+5. Clique **Deploy** (en haut à droite). C'est tout pour Pipedream.
 
-### Option recommandée — Pipedream (gratuit, fiable)
+### Étape 2 — OVH (envoyer une copie au facteur)
 
-1. Crée un compte sur **pipedream.com** → **New Workflow**.
-2. **Trigger** : choisis **« Email »**. Pipedream te donne une adresse du type
-   `xxxxxx@pipedream.net`. **Copie-la.**
-3. **Étape suivante** : ajoute une action **« HTTP / Webhook → POST request »** :
-   - **URL** : `https://safix59.fr/api/admin?action=inbound-email`
-   - **Headers** : `x-inbound-token` = ton `INBOUND_EMAIL_TOKEN`
-   - **Body** (JSON) :
-     ```
-     from        →  {{steps.trigger.event.headers.from}}
-     subject     →  {{steps.trigger.event.subject}}
-     text        →  {{steps.trigger.event.text}}
-     date        →  {{steps.trigger.event.headers.date}}
-     message_id  →  {{steps.trigger.event.headers["message-id"]}}
-     ```
-   - **Deploy**.
-4. **OVH** → Emails → redirection de `support@safix59.fr` : **ajoute** l'adresse
-   `xxxxxx@pipedream.net` **en plus** de ta boîte perso (OVH autorise plusieurs
-   destinataires). Tu continues donc à tout recevoir chez toi, et Pipedream
-   reçoit une copie qui alimente le Dashboard.
+1. Manager OVH → **E-mails** → ton domaine `safix59.fr` → **Redirections**.
+2. Sur la redirection de `support@safix59.fr` : **ajoute** l'adresse `xxxx@pipedream.net`
+   (copiée à l'étape 1) comme **destinataire supplémentaire** — ne supprime pas ta boîte perso.
 
-### Alternative — Cloudflare Email Workers
+## 🧪 Vérifier
 
-Si le domaine `safix59.fr` gère ses e-mails via **Cloudflare Email Routing**, tu
-peux créer un **Email Worker** qui fait le `fetch()` POST directement vers le
-webhook (avec l'en-tête `x-inbound-token`). C'est l'option la plus robuste, mais
-elle suppose de router l'e-mail du domaine par Cloudflare.
-
----
-
-## Vérifier que ça marche
-
-Envoie un e-mail de test à `support@safix59.fr`. En quelques secondes il doit
-apparaître dans **Dashboard → E-mails support**, avec :
-
-- une **notification** (toast) « Nouvel e-mail support »,
-- le **badge rouge** + compteur dans la barre latérale,
-- le message en **Non lu** (gras), avec expéditeur, objet, date et aperçu.
-
-Cliquer dessus le passe en **Lu**. Le bouton **« Marquer traité »** le clôture.
-**« Répondre par e-mail »** ouvre ton client mail pré-rempli vers l'expéditeur.
-
----
-
-## Test manuel du webhook (facultatif)
-
-Depuis un terminal (remplace le jeton) :
-
-```bash
-curl -X POST "https://safix59.fr/api/admin?action=inbound-email" \
-  -H "x-inbound-token: jUy7ewbexnKlPWU_rxlOdsI3lI1rkF0L" \
-  -H "Content-Type: application/json" \
-  -d '{"from":"\"Client Test\" <test@example.com>","subject":"Essai support","text":"Ceci est un test.","message_id":"test-001"}'
-```
-
-Réponse attendue : `{"ok":true}`. Le message doit apparaître dans le Dashboard.
+Envoie un e-mail à `support@safix59.fr` depuis n'importe quelle adresse.
+En quelques secondes il apparaît dans **Dashboard → E-mails support**, en « Non lu »,
+avec le badge rouge et une notification.

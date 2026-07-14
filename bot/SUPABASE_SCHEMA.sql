@@ -53,35 +53,6 @@ create table if not exists public.order_events (
 create index if not exists order_events_order_idx on public.order_events (order_id, created_at);
 alter table public.order_events enable row level security;
 
--- ═══════════════════════════════════════════════════════════════════════
--- E-mails support (support@safix59.fr) — réception centralisée
--- ═══════════════════════════════════════════════════════════════════════
--- Chaque e-mail reçu sur support@safix59.fr est déposé ici par un webhook
--- (service de parsing d'e-mails → POST /api/admin?action=inbound-email).
--- Le Dashboard (onglet « E-mails support ») les liste, les marque lus /
--- traités et alerte l'admin (badge, compteur, notification).
---   status : 'non_lu' (nouveau, non consulté)
---            'lu'     (ouvert par l'admin)
---            'traite' (traité / clôturé)
-create table if not exists public.support_emails (
-  id           bigserial primary key,
-  received_at  timestamptz not null default now(),
-  from_email   text,
-  from_name    text,
-  subject      text not null default '(sans objet)',
-  preview      text,                         -- extrait (≤280 car.) pour la liste
-  body         text,                         -- corps texte nettoyé (≤20000 car.)
-  status       text not null default 'non_lu',
-  message_id   text,                         -- en-tête Message-Id (anti-doublon)
-  created_at   timestamptz not null default now()
-);
-
--- Tri principal (les plus récents d'abord) + filtre par statut.
-create index if not exists support_emails_received_idx on public.support_emails (received_at desc);
-create index if not exists support_emails_status_idx   on public.support_emails (status, received_at desc);
--- Anti-doublon : une même livraison (même Message-Id) n'est insérée qu'une fois.
--- (Les valeurs NULL restent autorisées et distinctes → aucun blocage si absent.)
-create unique index if not exists support_emails_message_id_key on public.support_emails (message_id);
-
--- Sécurité : seule la clé service_role (côté serveur) accède à la table.
-alter table public.support_emails enable row level security;
+-- NB : la boîte support (e-mails de support@safix59.fr) n'a PAS de table
+-- dédiée : elle est stockée dans la table `settings` (clé `support_emails`),
+-- déjà existante. Aucune migration à exécuter. Voir EMAILS_SUPPORT_SETUP.md.

@@ -437,6 +437,31 @@ function parseFrom(raw) {
   return { name: s || null, email: null };
 }
 
+// ── Boîte support : stockage dans la table `settings` (clé support_emails) ──
+// Pas de table dédiée à créer : `settings` existe déjà (cartes, géo-zone,
+// maintenance…) → zéro migration côté Supabase. Volume faible (quelques
+// e-mails/semaine) : un document JSON {seq, list} suffit, liste plafonnée.
+const EMAILS_KEY = 'support_emails';
+const EMAILS_MAX = 120;        // e-mails conservés (les plus récents)
+const EMAIL_BODY_MAX = 5000;   // longueur max du corps stocké
+async function readEmailDoc(S, K) {
+  const r = await fetch(`${S}/rest/v1/settings?select=value&key=eq.${EMAILS_KEY}`,
+    { headers: { apikey: K, Authorization: `Bearer ${K}` } });
+  if (r.status === 404) return null; // table settings absente (ne devrait pas arriver)
+  if (!r.ok) throw new Error('http_' + r.status);
+  const rows = await r.json().catch(() => []);
+  const v = Array.isArray(rows) && rows[0] && rows[0].value;
+  return (v && Array.isArray(v.list)) ? { seq: Number(v.seq) || 1, list: v.list } : { seq: 1, list: [] };
+}
+async function writeEmailDoc(S, K, doc) {
+  const r = await fetch(`${S}/rest/v1/settings?on_conflict=key`, {
+    method: 'POST',
+    headers: { apikey: K, Authorization: `Bearer ${K}`, 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates,return=minimal' },
+    body: JSON.stringify({ key: EMAILS_KEY, value: doc, updated_at: new Date().toISOString() }),
+  });
+  return r.ok;
+}
+
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   const action = (req.query && req.query.action) || (req.body && req.body.action) || '';
@@ -698,9 +723,20 @@ export default async function handler(req, res) {
     const S = process.env.SUPABASE_URL, K = process.env.SUPABASE_SERVICE_ROLE;
     if (!S || !K) return res.status(500).json({ error: 'supabase_absent' });
     const p = (req.body && typeof req.body === 'object') ? req.body : {};
-    const pick = (...keys) => { for (const k of keys) { const v = p[k]; if (v != null && String(v).trim() !== '') return String(v); } return ''; };
+    const hdr = (p.headers && typeof p.headers === 'object') ? p.headers : {};
+    // Tolérant : cherche dans le corps puis dans les en-têtes ; certains
+    // services envoient `from` en objet ({text, value:[{address,name}]}).
+    const pick = (...keys) => {
+      for (const k of keys) {
+        let v = p[k] != null ? p[k] : (hdr[k] != null ? hdr[k] : hdr[k.toLowerCase()]);
+        if (v == null) continue;
+        if (typeof v === 'object') v = v.text || (Array.isArray(v.value) && v.value[0] && `${v.value[0].name || ''} <${v.value[0].address || ''}>`) || '';
+        if (String(v).trim() !== '') return String(v);
+      }
+      return '';
+    };
     const f = parseFrom(pick('from', 'sender', 'From', 'from_email', 'email'));
-    const from_email = ((pick('from_email') || f.email || '') || '').toLowerCase() || null;
+    const from_email = (pick('from_email') || f.email || '').toLowerCase() || null;
     const from_name = pick('from_name', 'fromName') || f.name;
     const subject = (pick('subject', 'Subject', 'sujet').slice(0, 500)) || '(sans objet)';
     const textRaw = pick('text', 'body', 'plain', 'body-plain', 'stripped-text', 'snippet', 'html');
@@ -709,23 +745,21 @@ export default async function handler(req, res) {
     const dRaw = pick('date', 'Date', 'received_at', 'timestamp');
     if (dRaw) { const d = new Date(dRaw); if (!isNaN(d.getTime())) received_at = d.toISOString(); }
     const message_id = pick('message_id', 'Message-Id', 'messageId', 'message-id').slice(0, 300) || null;
-    const row = {
-      received_at, from_email, from_name: from_name || null, subject,
-      preview: text.slice(0, 280), body: text.slice(0, 20000) || null,
-      status: 'non_lu', message_id,
-    };
     try {
-      // Anti-doublon : si message_id fourni, on ignore les ré-livraisons (unique index).
-      const r = await fetch(`${S}/rest/v1/support_emails${message_id ? '?on_conflict=message_id' : ''}`, {
-        method: 'POST',
-        headers: {
-          apikey: K, Authorization: `Bearer ${K}`, 'Content-Type': 'application/json',
-          Prefer: message_id ? 'resolution=ignore-duplicates,return=minimal' : 'return=minimal',
-        },
-        body: JSON.stringify(row),
+      const doc = await readEmailDoc(S, K);
+      if (!doc) return res.status(200).json({ ok: false, reason: 'table_absente' });
+      // Anti-doublon : une même livraison (même Message-Id) n'est insérée qu'une fois.
+      if (message_id && doc.list.some((e) => e.message_id === message_id))
+        return res.status(200).json({ ok: true, duplicate: true });
+      doc.list.unshift({
+        id: doc.seq, received_at, from_email, from_name: from_name || null, subject,
+        preview: text.slice(0, 280), body: text.slice(0, EMAIL_BODY_MAX) || null,
+        status: 'non_lu', message_id,
       });
-      if (r.status === 404) return res.status(200).json({ ok: false, reason: 'table_absente' });
-      return res.status(r.ok ? 200 : 500).json({ ok: r.ok });
+      doc.seq += 1;
+      doc.list = doc.list.slice(0, EMAILS_MAX);
+      const ok = await writeEmailDoc(S, K, doc);
+      return res.status(ok ? 200 : 500).json({ ok });
     } catch (e) { return res.status(500).json({ error: e.message }); }
   }
 
@@ -779,12 +813,9 @@ export default async function handler(req, res) {
   if (action === 'emails') {
     if (!SUPA || !KEY) return res.status(200).json({ ready: false, emails: [], unread: 0 });
     try {
-      const r = await fetch(`${SUPA}/rest/v1/support_emails?select=id,received_at,from_email,from_name,subject,preview,body,status&order=received_at.desc&limit=300`,
-        { headers: { apikey: KEY, Authorization: `Bearer ${KEY}` } });
-      if (r.status === 404) return res.status(200).json({ ready: false, emails: [], unread: 0, reason: 'table_absente' });
-      if (!r.ok) return res.status(200).json({ ready: false, emails: [], unread: 0, reason: 'http_' + r.status });
-      const rows = await r.json().catch(() => []);
-      const emails = Array.isArray(rows) ? rows : [];
+      const doc = await readEmailDoc(SUPA, KEY);
+      if (!doc) return res.status(200).json({ ready: false, emails: [], unread: 0, reason: 'table_absente' });
+      const emails = [...doc.list].sort((a, b) => new Date(b.received_at) - new Date(a.received_at));
       return res.status(200).json({ ready: true, emails, unread: emails.filter((e) => e.status === 'non_lu').length });
     } catch (e) { return res.status(200).json({ ready: false, emails: [], unread: 0, reason: e.message }); }
   }
@@ -799,12 +830,11 @@ export default async function handler(req, res) {
       : (Number.isFinite(Number(b.id)) ? [Number(b.id)] : []);
     if (!status || !ids.length) return res.status(400).json({ error: 'invalid' });
     try {
-      const r = await fetch(`${SUPA}/rest/v1/support_emails?id=in.(${ids.join(',')})`, {
-        method: 'PATCH',
-        headers: { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-        body: JSON.stringify({ status }),
-      });
-      return res.status(r.ok ? 200 : 500).json({ ok: r.ok });
+      const doc = await readEmailDoc(SUPA, KEY);
+      if (!doc) return res.status(500).json({ error: 'table_absente' });
+      doc.list = doc.list.map((e) => (ids.includes(e.id) ? { ...e, status } : e));
+      const ok = await writeEmailDoc(SUPA, KEY, doc);
+      return res.status(ok ? 200 : 500).json({ ok });
     } catch (e) { return res.status(500).json({ error: e.message }); }
   }
 
@@ -817,11 +847,11 @@ export default async function handler(req, res) {
       : (Number.isFinite(Number(b.id)) ? [Number(b.id)] : []);
     if (!ids.length) return res.status(400).json({ error: 'invalid' });
     try {
-      const r = await fetch(`${SUPA}/rest/v1/support_emails?id=in.(${ids.join(',')})`, {
-        method: 'DELETE',
-        headers: { apikey: KEY, Authorization: `Bearer ${KEY}`, Prefer: 'return=minimal' },
-      });
-      return res.status(r.ok ? 200 : 500).json({ ok: r.ok });
+      const doc = await readEmailDoc(SUPA, KEY);
+      if (!doc) return res.status(500).json({ error: 'table_absente' });
+      doc.list = doc.list.filter((e) => !ids.includes(e.id));
+      const ok = await writeEmailDoc(SUPA, KEY, doc);
+      return res.status(ok ? 200 : 500).json({ ok });
     } catch (e) { return res.status(500).json({ error: e.message }); }
   }
 
