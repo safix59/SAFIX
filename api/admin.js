@@ -151,21 +151,35 @@ async function askGemini(system, messages, maxTokens, schema) {
 
 // La cascade elle-même. `schema` (optionnel) → sortie structurée garantie :
 // {reply, escalate} pour le bot, {suggestions[]} pour l'assistant admin.
-async function askLLM(system, messages, maxTokens = 400, schema = null) {
+// `opts.light` = privilégier le modèle Groq léger (8B-instant, limites bien
+// plus hautes) pour les tâches fréquentes (réécriture, suggestions) → on
+// réserve le quota quotidien du gros modèle 70B au bot client.
+async function askLLM(system, messages, maxTokens = 400, schema = null, opts = {}) {
   const t0 = Date.now();
   const budget = () => Date.now() - t0 < 20000; // garde 10 s pour le reste du handler
+  const GROQ_HEAVY = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
+  const GROQ_LIGHT = process.env.GROQ_MODEL_LIGHT || 'llama-3.1-8b-instant';
   try {
     if (process.env.ANTHROPIC_API_KEY) {
       const r = await askClaude(system, messages, maxTokens, schema);
       if (r) return r;
     }
     if (budget() && process.env.GROQ_API_KEY) {
-      const r = await askOpenAICompat({
-        url: 'https://api.groq.com/openai/v1/chat/completions',
-        key: process.env.GROQ_API_KEY,
-        model: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
-      }, system, messages, maxTokens, schema).catch(() => null);
-      if (r) return r;
+      // On tente le gros modèle puis, s'il est saturé (429 quota) ou en erreur,
+      // on bascule sur le léger — jamais d'échec « indisponible » tant que Groq
+      // répond. En mode `light` on va directement au léger (et le gros en secours).
+      const groqModels = opts.light
+        ? [GROQ_LIGHT, GROQ_HEAVY]
+        : [GROQ_HEAVY, GROQ_LIGHT];
+      for (const model of groqModels) {
+        if (!budget()) break;
+        const r = await askOpenAICompat({
+          url: 'https://api.groq.com/openai/v1/chat/completions',
+          key: process.env.GROQ_API_KEY,
+          model,
+        }, system, messages, maxTokens, schema).catch(() => null);
+        if (r) return r;
+      }
     }
     if (budget() && process.env.GEMINI_API_KEY) {
       const r = await askGemini(system, messages, maxTokens, schema).catch(() => null);
@@ -756,7 +770,7 @@ Réponds UNIQUEMENT en JSON : {"suggestions": ["…", "…", "…"]}`;
           properties: { suggestions: { type: 'array', items: { type: 'string' }, description: '3 réponses prêtes à envoyer au client.' } },
           required: ['suggestions'],
           additionalProperties: false,
-        });
+        }, { light: true });
         const llm = (out && Array.isArray(out.suggestions) ? out.suggestions : []).filter((s) => typeof s === 'string' && s.trim()).slice(0, 3);
         if (llm.length) return res.status(200).json({ ready: true, suggestions: llm, source: 'llm' });
       }
@@ -782,12 +796,15 @@ Réponds UNIQUEMENT en JSON : {"suggestions": ["…", "…", "…"]}`;
 RÈGLES ABSOLUES :
 - Corrige l'orthographe, la grammaire, la ponctuation ; améliore la formulation et la fluidité.
 - GARDE le sens EXACT et TOUTES les informations du message. N'AJOUTE AUCUNE information : aucun prix, délai, adresse, garantie ou promesse qui n'est pas déjà dans le texte. Ne supprime aucune info.
+- NE CHANGE PAS le temps ni le statut de l'action. Si le message ANNONCE ou PROPOSE une action à venir (« on peut réparer », « passez quand vous voulez », « ce sera prêt demain »), ne la présente JAMAIS comme déjà accomplie (« nous avons réparé », « c'est fait »). Un devis ou un tarif annoncé reste un devis, pas une intervention terminée.
 - Reste CONCIS : ne rallonge pas inutilement.
 - ${clientFacing ? 'Vouvoiement. ' : ''}Ton ${toneDesc}.
 - Si le texte est déjà correct, ne le change qu'à la marge.
 - Écris dans la MÊME langue que le message d'origine.
 Réponds UNIQUEMENT avec le message réécrit — aucun préambule, aucune explication, aucun guillemet, aucune liste d'options.`;
     try {
+      // Réécriture = qualité prioritaire (message vu par le client) → gros
+      // modèle d'abord, léger en secours seulement si le 70B est saturé.
       const out = await askLLM(system, [{ role: 'user', content: text }], 600);
       const improved = (typeof out === 'string' ? out : '').trim().replace(/^["'«»\s]+|["'«»\s]+$/g, '');
       if (!improved) return res.status(200).json({ ok: false, reason: 'no_output' });
