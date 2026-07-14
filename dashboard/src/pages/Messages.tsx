@@ -210,9 +210,41 @@ export function Messages() {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [confirmDel, setConfirmDel] = useState<null | { kind: 'msgs'; ids: number[] } | { kind: 'thread' }>(null);
   const [busyDel, setBusyDel] = useState(false);
+  const [rewriting, setRewriting] = useState(false);
+  const [toneMenu, setToneMenu] = useState(false);
+  const [rewriteUndo, setRewriteUndo] = useState<string | null>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const toneRef = useRef<HTMLDivElement>(null);
   const toast = useToast();
+
+  // Réécriture IA du brouillon (correction + reformulation, ton au choix).
+  const doRewrite = async (tone: 'client' | 'pro' | 'interne') => {
+    const text = reply.trim();
+    setToneMenu(false);
+    if (!text || rewriting) return;
+    setRewriting(true);
+    const res = await api.rewrite(text, tone);
+    setRewriting(false);
+    if (res.status === 200 && res.data?.ok && res.data.text) {
+      setRewriteUndo(text);
+      setReply(res.data.text);
+    } else {
+      const noLlm = res.data?.reason === 'no_llm';
+      toast({
+        title: noLlm ? 'Correction IA non activée' : 'Réécriture indisponible',
+        msg: noLlm ? 'Ajoutez une clé IA (Groq, gratuite) pour l\'activer.' : 'Réessayez dans un instant.',
+        tone: 'warn',
+      });
+    }
+  };
+  // Fermer le menu de ton au clic extérieur.
+  useEffect(() => {
+    if (!toneMenu) return;
+    const on = (e: MouseEvent) => { if (toneRef.current && !toneRef.current.contains(e.target as Node)) setToneMenu(false); };
+    document.addEventListener('mousedown', on);
+    return () => document.removeEventListener('mousedown', on);
+  }, [toneMenu]);
 
   const loadThreads = async () => {
     const res = await api.msgThreads();
@@ -509,8 +541,14 @@ export function Messages() {
                   <button onClick={() => setPendingImg(null)} className="grid place-items-center h-6 w-6 rounded-full bg-panel2 text-fg2 hover:text-fg text-[11px]">✕</button>
                 </div>
               )}
+              {rewriteUndo !== null && (
+                <div className="flex items-center gap-2 px-3 pt-2 shrink-0 animate-fade-in">
+                  <span className="inline-flex items-center gap-1.5 text-[11.5px] font-medium text-accentFg"><Icon name="sparkles" size={13} /> Message amélioré</span>
+                  <button type="button" onClick={() => { setReply(rewriteUndo); setRewriteUndo(null); }} className="text-[11.5px] text-fg3 hover:text-fg underline underline-offset-2">Revenir à l'original</button>
+                </div>
+              )}
 
-              <form onSubmit={(e) => { e.preventDefault(); void send(); }} className="flex items-center gap-2.5 p-3 border-t border-line shrink-0">
+              <form onSubmit={(e) => { e.preventDefault(); setRewriteUndo(null); void send(); }} className="flex items-center gap-2 p-3 border-t border-line shrink-0">
                 <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => void onPickFile(e.target.files?.[0] ?? null)} />
                 <button type="button" onClick={() => fileRef.current?.click()} title="Envoyer une photo"
                   className="grid place-items-center h-11 w-11 rounded-ctl bg-panel2 border border-line text-fg2 hover:text-fg hover:border-line2 shrink-0 transition-colors">
@@ -518,10 +556,34 @@ export function Messages() {
                 </button>
                 <input
                   value={reply}
-                  onChange={(e) => setReply(e.target.value)}
+                  onChange={(e) => { setReply(e.target.value); if (rewriteUndo) setRewriteUndo(null); }}
                   placeholder="Votre réponse…"
                   className="flex-1 h-11 bg-panel2 border border-line rounded-full px-4 text-[14px] text-fg placeholder:text-fg3 outline-none focus:border-line2 focus:shadow-focus transition-all"
                 />
+                {/* Amélioration IA du brouillon (correction + reformulation) */}
+                <div ref={toneRef} className="relative flex items-center shrink-0">
+                  <button type="button" onClick={() => void doRewrite('client')} disabled={!reply.trim() || rewriting}
+                    title="Améliorer le message (corrige les fautes et reformule)"
+                    className="grid place-items-center h-11 w-11 rounded-l-ctl bg-panel2 border border-line text-accentFg hover:border-line2 disabled:opacity-40 disabled:pointer-events-none transition-colors">
+                    <Icon name={rewriting ? 'refresh' : 'sparkles'} size={17} className={rewriting ? 'animate-spin' : ''} />
+                  </button>
+                  <button type="button" onClick={() => setToneMenu((v) => !v)} disabled={!reply.trim() || rewriting} title="Choisir le ton"
+                    className="grid place-items-center h-11 w-6 -ml-px rounded-r-ctl bg-panel2 border border-line text-fg3 hover:text-fg disabled:opacity-40 disabled:pointer-events-none transition-colors">
+                    <Icon name="chevronD" size={12} />
+                  </button>
+                  {toneMenu && (
+                    <div className="absolute bottom-full right-0 mb-2 w-52 bg-panel border border-line2 rounded-card shadow-pop overflow-hidden animate-scale-in z-30">
+                      <div className="px-3 py-2 text-[10.5px] font-semibold uppercase tracking-wide text-fg3 border-b border-line">Améliorer avec le ton…</div>
+                      {([['client', 'Client', 'chaleureux, rassurant'], ['pro', 'Professionnel', 'sobre et direct'], ['interne', 'Note interne', 'entre collègues']] as const).map(([tone, label, desc]) => (
+                        <button key={tone} type="button" onClick={() => void doRewrite(tone)}
+                          className="w-full text-left px-3 py-2.5 hover:bg-fg/[0.04] transition-colors">
+                          <span className="block text-[12.5px] font-medium">{label}</span>
+                          <span className="block text-[11px] text-fg3">{desc}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <button type="submit" disabled={(!reply.trim() && !pendingImg) || sending} className="grid place-items-center h-11 w-11 rounded-full bg-accent text-white shrink-0 hover:brightness-110 disabled:opacity-50 disabled:pointer-events-none transition">
                   <Icon name="send" size={17} />
                 </button>

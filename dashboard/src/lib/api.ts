@@ -230,7 +230,7 @@ let devCards: CardsMap = {};
 const devSnaps: CardsHistorySnap[] = [];
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 async function devCall<T>(
-  kind: 'login' | 'logout' | 'data' | 'live' | 'visits' | 'sessions' | 'del' | 'geo' | 'geo-set' | 'msg-threads' | 'msg-thread' | 'msg-reply' | 'msg-del' | 'msg-del-thread' | 'suggest' | 'admin-ping' | 'maintenance-get' | 'maintenance-set' | 'cards-get' | 'cards-set' | 'cards-history' | 'cards-restore' | 'emails' | 'email-status' | 'email-del',
+  kind: 'login' | 'logout' | 'data' | 'live' | 'visits' | 'sessions' | 'del' | 'geo' | 'geo-set' | 'msg-threads' | 'msg-thread' | 'msg-reply' | 'msg-del' | 'msg-del-thread' | 'suggest' | 'admin-ping' | 'maintenance-get' | 'maintenance-set' | 'cards-get' | 'cards-set' | 'cards-history' | 'cards-restore' | 'emails' | 'email-status' | 'email-del' | 'rewrite',
   pw?: string,
   payload?: unknown,
 ): Promise<Res<T>> {
@@ -257,6 +257,7 @@ async function devCall<T>(
   if (kind === 'emails') return { status: 200, data: m.mockEmails() as unknown as T };
   if (kind === 'email-status') { m.mockEmailStatus((payload as { ids: number[]; status: EmailStatus }).ids, (payload as { status: EmailStatus }).status); return { status: 200, data: { ok: true } as unknown as T }; }
   if (kind === 'email-del') { m.mockEmailDel((payload as { ids: number[] }).ids); return { status: 200, data: { ok: true } as unknown as T }; }
+  if (kind === 'rewrite') { const p = payload as { text: string; tone: string }; return { status: 200, data: { ok: true, text: `${(p.text || '').trim().charAt(0).toUpperCase()}${(p.text || '').trim().slice(1)} (démo — réécriture réelle en production).` } as unknown as T }; }
   if (kind === 'data') return { status: 200, data: m.MOCK_DATA as unknown as T };
   if (kind === 'live') return { status: 200, data: m.MOCK_LIVE as unknown as T };
   if (kind === 'sessions') return { status: 200, data: m.mockSessions() as unknown as T };
@@ -305,4 +306,6 @@ export const api = {
     DEV ? devCall('email-status', undefined, { ids, status }) : call('email-status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids, status }) }),
   emailDel: (ids: number[]): Promise<Res<{ ok: boolean }>> =>
     DEV ? devCall('email-del', undefined, { ids }) : call('email-del', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids }) }),
+  rewrite: (text: string, tone: 'client' | 'pro' | 'interne'): Promise<Res<{ ok: boolean; text?: string; reason?: string }>> =>
+    DEV ? devCall('rewrite', undefined, { text, tone }) : call('rewrite', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, tone }) }),
 };

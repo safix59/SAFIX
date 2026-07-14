@@ -756,6 +756,37 @@ Réponds UNIQUEMENT en JSON : {"suggestions": ["…", "…", "…"]}`;
     } catch { return res.status(200).json({ ready: false, suggestions: [] }); }
   }
 
+  // ── RÉÉCRITURE IA d'un message admin (correction + reformulation) ──
+  // Transforme le brouillon du réparateur en message propre, sans JAMAIS
+  // inventer d'information (prix, délai…) absente du texte. Ton au choix.
+  if (action === 'rewrite') {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+    if (!llmAvailable()) return res.status(200).json({ ok: false, reason: 'no_llm' });
+    const b = req.body || {};
+    const text = String(b.text || '').trim().slice(0, 2000);
+    if (!text) return res.status(400).json({ error: 'empty' });
+    const tone = ['client', 'pro', 'interne'].includes(b.tone) ? b.tone : 'client';
+    const clientFacing = tone !== 'interne';
+    const toneDesc = tone === 'pro' ? 'sobre, professionnel et direct'
+      : tone === 'interne' ? 'concis et factuel (note interne entre collègues, PAS destinée au client)'
+      : 'chaleureux, rassurant et orienté service client';
+    const system = `Tu es l'assistant d'écriture de SAFIX (réparation d'iPhone à Dunkerque). Tu reçois un message rédigé rapidement par le réparateur${clientFacing ? ' et destiné à un CLIENT' : ' (note interne)'}. Réécris-le pour qu'il soit clair, correct et naturel.
+RÈGLES ABSOLUES :
+- Corrige l'orthographe, la grammaire, la ponctuation ; améliore la formulation et la fluidité.
+- GARDE le sens EXACT et TOUTES les informations du message. N'AJOUTE AUCUNE information : aucun prix, délai, adresse, garantie ou promesse qui n'est pas déjà dans le texte. Ne supprime aucune info.
+- Reste CONCIS : ne rallonge pas inutilement.
+- ${clientFacing ? 'Vouvoiement. ' : ''}Ton ${toneDesc}.
+- Si le texte est déjà correct, ne le change qu'à la marge.
+- Écris dans la MÊME langue que le message d'origine.
+Réponds UNIQUEMENT avec le message réécrit — aucun préambule, aucune explication, aucun guillemet, aucune liste d'options.`;
+    try {
+      const out = await askLLM(system, [{ role: 'user', content: text }], 600);
+      const improved = (typeof out === 'string' ? out : '').trim().replace(/^["'«»\s]+|["'«»\s]+$/g, '');
+      if (!improved) return res.status(200).json({ ok: false, reason: 'no_output' });
+      return res.status(200).json({ ok: true, text: improved });
+    } catch (e) { return res.status(200).json({ ok: false, reason: 'error' }); }
+  }
+
   // ── MESSAGERIE ADMIN — suppression (message(s) / conversation entière) ──
   if (action === 'msg-del') {
     if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
