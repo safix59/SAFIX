@@ -69,6 +69,22 @@ function findModelKey(text: string, prices: PriceTable, loose = false): string |
   }
   return null;
 }
+// Nom d'affichage du modèle depuis le texte SEUL (sans catalogue) — pour que
+// le modèle compte comme « connu » même si le fichier de prix est indisponible
+// (le prix reste alors non chiffré, mais on ne redemande pas le modèle).
+function detectModelName(text: string, loose = false): string | null {
+  const t = normTxt(text).replace(/promax/g, 'pro max');
+  let mm = /iphone\s*(se|xr|xs max|xs|x|\d{1,2})\s*(pro max|pro|plus|mini|e)?/.exec(t);
+  if (!mm && loose) mm = /(?:^|\s)(xr|xs max|xs|1[0-7]|[5-9])\s*(pro max|pro|plus|mini|e)?(?=\s|$)/.exec(t);
+  if (!mm) return null;
+  const g1 = mm[1];
+  const base = /^\d+$/.test(g1)
+    ? g1
+    : g1.replace(/xs max/i, 'XS Max').replace(/xr/i, 'XR').replace(/xs/i, 'XS').replace(/se/i, 'SE').replace(/^x$/i, 'X');
+  const sfxMap: Record<string, string> = { 'pro max': 'Pro Max', pro: 'Pro', plus: 'Plus', mini: 'mini', e: 'e' };
+  const sfx = mm[2] ? ' ' + (sfxMap[mm[2]] || mm[2]) : '';
+  return `iPhone ${base}${sfx}`;
+}
 
 // Suggestions locales CONTEXTUELLES (repli instantané, avant l'IA distante).
 // Reçoit TOUT le fil : détermine le stade (premier contact vs conversation en
@@ -92,13 +108,13 @@ async function buildSuggestions(messages: ChatMessage[], visitorName: string | n
   // ── État de la conversation (slots déjà remplis) — miroir du moteur serveur.
   // On ne redemande JAMAIS une info déjà donnée par le client.
   const rep = REPAIRS.find((r) => r.rx.test(lastUserMsg)) || REPAIRS.find((r) => userTexts.some((x) => r.rx.test(x))) || null;
+  // Modèle : clé exacte du catalogue si dispo, sinon nom dérivé du texte —
+  // dans les deux cas, on considère le modèle « connu » (on ne le redemande pas).
   let modelKey: string | null = null;
-  if (prices) {
-    for (const x of userTexts) { modelKey = findModelKey(x, prices); if (modelKey) break; }
-    if (!modelKey) {
-      const ctx = userTexts.some((x) => /iphone/i.test(x)) || !!rep;
-      if (ctx) for (const x of userTexts) { modelKey = findModelKey(x, prices, true); if (modelKey) break; }
-    }
+  for (const x of userTexts) { modelKey = (prices ? findModelKey(x, prices) : null) || detectModelName(x); if (modelKey) break; }
+  if (!modelKey) {
+    const ctx = userTexts.some((x) => /iphone/i.test(x)) || !!rep;
+    if (ctx) for (const x of userTexts) { modelKey = (prices ? findModelKey(x, prices, true) : null) || detectModelName(x, true); if (modelKey) break; }
   }
   // Un prix a-t-il déjà été annoncé côté SAFIX ? Un RDV déjà évoqué ?
   const priceQuoted = messages.some((m) => m.sender === 'admin' && /\d+\s*€/.test(m.body));
