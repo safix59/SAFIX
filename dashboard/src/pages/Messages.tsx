@@ -216,18 +216,23 @@ export function Messages() {
   const bodyRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const toneRef = useRef<HTMLDivElement>(null);
+  const sugKeyRef = useRef<string>('');
   const toast = useToast();
 
   // Réécriture IA du brouillon (correction + reformulation, ton au choix).
+  // On réécrit TOUJOURS le texte ORIGINAL de l'admin (jamais une réécriture
+  // déjà faite) : changer de ton repart du texte tapé, et « revenir à
+  // l'original » restaure bien la phrase d'origine.
   const doRewrite = async (tone: 'client' | 'pro' | 'interne') => {
-    const text = reply.trim();
     setToneMenu(false);
-    if (!text || rewriting) return;
+    const source = (rewriteUndo ?? reply).trim(); // rewriteUndo = original conservé
+    const baseline = rewriteUndo ?? reply;
+    if (!source || rewriting) return;
     setRewriting(true);
-    const res = await api.rewrite(text, tone);
+    const res = await api.rewrite(source, tone);
     setRewriting(false);
     if (res.status === 200 && res.data?.ok && res.data.text) {
-      setRewriteUndo(text);
+      setRewriteUndo(baseline);
       setReply(res.data.text);
     } else {
       const noLlm = res.data?.reason === 'no_llm';
@@ -287,15 +292,22 @@ export function Messages() {
   useEffect(() => {
     const last = messages[messages.length - 1];
     const lastIsHumanAdmin = !!last && last.sender === 'admin' && !last.body.startsWith('::bot::');
-    const lastUser = [...messages].reverse().find((m) => m.sender === 'user' && m.body !== '::human::' && !m.body.startsWith('::img::'));
-    if (!active || !lastUser || lastIsHumanAdmin) { setSuggestions([]); setSugLoading(false); return; }
+    const users = messages.filter((m) => m.sender === 'user' && m.body !== '::human::' && !m.body.startsWith('::img::'));
+    const lastUser = users[users.length - 1];
+    if (!active || !lastUser || lastIsHumanAdmin) { setSuggestions([]); setSugLoading(false); sugKeyRef.current = ''; return; }
+    // Signature STABLE de l'état : on ne régénère les suggestions QUE si un
+    // NOUVEAU message client est arrivé (id/contenu du dernier + nombre), si on
+    // change de fil (active), ou sur rafraîchissement MANUEL (sugTick). Le
+    // polling (toutes les 6 s) recrée le tableau `messages` avec le MÊME contenu
+    // → sans ce garde, les suggestions se régénéraient en boucle (illisibles).
+    const key = `${active}::${users.length}::${lastUser.id ?? lastUser.body}::${sugTick}`;
+    if (key === sugKeyRef.current) return;
+    sugKeyRef.current = key;
     let alive = true;
     const th = threads?.find((t) => t.session === active);
     const sessionId = active;
     // Repli local immédiat (affichage instantané), puis IA distante si dispo.
-    // On passe TOUT le fil : le repli connaît alors le modèle déjà évoqué et
-    // le stade de la conversation (pas de « Bonjour » au milieu).
-    void buildSuggestions(messages, th?.name ?? null).then((s) => { if (alive) setSuggestions((cur) => (cur.length ? cur : s)); });
+    void buildSuggestions(messages, th?.name ?? null).then((s) => { if (alive) setSuggestions(s); });
     setSugLoading(true);
     const t = setTimeout(() => {
       void api.msgSuggest(sessionId)
@@ -305,7 +317,7 @@ export function Messages() {
         .finally(() => { if (alive) setSugLoading(false); });
     }, 350);
     return () => { alive = false; clearTimeout(t); };
-    // sugTick force une régénération manuelle (bouton ↻ de l'assistant).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages, active, threads, sugTick]);
 
   const filtered = useMemo(() => {
@@ -572,7 +584,7 @@ export function Messages() {
                     <Icon name="chevronD" size={12} />
                   </button>
                   {toneMenu && (
-                    <div className="absolute bottom-full right-0 mb-2 w-52 bg-panel border border-line2 rounded-card shadow-pop overflow-hidden animate-scale-in z-30">
+                    <div className="absolute bottom-full right-0 mb-2 w-52 bg-panel border border-line2 rounded-card shadow-pop overflow-hidden animate-scale-in z-50">
                       <div className="px-3 py-2 text-[10.5px] font-semibold uppercase tracking-wide text-fg3 border-b border-line">Améliorer avec le ton…</div>
                       {([['client', 'Client', 'chaleureux, rassurant'], ['pro', 'Professionnel', 'sobre et direct'], ['interne', 'Note interne', 'entre collègues']] as const).map(([tone, label, desc]) => (
                         <button key={tone} type="button" onClick={() => void doRewrite(tone)}
