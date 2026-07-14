@@ -436,7 +436,8 @@ export default async function handler(req, res) {
         const catalog = botCatalogContext(userTexts, prices);
         const system = BOT_FACTS
           + (catalog ? `\n\n${catalog}` : '\n\nAucune donnée catalogue disponible pour cette conversation (aucun modèle identifié). Ne cite AUCUN prix.')
-          + `\n\nRéponse du moteur catalogue au dernier message (référence fiable à reformuler si pertinente) : « ${det.reply} »`
+          + `\n\nRÉPONSE DE RÉFÉRENCE du moteur catalogue (fiable et vérifiée) au dernier message : « ${det.reply} ».`
+          + `\nSi cette référence ou les DONNÉES CATALOGUE contiennent un PRIX ou une DISPONIBILITÉ, tu DOIS reprendre ces montants EXACTS dans ta réponse (reformulés naturellement et chaleureusement) — n'esquive JAMAIS avec « consultez le site » ou « différentes options » quand tu connais le prix. Sois concret et précis.`
           + `\n\nRéponds en JSON : {"reply": ta réponse au client, "escalate": true si un conseiller humain doit être proposé (règle 7), sinon false}.`;
         const msgs = [...hist];
         if (!msgs.length || msgs[msgs.length - 1].role !== 'user' || msgs[msgs.length - 1].content.trim() !== message) {
