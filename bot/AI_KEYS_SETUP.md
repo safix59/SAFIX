@@ -52,5 +52,23 @@ la clé les fait juste passer au niveau supérieur.
 Quelle que soit l'IA branchée, elle ne reçoit **que des faits vérifiés**
 (catalogue temps réel + informations du site) et a **interdiction d'inventer**
 un prix, un délai ou une disponibilité. En cas de doute, elle passe la main à
-un conseiller. Le banc de test `bot/nlu-bench/run.mjs` (55 scénarios) protège
-le moteur maison contre toute régression : `node bot/nlu-bench/run.mjs`.
+un conseiller.
+
+## Le moteur maison (sans clé) — solidité prouvée
+
+Même **sans aucune clé**, l'assistant comprend la grande majorité des messages :
+fautes d'orthographe/frappe, abréviations SMS, symptômes décrits avec ses mots,
+mémoire de la conversation (modèle/panne déjà donnés), méta (« es-tu un
+robot ? »), hors-sujet (redirection douce), et il **escalade honnêtement**
+quand c'est hors catalogue (dégât liquide, Face ID, réseau…) au lieu d'inventer.
+
+Deux bancs de test protègent ce moteur contre toute régression (**291
+scénarios**, dont des centaines de cas adversariaux) :
+
+```bash
+node bot/nlu-bench/run.mjs    # 55 scénarios « cœur »
+node bot/nlu-bench/deep.mjs   # 236 scénarios profonds / adversariaux
+```
+
+À **relancer avant tout déploiement** touchant l'assistant : les deux doivent
+afficher 100 %.
