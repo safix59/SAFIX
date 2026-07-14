@@ -38,30 +38,39 @@ RÈGLES STRICTES :
 // Intentions ↔ identifiants RÉELS de prices.json (avec gammes de qualité).
 // `kw` = lexique (mots simples appariés en flou, expressions en littéral).
 // L'ordre compte : les intentions les plus spécifiques d'abord.
+// L'ORDRE compte : la 1re intention qui matche gagne. Les plus spécifiques
+// d'abord (caméra AVANT avant caméra arrière ; vitre ARRIÈRE avant écran →
+// « vitre » seul = écran/face avant, « vitre arrière » = dos). Les mots seuls
+// sont appariés en FLOU (les fautes de frappe ≥4 lettres sont tolérées
+// automatiquement → inutile de lister les variantes fautives) ; les
+// expressions (avec espace) en LITTÉRAL. Mots-clés SANS accent (norm() les
+// retire) et sans trait d'union (le texte est en espaces).
 export const BOT_REPAIRS = [
-  { kw: ['camera avant', 'selfie', 'frontale'], label: 'la caméra avant', ids: [['camera_avant', '']] },
-  { kw: ['camera', 'appareil photo', 'objectif'], label: 'la caméra arrière', ids: [['camera_arriere', '']] },
-  { kw: ['lentille'], label: 'la lentille de la caméra arrière', ids: [['lentille_camera_arriere', '']] },
-  { kw: ['vitre arriere', 'vitres arrieres', 'vitre arr', 'face arriere', 'dos', 'back glass', 'backglass', 'coque arriere'], label: 'la vitre arrière', ids: [['vitre_arriere', '']] },
-  { kw: ['ecran', 'screen', 'afficheur', 'dalle', 'lcd', 'oled', 'vitre avant', 'tactile'], label: "l'écran", ids: [['ecran_eco', 'Éco'], ['ecran_standard', 'Standard'], ['ecran_premium', 'Premium'], ['ecran_original', 'Original']] },
-  { kw: ['batterie', 'battery', 'autonomie'], label: 'la batterie', ids: [['batterie', 'Standard'], ['batterie_original', 'Original']] },
-  { kw: ['connecteur', 'prise de charge', 'port de charge'], label: 'le connecteur de charge', ids: [['connecteur_de_charge', '']] },
-  { kw: ['haut parleur', 'hautparleur', 'speaker', 'enceinte'], label: 'le haut-parleur', ids: [['haut_parleur', '']] },
-  { kw: ['ecouteur'], label: "l'écouteur interne", ids: [['ecouteur_interne', '']] },
-  { kw: ['micro', 'microphone'], label: 'le micro', ids: [['micro', '']] },
-  { kw: ['vibreur'], label: 'le vibreur', ids: [['vibreur', '']] },
-  { kw: ['verre trempe', 'verre', 'protection', 'film'], label: 'le verre trempé', ids: [['verre_trempe_classique', 'Classique'], ['verre_trempe_anti_espion', 'Anti-espion']] },
-  { kw: ['bouton power', 'bouton allumage', 'bouton volume', 'bouton'], label: 'le bouton', ids: [['bouton_power', 'Power'], ['bouton_volume', 'Volume']] },
+  { kw: ['camera avant', 'camera frontale', 'selfie', 'frontale', 'appareil photo avant', 'photo de face'], label: 'la caméra avant', ids: [['camera_avant', '']] },
+  { kw: ['camera arriere', 'camera principale', 'appareil photo', 'objectif', 'photo arriere', 'grand angle', 'camera'], label: 'la caméra arrière', ids: [['camera_arriere', '']] },
+  { kw: ['lentille', 'vitre camera', 'verre camera', 'protection camera'], label: 'la lentille de la caméra arrière', ids: [['lentille_camera_arriere', '']] },
+  { kw: ['vitre arriere', 'vitres arrieres', 'vitre arr', 'face arriere', 'dos casse', 'dos fissure', 'dos', 'derriere casse', 'back glass', 'backglass', 'back cover', 'coque arriere', 'chassis arriere', 'panneau arriere'], label: 'la vitre arrière', ids: [['vitre_arriere', '']] },
+  { kw: ['ecran', 'screen', 'afficheur', 'affichage', 'dalle', 'lcd', 'oled', 'vitre avant', 'vitre', 'fissure', 'felee', 'display', 'tactile', 'affiche plus', 'lignes sur l ecran', 'tache noire'], label: "l'écran", ids: [['ecran_eco', 'Éco'], ['ecran_standard', 'Standard'], ['ecran_premium', 'Premium'], ['ecran_original', 'Original']] },
+  { kw: ['batterie', 'battery', 'autonomie', 'accu', 'batterie gonfle', 'pile'], label: 'la batterie', ids: [['batterie', 'Standard'], ['batterie_original', 'Original']] },
+  { kw: ['connecteur', 'connecteur de charge', 'prise de charge', 'port de charge', 'prise charge', 'port charge', 'port usb', 'port de chargement', 'nappe de charge'], label: 'le connecteur de charge', ids: [['connecteur_de_charge', '']] },
+  { kw: ['haut parleur', 'hautparleur', 'speaker', 'enceinte', 'haut parleur du bas'], label: 'le haut-parleur', ids: [['haut_parleur', '']] },
+  { kw: ['ecouteur', 'ecouteur interne', 'haut parleur interne', 'oreille'], label: "l'écouteur interne", ids: [['ecouteur_interne', '']] },
+  { kw: ['micro', 'microphone', 'micros'], label: 'le micro', ids: [['micro', '']] },
+  { kw: ['vibreur', 'vibration', 'vibre plus', 'moteur de vibration'], label: 'le vibreur', ids: [['vibreur', '']] },
+  { kw: ['verre trempe', 'protection ecran', 'film protection', 'film ecran', 'protege ecran'], label: 'le verre trempé', ids: [['verre_trempe_classique', 'Classique'], ['verre_trempe_anti_espion', 'Anti-espion']] },
+  { kw: ['bouton power', 'bouton allumage', 'bouton marche', 'bouton volume', 'bouton son', 'bouton home', 'bouton', 'touche power'], label: 'le bouton', ids: [['bouton_power', 'Power'], ['bouton_volume', 'Volume']] },
 ];
 // Symptômes décrits avec ses mots → réparation probable (jamais affirmée
 // comme certaine : le diagnostic au dépôt confirme).
 export const BOT_SYMPTOMS = [
-  { kw: ['charge plus', 'charge pas', 'charge mal', 'charge rien', 'ne charge', 'se charge plus', 'recharge plus', 'recharge pas'], ridKw: 'connecteur', hint: "Le plus souvent c'est le connecteur de charge (parfois la batterie — le diagnostic au dépôt le confirme sans frais)." },
-  { kw: ['decharge vite', 'se decharge', 'tient pas', 'tient plus', 'vide vite', 'batterie fond'], ridKw: 'batterie', hint: 'Une batterie qui se vide vite se remplace rapidement.' },
-  { kw: ['aucun son', 'pas de son', 'plus de son', 'gresille', 'entend rien', 'entends rien'], ridKw: 'haut parleur', hint: "Cela pointe vers le haut-parleur (ou l'écouteur interne selon le cas)." },
-  { kw: ['m entend pas', 'm entendent pas', 'entend mal quand je parle'], ridKw: 'micro', hint: 'Cela ressemble à un souci de micro.' },
-  { kw: ['tactile marche plus', 'repond plus au doigt', 'repond plus au toucher', 'touche plus'], ridKw: 'ecran', hint: "Un tactile qui ne répond plus vient de l'écran." },
-  { kw: ['photo floue', 'photos floues', 'camera floue'], ridKw: 'camera', hint: 'Une photo floue vient en général de la caméra ou de sa lentille.' },
+  { kw: ['charge plus', 'charge pas', 'charge mal', 'charge rien', 'ne charge', 'se charge plus', 'recharge plus', 'recharge pas', 'charge lentement', 'charge lente', 'faux contact', 'prend pas la charge', 'reconnait pas le cable'], ridKw: 'connecteur', hint: "Le plus souvent c'est le connecteur de charge (parfois la batterie — le diagnostic au dépôt le confirme sans frais)." },
+  { kw: ['decharge vite', 'se decharge', 'tient pas', 'tient plus', 'vide vite', 'batterie fond', 'perd de la batterie', 'gonfle', 'batterie gonfle', 'ecran se souleve', 'ecran decolle', 's eteint tout seul', 'pourcentage saute'], ridKw: 'batterie', hint: 'Une batterie fatiguée (qui se vide vite ou gonfle) se remplace rapidement.' },
+  { kw: ['aucun son', 'pas de son', 'plus de son', 'gresille', 'entend rien', 'entends rien', 'son faible', 'son etouffe', 'gresillement'], ridKw: 'haut parleur', hint: "Cela pointe vers le haut-parleur (ou l'écouteur interne selon le cas)." },
+  { kw: ['m entend pas', 'm entendent pas', 'entend mal quand je parle', 'micro marche plus', 'me capte pas'], ridKw: 'micro', hint: 'Cela ressemble à un souci de micro.' },
+  { kw: ['tactile marche plus', 'repond plus au doigt', 'repond plus au toucher', 'touche plus', 'tactile bug', 'ecran fantome', 'clic tout seul'], ridKw: 'ecran', hint: "Un tactile qui ne répond plus vient de l'écran." },
+  { kw: ['lignes', 'clignote', 'clignotement', 'ecran vert', 'ecran blanc', 'ecran bleu', 'pixels morts', 'affichage bizarre', 'image figee', 'ecran qui bug', 'points sur l ecran', 'moitie ecran', 'rien saffiche', 'rien ne saffiche', 'plus rien saffiche', 'sallume mais rien', 'affiche rien', 'ecran reste noir', 'ecran tout noir'], ridKw: 'ecran', hint: "Ce type d'affichage vient généralement de l'écran." },
+  { kw: ['photo floue', 'photos floues', 'camera floue', 'photo trouble', 'camera tremble', 'flou photo'], ridKw: 'camera', hint: 'Une photo floue vient en général de la caméra ou de sa lentille.' },
+  { kw: ['ne vibre plus', 'vibre plus', 'pas de vibration', 'plus de vibration'], ridKw: 'vibreur', hint: 'Cela ressemble à un vibreur à remplacer.' },
 ];
 // Normalisation : accents, ponctuation, abréviations SMS et fautes fréquentes.
 export const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -86,18 +95,34 @@ function lev(a, b) {
   }
   return prev[n];
 }
+// Mots-outils fréquents qui, en appariement flou, se transformaient à tort en
+// mots-clés (ex. « votre » ≈ « vitre » à distance 1 → toute phrase avec
+// « votre » passait pour une demande d'écran). Ils ne matchent qu'à l'EXACT.
+const FUZZY_STOP = new Set(['votre', 'notre', 'autre', 'autres', 'quatre', 'contre', 'entre', 'vos', 'nos', 'votres', 'quatres']);
 function fuzzyTok(tok, word) {
   if (tok === word) return true;
+  if (FUZZY_STOP.has(tok)) return false;
   if (word.length < 4 || tok.length < 3) return false;
   const d = word.length >= 8 ? 2 : 1;
   if (Math.abs(tok.length - word.length) > d) return false;
   return lev(tok, word) <= d;
 }
-// `t` déjà normalisé ; expressions (avec espace) en littéral, mots en flou.
+// Mots-clés COURTS très proches de mots français fréquents → appariés à
+// l'EXACT uniquement (le flou ferait plus de mal que de bien : « vitre » ≈
+// votre/notre/titre/litre/mettre/lettre/autre/quatre… ; « pile » ≈ file/mile).
+const EXACT_ONLY = new Set(['vitre', 'pile', 'accu', 'dos', 'oled', 'lcd', 'film', 'bug', 'ia', 'bot', 'gps', 'nfc', 'sim',
+  // Mots de prix courts qui collisionnent avec des mots très fréquents :
+  // « cout » ≈ tout/bout/gout ; « coute » ≈ toute/route/doute ; « prix » ≈ pris/prit.
+  'cout', 'coute', 'prix',
+  // Lieux courts : « lille » ≈ mille/ville/fille ; « loin » ≈ coin/soin/foin.
+  'lille', 'loin', 'zone']);
+// `t` déjà normalisé ; expressions (avec espace) en littéral, mots en flou
+// (sauf EXACT_ONLY). Les fautes de frappe ≥4 lettres restent tolérées ailleurs.
 export function hasWord(t, words) {
   const toks = t.split(' ');
   for (const w of words) {
     if (w.includes(' ')) { if (t.includes(w)) return true; continue; }
+    if (EXACT_ONLY.has(w)) { if (toks.includes(w)) return true; continue; }
     for (const tok of toks) if (fuzzyTok(tok, w)) return true;
   }
   return false;
@@ -117,7 +142,12 @@ function botFindModelLoose(text, prices) {
   const t = norm(text).replace(/promax/g, 'pro max');
   const strict = botFindModel(t, prices);
   if (strict) return strict;
-  const mm = /(?:^|\s)(se|xr|xs max|xs|x|1[0-7]|[5-9])\s*(pro max|pro|plus|mini|e)?(?:\s*(\d{4}))?(?=\s|$)/.exec(t);
+  // ATTENTION : sans le mot « iphone », on N'accepte PAS « se »/« x » seuls —
+  // « se » est le pronom réfléchi le plus fréquent du français (« se recharge »,
+  // « se passe »…) et faisait passer toute phrase pour un iPhone SE. On garde
+  // les numéros (5–17) et les modèles lettrés non ambigus (xr, xs, xs max).
+  // « iphone se » reste géré par botFindModel (strict, mot iphone présent).
+  const mm = /(?:^|\s)(xr|xs max|xs|1[0-7]|[5-9])\s*(pro max|pro|plus|mini|e)?(?:\s*(\d{4}))?(?=\s|$)/.exec(t);
   if (!mm) return null;
   return botResolveModel(mm, prices);
 }
@@ -190,6 +220,12 @@ export function botAnswer(message, history = [], prices = null) {
     .filter((x) => x && !x.startsWith('img ') && x !== 'human');
 
   // ── Intentions prioritaires (avant toute recherche catalogue) ──
+  // Question MÉTA « es-tu un robot / un humain / une IA ? » — c'est une
+  // QUESTION, pas une demande de conseiller : on répond, on n'escalade pas.
+  if (/\b(es|est)[- ]?tu\b|\best[- ]ce que tu\b|\btu es (un|une)\b|\bvous etes (un|une|des)\b|\bc est (un|une)\b|\bt es (un|une)\b/.test(t)
+      && hasWord(t, ['robot', 'humain', 'ia', 'machine', 'bot', 'reel', 'reelle', 'personne', 'vraie personne', 'automatique', 'ordinateur', 'programme', 'intelligence artificielle'])) {
+    return { reply: "Je suis l'assistant automatique de SAFIX 🤖 — je réponds tout de suite, et un conseiller humain peut prendre le relais quand vous le souhaitez. Dites-moi comment je peux aider pour votre iPhone 👍", human: false };
+  }
   if (hasWord(t, ['conseiller', 'humain', 'quelqu un', 'une personne', 'vrai personne'])) {
     return { reply: 'Bien sûr, je préviens un conseiller — il vous répond ici même dès que possible. Vous pouvez aussi laisser votre question en attendant.', human: true };
   }
@@ -216,6 +252,19 @@ export function botAnswer(message, history = [], prices = null) {
   if (hasWord(t, ['face id', 'faceid', 'touch id', 'carte mere', 'micro soudure', 'desoxydation'])) {
     return { reply: "Cette intervention n'est pas dans notre catalogue en ligne, je préfère ne pas vous répondre au hasard : un conseiller vous confirme rapidement si nous pouvons la prendre en charge 👇", human: true };
   }
+  // Surchauffe : cause multiple (batterie, composant) → diagnostic, jamais de
+  // promesse à distance.
+  if (hasWord(t, ['chauffe', 'surchauffe', 'surchauffer', 'trop chaud', 'brulant', 'brulante'])) {
+    return { reply: "Un iPhone qui chauffe anormalement peut venir de la batterie ou d'un composant : mieux vaut un diagnostic pour ne rien vous affirmer au hasard. Un conseiller vous oriente 👇 En attendant, évitez de le laisser en charge s'il devient brûlant.", human: true };
+  }
+  // Bloqué sur la pomme / bootloop / redémarrages → déblocage/diagnostic.
+  if (hasWord(t, ['bloque sur la pomme', 'reste sur la pomme', 'logo pomme', 'logo apple', 'pomme qui clignote', 'bootloop', 'boot loop', 'redemarre', 'redemarrage', 'redemarrages', 'reboot', 'ecran de la pomme', 'coince sur la pomme', 'plante au demarrage', 'se fige', 'ecran gele', 'plante sans arret'])) {
+    return { reply: "Un iPhone bloqué sur la pomme ou qui redémarre sans arrêt relève d'un déblocage / diagnostic. Un conseiller vous confirme la prise en charge et la marche à suivre 👇", human: true };
+  }
+  // Réseau / Wi-Fi / SIM / Bluetooth : hors catalogue en ligne → honnêteté.
+  if (hasWord(t, ['wifi', 'wi fi', 'bluetooth', 'reseau', 'pas de reseau', 'plus de reseau', 'capte plus', 'capte pas', 'antenne', 'carte sim', 'sim non reconnue', 'pas de service', 'aucun service', 'pas de signal', 'gps', 'nfc'])) {
+    return { reply: "Ce type de panne (réseau, Wi-Fi, Bluetooth ou SIM) n'est pas listé dans notre catalogue en ligne — je préfère ne pas vous répondre au hasard. Un conseiller vérifie si nous pouvons la prendre en charge 👇", human: true };
+  }
   if (hasWord(t, ['garantie', 'garanti', 'garantis'])) {
     return { reply: "Nos réparations sont réalisées avec des pièces neuves. Conformément à nos CGV, aucune garantie commerciale n'est offerte sur les réparations — vos droits légaux de consommateur restent bien sûr pleinement applicables. Et si une commande ne peut pas être honorée, elle est intégralement remboursée.", human: false };
   }
@@ -234,10 +283,15 @@ export function botAnswer(message, history = [], prices = null) {
   if (hasWord(t, ['retour en stock', 'de nouveau disponible', 'restock', 'quand disponible', 'reassort', 'reapprovisionne'])) {
     return { reply: 'Les stocks se mettent à jour en temps réel sur le site. Un conseiller peut vous prévenir personnellement dès le retour de la pièce 👇', human: true };
   }
-  if (hasWord(t, ['mes donnees', 'mes photos', 'vider mon', 'effacer mes', 'sauvegarder'])) {
+  // Sauvegarde / données : « mes photos »/« mes données » SEULS sont trop
+  // génériques (« mes photos sont floues » = caméra) → on exige un verbe de
+  // sauvegarde/effacement, sinon on laisse la logique réparation décider.
+  if (hasWord(t, ['sauvegarder', 'sauvegarde', 'vider mon', 'effacer mes', 'perdre mes donnees', 'perte de donnees', 'garder mes donnees', 'perdre mes photos'])) {
     return { reply: 'Très bonne question — un conseiller vous précise la marche à suivre pour vos données avant le dépôt (sauvegarde, code…) 👇', human: true };
   }
-  if (hasWord(t, ['contacter', 'joindre', 'appeler', 'appelle', 'un appel', 'par telephone', 'numero', 'e mail', 'email', 'courriel', 'adresse mail', 'par mail'])) {
+  // Contact : expressions « vous appeler / vous téléphoner » (le mot seul
+  // « téléphone » désigne l'appareil dans la plupart des messages → collision).
+  if (hasWord(t, ['contacter', 'joindre', 'vous appeler', 'vous telephoner', 'vous ecrire', 'un appel', 'par telephone', 'par mail', 'par email', 'adresse mail', 'votre mail', 'e mail', 'email'])) {
     return { reply: 'Le plus simple : ce chat — un conseiller vous répond ici même. Vous pouvez aussi nous écrire à support@safix59.fr. Nous ne proposons pas d\'assistance téléphonique pour le moment.', human: false };
   }
   // Gammes de qualité + pièces d'origine (descriptions officielles du catalogue).
@@ -262,6 +316,10 @@ export function botAnswer(message, history = [], prices = null) {
   // message courant OU de n'importe quel message précédent du fil.
   const contextEstablished = !!repair || userTexts.some((h) => h.includes('iphone') || findRepair(h) || findSymptom(h));
   if (!model && prices && contextEstablished) model = botFindModelLoose(t, prices);
+  // Message TRÈS court = quasi uniquement un modèle (« 13 pro », « 12 »,
+  // « 15 pro max ») → dans un chat de réparation, c'est le modèle du client :
+  // on l'accepte même sans contexte préalable.
+  if (!model && prices && t.length <= 12) model = botFindModelLoose(t, prices);
   const modelInCurrent = !!model;
   if (!model && prices) {
     for (const h of userTexts) { model = botFindModel(h, prices); if (model) break; }
@@ -289,7 +347,11 @@ export function botAnswer(message, history = [], prices = null) {
     const { found, anyRef, allOOS } = botPriceLine(repair, model, prices);
     if (found.length) {
       const detail = found.length > 1 ? `plusieurs qualités au choix — ${found.join(' · ')}` : `${found[0]} tout compris`;
-      return { reply: `Oui ✅ ${cap(repair.label)} de l'${model} est disponible : ${detail} (pièce neuve + pose).${symptomHint} Vous pouvez commander depuis la fiche « ${model} » du site — le rendez-vous se choisit à cette étape.`, human: false };
+      // Multi-intention : le client demande AUSSI le délai/la livraison dans le
+      // même message → on répond aux deux d'un coup (pas une seule des demandes).
+      const asksDelai = hasWord(t, ['delai', 'combien de temps', 'livraison', 'rapide', 'quand', 'longtemps', 'sous combien']);
+      const delaiLine = asksDelai ? ' Côté délai : la pièce arrive en Standard (sous 48 h) ou Express (dès le lendemain), à choisir dans le panier — c\'est ce qui fixe la date du rendez-vous.' : '';
+      return { reply: `Oui ✅ ${cap(repair.label)} de l'${model} est disponible : ${detail} (pièce neuve + pose).${symptomHint}${delaiLine} Vous pouvez commander depuis la fiche « ${model} » du site — le rendez-vous se choisit à cette étape.`, human: false };
     }
     if (anyRef && allOOS) return { reply: `${cap(repair.label)} de l'${model} est actuellement en rupture chez notre fournisseur. Un conseiller peut vous prévenir dès le retour en stock 👇`, human: true };
     return { reply: `Je ne trouve pas ${repair.label} pour l'${model} dans notre catalogue en ligne. Un conseiller peut vérifier une disponibilité spéciale pour vous 👇`, human: true };
@@ -321,8 +383,8 @@ export function botAnswer(message, history = [], prices = null) {
 
   // ── FAQ vérifiée ──
   if (hasWord(t, ['adresse', 'localisation', 'ou etes vous', 'vous etes ou', 'etes ou', 'ou vous trouve', 'vous situez', 'situe', 'ou aller'])) return { reply: 'Nous sommes au 48 Bd Alexandre III, 59140 Dunkerque. Le dépôt de votre iPhone se fait sur rendez-vous, réservable directement lors de la commande.', human: false };
-  if (hasWord(t, ['horaire', 'horaires', 'ouvert', 'quelle heure'])) return { reply: 'Nous fonctionnons sur rendez-vous : créneaux matin (9h–12h), après-midi (14h–18h) et soir (18h–20h), à choisir lors de votre commande.', human: false };
-  if (hasWord(t, ['livraison', 'delai', 'delais', 'combien de temps', 'longtemps', 'rapide', 'rapidement', '48h', '48 h', 'sous 48', 'demain', 'aujourd hui'])) return { reply: "La pièce arrive en Standard (sous 48 h, 6 €) ou Express (dès le lendemain 15h, 8 €) — c'est ce qui fixe la date de votre réparation. Les détails exacts s'affichent dans le panier.", human: false };
+  if (hasWord(t, ['horaire', 'horaires', 'ouvert', 'ouvre', 'ouvrez', 'ouverture', 'quelle heure', 'quel jour'])) return { reply: 'Nous fonctionnons sur rendez-vous : créneaux matin (9h–12h), après-midi (14h–18h) et soir (18h–20h), à choisir lors de votre commande.', human: false };
+  if (hasWord(t, ['livraison', 'delai', 'delais', 'combien de temps', 'longtemps', 'rapide', 'rapidement', '48h', '48 h', 'sous 48', 'sous combien', 'delai de reparation', 'temps de reparation'])) return { reply: "La pièce arrive en Standard (sous 48 h, 6 €) ou Express (dès le lendemain 15h, 8 €) — c'est ce qui fixe la date de votre réparation. Les détails exacts s'affichent dans le panier.", human: false };
   // « Quand payer ? » (avant / après dépôt) — avant le paiement générique.
   if (hasWord(t, ['payer avant', 'payer apres', 'paye avant', 'paye apres', 'paiement avant', 'paiement apres', 'avant ou apres', 'regle avant', 'regle apres', 'paye quand', 'quand payer', 'quand regler'])) {
     return { reply: 'Le paiement se fait en ligne au moment de la commande sur le site ; vous déposez ensuite votre iPhone au rendez-vous choisi. Tout est réglé en une fois, de façon 100 % sécurisée.', human: false };
@@ -357,7 +419,24 @@ export function botAnswer(message, history = [], prices = null) {
     return { reply: "Pas de souci 👍 Je reste disponible si une question vous vient. Bonne journée !", human: false };
   }
   if (hasWord(t, ['bonjour', 'salut', 'hello', 'bonsoir', 'coucou', 'hey']) && t.length < 25) return { reply: 'Bonjour 👋 Je peux vous renseigner sur nos réparations, les prix, les délais ou les rendez-vous. Que puis-je faire pour vous ?', human: false };
-  if (hasWord(t, ['merci', 'top', 'parfait', 'super', 'genial', 'nickel']) && t.length < 30) return { reply: 'Avec plaisir 🙌 Je reste là si vous avez une autre question.', human: false };
+  if (hasWord(t, ['merci', 'remercie', 'remercier', 'remerciements', 'top', 'parfait', 'super', 'genial', 'nickel', 'bravo', 'excellent', 'felicitations', 'au top', 'impeccable']) && t.length < 45) return { reply: 'Avec plaisir 🙌 Je reste là si vous avez une autre question.', human: false };
   if (hasWord(t, ['au revoir', 'bonne journee', 'bonne soiree', 'a bientot', 'bye'])) return { reply: 'Merci à vous, et à bientôt chez SAFIX 👋', human: false };
-  return { reply: "Je préfère ne pas vous répondre au hasard sur ce point. Un conseiller va prendre le relais — vous pouvez aussi cliquer sur « Parler à un conseiller » 👇", human: true };
+  // Small-talk « ça va ? » → on répond brièvement puis on recentre.
+  if (hasWord(t, ['ca va', 'comment vas tu', 'tu vas bien', 'comment ca va', 'la forme']) && t.length < 30) {
+    return { reply: 'Tout va bien, merci 🙂 Je suis l\'assistant SAFIX, prêt à vous aider pour la réparation de votre iPhone. Quel est votre besoin ?', human: false };
+  }
+  // Hors-sujet clair (blague, météo, autre thème) → redirection douce, PAS
+  // d'escalade inutile vers un conseiller.
+  if (hasWord(t, ['blague', 'raconte', 'chanson', 'meteo', 'recette', 'foot', 'football', 'president', 'capitale', 'poeme', 'histoire drole', 'chante'])) {
+    return { reply: "Je suis spécialisé dans la réparation d'iPhone chez SAFIX 🙂 Je ne pourrai pas vous aider là-dessus, mais pour tout ce qui concerne votre iPhone (prix, panne, rendez-vous), je suis à votre disposition !", human: false };
+  }
+  // Intention de réparation MANIFESTE mais détails manquants (« je veux réparer
+  // mon iphone », « iphone », « réparation », « mon tel déconne ») → on
+  // n'abandonne pas : on demande LES deux infos utiles (modèle + panne).
+  if (hasWord(t, ['iphone', 'telephone', 'portable', 'smartphone', 'reparer', 'reparation', 'repare', 'reparez', 'depanner', 'changer', 'remplacer', 'abime', 'abimee', 'deconne', 'bug', 'bugue', 'plante'])) {
+    return { reply: "Avec plaisir, je vais vous aider 👍 Dites-moi le modèle exact de votre iPhone (ex. iPhone 13 Pro) et ce qui ne va pas (écran, batterie, charge, son…), et je vous donne le prix tout de suite.", human: false };
+  }
+  // Repli final : on ne répond jamais au hasard → on demande une précision
+  // utile et on laisse la porte du conseiller ouverte (human=true).
+  return { reply: "Je veux être sûr de bien vous aider 🙂 Pouvez-vous préciser votre demande — le modèle d'iPhone et la réparation, ou votre question ? Sinon, un conseiller peut prendre le relais 👇", human: true };
 }
