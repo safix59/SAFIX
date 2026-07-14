@@ -454,6 +454,13 @@ export default async function handler(req, res) {
         });
         if (out && typeof out.reply === 'string' && out.reply.trim()) reply = out.reply.trim();
         var llmEscalate = !!(out && out.escalate);
+        // GARDE-FOU anti-perte d'info : le moteur catalogue a un PRIX concret
+        // mais le LLM l'a esquivé (« consultez le site ») → on garde la réponse
+        // déterministe, précise et vérifiée. Le concret prime sur le style.
+        if (reply && /\d+\s*€/.test(det.reply) && !/\d+\s*€/.test(reply)) {
+          reply = det.reply;
+          llmEscalate = !!det.human;
+        }
       }
       const finalReply = reply || det.reply;
       const human = reply ? llmEscalate : !!det.human;
