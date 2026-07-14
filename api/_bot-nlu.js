@@ -440,3 +440,99 @@ export function botAnswer(message, history = [], prices = null) {
   // utile et on laisse la porte du conseiller ouverte (human=true).
   return { reply: "Je veux être sûr de bien vous aider 🙂 Pouvez-vous préciser votre demande — le modèle d'iPhone et la réparation, ou votre question ? Sinon, un conseiller peut prendre le relais 👇", human: true };
 }
+
+// ── Analyse de l'ÉTAT d'une conversation (slots déjà remplis) ──
+// Parcourt TOUT l'historique et déduit ce que le client a déjà fourni, pour
+// que l'admin ne redemande JAMAIS une info connue. history = {sender, body}
+// du plus RÉCENT au plus ancien (comme la prod).
+export function conversationState(history = [], prices = null) {
+  const users = history.filter((m) => m.sender === 'user')
+    .map((m) => String(m.body || '')).filter((b) => b && b !== '::human::' && !b.startsWith('::img::'));
+  const admins = history.filter((m) => m.sender === 'admin').map((m) => String(m.body || ''));
+  // Modèle : mention la plus RÉCENTE (users est déjà newest-first).
+  let model = null;
+  if (prices) {
+    for (const u of users) { model = botFindModel(u, prices); if (model) break; }
+    if (!model) {
+      const ctx = users.some((u) => { const t = norm(u); return t.includes('iphone') || findRepair(t) || findSymptom(t); });
+      if (ctx) for (const u of users) { model = botFindModelLoose(u, prices); if (model) break; }
+    }
+  }
+  // Réparation / panne : mention la plus récente (pièce nommée ou symptôme).
+  let repair = null, symptomHint = '';
+  for (const u of users) {
+    const t = norm(u);
+    const r = findRepair(t);
+    if (r) { repair = r; break; }
+    const s = findSymptom(t);
+    if (s) { repair = BOT_REPAIRS.find((x) => x.kw[0] === s.ridKw || x.kw.includes(s.ridKw)) || null; symptomHint = s.hint || ''; if (repair) break; }
+  }
+  // Avons-NOUS déjà annoncé un prix ? (un € dans un message côté SAFIX)
+  const priceQuoted = admins.some((a) => /\d+\s*€/.test(a));
+  // Le rendez-vous / dépôt a-t-il déjà été évoqué (par l'un ou l'autre) ?
+  const rdvMentioned = history.some((m) => /rendez[- ]?vous|rdv|cr[ée]neau|creneau|d[ée]p[oô]t|depot|panier/i.test(String(m.body || '')));
+  // Estimation catalogue si modèle + réparation connus.
+  let estMin = null;
+  if (model && repair && prices) {
+    const { found } = botPriceLine(repair, model, prices);
+    const nums = found.map((f) => parseInt((f.match(/(\d+)\s*€/) || [])[1], 10)).filter(Number.isFinite);
+    if (nums.length) estMin = Math.min(...nums);
+  }
+  const lastUser = users[0] || '';
+  return { model, repair, repairLabel: repair ? repair.label : null, symptomHint, priceQuoted, rdvMentioned, estMin, lastUser, userCount: users.length, weReplied: admins.length > 0 };
+}
+
+// ── Suggestions de réponse pour l'ADMIN (conseiller SAV) — DÉTERMINISTE ──
+// 3 phrases prêtes à envoyer qui FONT AVANCER l'échange, en tenant compte de
+// tout ce qui a déjà été dit : jamais de « quel modèle ? » si le modèle est
+// connu, jamais de « quelle panne ? » si la panne est connue. C'est ce qui
+// s'affiche quand aucune clé LLM n'est configurée (le LLM, s'il est branché,
+// prend le dessus avec un raisonnement plus fin).
+export function botSuggest(history = [], prices = null, name = null) {
+  const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+  const st = conversationState(history, prices);
+  const M = st.model, R = st.repairLabel;
+  const est = st.estMin != null ? `à partir de ${st.estMin} €` : null;
+  const tl = norm(st.lastUser);
+  const out = [];
+
+  // 1) Si le DERNIER message client est une question FAQ précise → y répondre
+  // directement (l'admin valide/envoie). On ne redemande rien.
+  let faq = null;
+  if (hasWord(tl, ['garantie', 'garanti'])) faq = "Nos réparations sont faites avec des pièces neuves. Côté CGV, il n'y a pas de garantie commerciale sur la réparation, mais vos droits légaux de consommateur s'appliquent pleinement — et toute commande non honorée est intégralement remboursée.";
+  else if (hasWord(tl, ['livraison', 'delai', 'combien de temps', 'longtemps', 'sous combien'])) faq = "Comptez la pièce en Standard (sous 48 h) ou en Express (dès le lendemain) — c'est ce qui fixe la date de votre rendez-vous, à choisir dans le panier.";
+  else if (hasWord(tl, ['adresse', 'ou etes', 'ou vous', 'vous situez'])) faq = "Nous sommes au 48 Bd Alexandre III, 59140 Dunkerque — le dépôt se fait sur rendez-vous, réservable en ligne au moment de la commande.";
+  else if (hasWord(tl, ['paiement', 'payer', 'carte', 'paypal', 'apple pay', 'google pay'])) faq = "Le règlement se fait en ligne au moment de la commande — carte bancaire, Apple Pay, Google Pay ou PayPal, 100 % sécurisé.";
+  else if (hasWord(tl, ['gamme', 'difference', 'qualite', 'eco', 'premium', 'original'])) faq = "Pour l'écran, 4 gammes : Éco (petit budget), Standard (meilleur rapport qualité/prix), Premium (meilleure qualité) et Original (pièce Apple® certifiée). Je vous conseille selon votre budget si vous voulez.";
+  if (faq) out.push(faq);
+
+  // 2) Suggestions de SUIVI selon l'état des slots (jamais de redite).
+  if (M && R) {
+    if (est && !st.priceQuoted) {
+      out.push(`Oui, nous réparons ${R} de l'${M} ✅ — ${est}, tout compris (pièce neuve + pose). Souhaitez-vous que je vous réserve un créneau de dépôt ?`);
+      out.push(`Pour ${R} de l'${M}, comptez ${est}. La commande et le rendez-vous se font en ligne depuis la fiche « ${M} » du site — je vous accompagne si besoin 👍`);
+      out.push(`${cap(R)} de l'${M} : ${est}. Je peux lancer la prise en charge dès aujourd'hui — quel jour vous conviendrait pour le dépôt ?`);
+    } else if (st.priceQuoted || !est) {
+      out.push(`Parfait, je note la prise en charge de ${R} pour l'${M}. Souhaitez-vous choisir un créneau de dépôt (dès demain — matin, après-midi ou soir) ?`);
+      out.push(`Très bien ! Vous pouvez finaliser la commande depuis la fiche « ${M} » du site, le rendez-vous se choisit à cette étape. Je reste disponible pour toute question.`);
+      out.push(`C'est noté pour l'${M}. Souhaitez-vous ajouter autre chose (une autre réparation, un verre trempé) ou avez-vous une question sur le déroulé ?`);
+    }
+  } else if (M && !R) {
+    out.push(`Pour votre ${M}, pouvez-vous me préciser la panne (écran, batterie, charge, son…) ? Je vous donne le tarif exact tout de suite.`);
+    out.push(`Je vois qu'il s'agit d'un ${M} 👍 Décrivez-moi le souci rencontré et je confirme la réparation et le prix.`);
+    out.push(`Sur l'${M}, quel est le problème exactement ? Je m'occupe du reste dès que je le sais.`);
+  } else if (!M && R) {
+    out.push(`Pour ${R}, quel est le modèle exact de votre iPhone ? Je vous chiffre ça immédiatement.`);
+    out.push(`Pas de souci pour ${R} 👍 Indiquez-moi le modèle (ex. iPhone 13 Pro) et je confirme le tarif tout compris.`);
+    out.push(`${cap(R)} : je vous donne le prix dès que j'ai le modèle de votre iPhone.`);
+  } else {
+    const greet = (!st.weReplied && st.userCount <= 1) ? (name ? `Bonjour ${name} ! ` : 'Bonjour ! ') : '';
+    out.push(`${greet}Pour vous renseigner précisément, pouvez-vous m'indiquer le modèle de votre iPhone et la panne rencontrée ?`);
+    out.push(`${greet}Dites-moi le modèle exact et le souci, et je vous confirme le prix et la disponibilité tout de suite 👍`);
+    out.push(`Décrivez-moi votre besoin (modèle + réparation) et je m'occupe de tout.`);
+  }
+
+  // Dédoublonnage + exactement 3.
+  const seen = new Set();
+  return out.filter((s) => { const k = s.trim(); if (!k || seen.has(k)) return false; seen.add(k); return true; }).slice(0, 3);
+}

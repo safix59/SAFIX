@@ -6,7 +6,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 import crypto from 'crypto';
 import { issueToken, cookieHeader, clearCookieHeader, requireAuth } from './_admin-auth.js';
-import { BOT_FACTS, botAnswer, botCatalogContext } from './_bot-nlu.js';
+import { BOT_FACTS, botAnswer, botCatalogContext, botSuggest, conversationState } from './_bot-nlu.js';
 
 const ORIGIN = 'https://safix59.fr';
 const FLAGSHIP = [
@@ -697,7 +697,6 @@ export default async function handler(req, res) {
   // ── MESSAGERIE ADMIN — suggestions de réponses générées par l'IA (cascade) ──
   if (action === 'suggest') {
     if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
-    if (!llmAvailable()) return res.status(200).json({ ready: false, suggestions: [] });
     if (!SUPA || !KEY) return res.status(200).json({ ready: false, suggestions: [] });
     const session = String((req.body && req.body.session) || '').slice(0, 60);
     if (!session) return res.status(400).json({ error: 'no_session' });
@@ -707,41 +706,53 @@ export default async function handler(req, res) {
       let rows = r.ok ? await r.json() : [];
       if (!Array.isArray(rows)) rows = [];
       const name = (rows.find((m) => m.name) || {}).name || null;
-      const transcript = rows.slice().reverse()
-        .filter((m) => m.body !== '::human::')
-        .map((m) => `${m.sender === 'admin' ? 'SAFIX' : 'Client'}: ${String(m.body || '').replace(/^::bot::/, '[assistant] ').replace(/^::img::\S+\n?/, '[photo] ')}`)
-        .join('\n').slice(-3000);
-      const userTexts = rows.filter((m) => m.sender === 'user').map((m) => String(m.body || ''));
       const pd = await botPrices();
-      const catalog = botCatalogContext(userTexts, (pd && pd.prices) || null);
-      // Stade réel de la conversation → suggestions adaptées, jamais hors sujet.
-      const userCount = rows.filter((m) => m.sender === 'user' && m.body !== '::human::').length;
-      const weReplied = rows.some((m) => m.sender === 'admin');
-      const isOpening = userCount <= 1 && !weReplied;
-      const system = BOT_FACTS
-        + (catalog ? `\n\n${catalog}` : '')
-        + `\n\nTU RÉDIGES POUR L'ADMINISTRATEUR HUMAIN (le réparateur${name ? `, le client s'appelle ${name}` : ''}).
-STADE DE LA CONVERSATION : ${isOpening ? 'tout premier contact (une salutation brève est appropriée).' : `conversation DÉJÀ EN COURS (${userCount} messages client, des réponses ont déjà été échangées).`}
+      const prices = (pd && pd.prices) || null;
+      // Base DÉTERMINISTE, toujours disponible : slot-aware, ne redemande
+      // jamais une info déjà donnée. C'est ce qui s'affiche sans clé LLM, et
+      // le filet si le LLM échoue.
+      const det = botSuggest(rows, prices, name);
+
+      // Si une IA est branchée : raisonnement plus fin, ancré sur le même état.
+      if (llmAvailable()) {
+        const transcript = rows.slice().reverse()
+          .filter((m) => m.body !== '::human::')
+          .map((m) => `${m.sender === 'admin' ? 'SAFIX' : 'Client'}: ${String(m.body || '').replace(/^::bot::/, '[assistant] ').replace(/^::img::\S+\n?/, '[photo] ')}`)
+          .join('\n').slice(-3000);
+        const userTexts = rows.filter((m) => m.sender === 'user').map((m) => String(m.body || ''));
+        const catalog = botCatalogContext(userTexts, prices);
+        const st = conversationState(rows, prices);
+        const userCount = st.userCount;
+        const isOpening = userCount <= 1 && !st.weReplied;
+        const known = [
+          st.model ? `modèle = ${st.model}` : null,
+          st.repairLabel ? `panne/réparation = ${st.repairLabel}` : null,
+          st.priceQuoted ? 'un prix a DÉJÀ été annoncé' : null,
+          st.rdvMentioned ? 'le rendez-vous a DÉJÀ été évoqué' : null,
+        ].filter(Boolean);
+        const system = BOT_FACTS
+          + (catalog ? `\n\n${catalog}` : '')
+          + `\n\nTU RÉDIGES POUR L'ADMINISTRATEUR HUMAIN (le réparateur${name ? `, le client s'appelle ${name}` : ''}), comme un conseiller SAV expérimenté.
+STADE : ${isOpening ? 'tout premier contact (une salutation brève est appropriée).' : `conversation DÉJÀ EN COURS (${userCount} messages client).`}
+INFORMATIONS DÉJÀ FOURNIES PAR LE CLIENT : ${known.length ? known.join(' ; ') : 'aucune pour l\'instant'}.
 ${isOpening ? '' : `RÈGLES DE CONTEXTE STRICTES :
-- INTERDICTION ABSOLUE de saluer ou de te présenter (« Bonjour, comment puis-je vous aider ? » est PROSCRIT) — on répond au fil, pas au premier message.
-- Appuie-toi sur TOUT l'historique : modèle d'iPhone déjà indiqué, panne déjà décrite, prix déjà annoncés, rendez-vous déjà évoqué. Ne redemande JAMAIS une information déjà donnée.
-- Chaque suggestion doit répondre PRÉCISÉMENT au DERNIER message du client, dans la continuité naturelle de l'échange.`}
-Propose EXACTEMENT 3 réponses possibles au dernier message du client, VRAIMENT DIFFÉRENTES :
-(1) directe et efficace (l'action ou l'info demandée, sans détour),
-(2) chaleureuse et détaillée (même fond, ton plus accompagnant),
-(3) une question de clarification UTILE qui fait avancer (uniquement sur une info réellement manquante).
-Chaque réponse : 1-3 phrases, prête à envoyer telle quelle, en français, vouvoiement, sans placeholder.
+- INTERDICTION de saluer/te présenter (« Bonjour, comment puis-je vous aider ? » est PROSCRIT).
+- INTERDICTION de redemander une information DÉJÀ FOURNIE (listée ci-dessus). Avant chaque phrase, demande-toi : « cette info a-t-elle déjà été donnée ? » Si oui, ne la redemande pas.
+- Fais AVANCER l'échange : confirmer la prise en charge, expliquer la prochaine étape, proposer un rendez-vous, donner l'estimation, rassurer, orienter vers une action — et ne demander QUE ce qui manque réellement.`}
+Propose EXACTEMENT 3 réponses possibles au dernier message du client, VRAIMENT DIFFÉRENTES et prêtes à envoyer :
+(1) directe et efficace, (2) chaleureuse et accompagnante, (3) une action concrète (rendez-vous, commande) ou une question UNIQUEMENT sur une info manquante.
+1-3 phrases chacune, français, vouvoiement, sans placeholder.
 Réponds UNIQUEMENT en JSON : {"suggestions": ["…", "…", "…"]}`;
-      const out = await askLLM(system, [{ role: 'user', content: `Conversation :\n${transcript}\n\nGénère les 3 suggestions.` }], 700, {
-        type: 'object',
-        properties: {
-          suggestions: { type: 'array', items: { type: 'string' }, description: '3 réponses prêtes à envoyer au client (français, vouvoiement).' },
-        },
-        required: ['suggestions'],
-        additionalProperties: false,
-      });
-      const suggestions = (out && Array.isArray(out.suggestions) ? out.suggestions : []).filter((s) => typeof s === 'string' && s.trim()).slice(0, 3);
-      return res.status(200).json({ ready: suggestions.length > 0, suggestions });
+        const out = await askLLM(system, [{ role: 'user', content: `Conversation :\n${transcript}\n\nGénère les 3 suggestions.` }], 700, {
+          type: 'object',
+          properties: { suggestions: { type: 'array', items: { type: 'string' }, description: '3 réponses prêtes à envoyer au client.' } },
+          required: ['suggestions'],
+          additionalProperties: false,
+        });
+        const llm = (out && Array.isArray(out.suggestions) ? out.suggestions : []).filter((s) => typeof s === 'string' && s.trim()).slice(0, 3);
+        if (llm.length) return res.status(200).json({ ready: true, suggestions: llm, source: 'llm' });
+      }
+      return res.status(200).json({ ready: det.length > 0, suggestions: det, source: 'engine' });
     } catch { return res.status(200).json({ ready: false, suggestions: [] }); }
   }
 

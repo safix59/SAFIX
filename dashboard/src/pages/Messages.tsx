@@ -44,11 +44,13 @@ async function loadPrices() {
 }
 // Identifiants RÉELS de prices.json (gammes de qualité incluses).
 const REPAIRS: { rx: RegExp; ids: [string, string][]; label: string }[] = [
-  { rx: /écran|ecran|screen|vitre avant/i, label: "l'écran", ids: [['ecran_eco', 'Éco'], ['ecran_standard', 'Standard'], ['ecran_premium', 'Premium'], ['ecran_original', 'Original']] },
-  { rx: /batterie|battery/i, label: 'la batterie', ids: [['batterie', 'Standard'], ['batterie_original', 'Original']] },
-  { rx: /vitre arri|arriere|back ?glass/i, label: 'la vitre arrière', ids: [['vitre_arriere', '']] },
-  { rx: /cam[ée]ra|appareil photo/i, label: 'la caméra arrière', ids: [['camera_arriere', '']] },
-  { rx: /connecteur|charge/i, label: 'le connecteur de charge', ids: [['connecteur_de_charge', '']] },
+  // Vitre ARRIÈRE avant écran (« vitre arrière » ≠ « vitre » avant = écran).
+  { rx: /vitre arri|arriere cass|face arriere|back ?glass|dos cass/i, label: 'la vitre arrière', ids: [['vitre_arriere', '']] },
+  { rx: /écran|ecran|screen|vitre avant|\bvitre\b|tactile|affichage|fissur|dalle|lignes sur|ecran noir|ecran casse/i, label: "l'écran", ids: [['ecran_eco', 'Éco'], ['ecran_standard', 'Standard'], ['ecran_premium', 'Premium'], ['ecran_original', 'Original']] },
+  { rx: /batterie|battery|autonomie|d[ée]charge|tient plus|tient pas|gonfle/i, label: 'la batterie', ids: [['batterie', 'Standard'], ['batterie_original', 'Original']] },
+  { rx: /cam[ée]ra|appareil photo|objectif|photo floue|photos floues/i, label: 'la caméra arrière', ids: [['camera_arriere', '']] },
+  { rx: /connecteur|se recharge|recharge plus|charge plus|charge pas|prise de charge|port de charge/i, label: 'le connecteur de charge', ids: [['connecteur_de_charge', '']] },
+  { rx: /haut ?parleur|son|aucun son|plus de son/i, label: 'le haut-parleur', ids: [['haut_parleur', '']] },
 ];
 const normTxt = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
 
@@ -86,51 +88,67 @@ async function buildSuggestions(messages: ChatMessage[], visitorName: string | n
   const userCount = messages.filter((m) => m.sender === 'user' && m.body !== '::human::').length;
   const weReplied = messages.some((m) => m.sender === 'admin');
   const isOpening = userCount <= 1 && !weReplied;
-  const greet = isOpening ? (visitorName ? `Bonjour ${visitorName} ! ` : 'Bonjour ! ') : '';
 
-  // Réparation & modèle : dernier message d'abord, sinon tout l'historique.
-  const rep = REPAIRS.find((r) => r.rx.test(lastUserMsg)) || REPAIRS.find((r) => userTexts.some((x) => r.rx.test(x)));
+  // ── État de la conversation (slots déjà remplis) — miroir du moteur serveur.
+  // On ne redemande JAMAIS une info déjà donnée par le client.
+  const rep = REPAIRS.find((r) => r.rx.test(lastUserMsg)) || REPAIRS.find((r) => userTexts.some((x) => r.rx.test(x))) || null;
   let modelKey: string | null = null;
   if (prices) {
-    modelKey = findModelKey(lastUserMsg, prices);
-    if (!modelKey) for (const x of userTexts) { modelKey = findModelKey(x, prices, true); if (modelKey) break; }
+    for (const x of userTexts) { modelKey = findModelKey(x, prices); if (modelKey) break; }
+    if (!modelKey) {
+      const ctx = userTexts.some((x) => /iphone/i.test(x)) || !!rep;
+      if (ctx) for (const x of userTexts) { modelKey = findModelKey(x, prices, true); if (modelKey) break; }
+    }
   }
+  // Un prix a-t-il déjà été annoncé côté SAFIX ? Un RDV déjà évoqué ?
+  const priceQuoted = messages.some((m) => m.sender === 'admin' && /\d+\s*€/.test(m.body));
+  const rdvMentioned = messages.some((m) => /rendez|rdv|creneau|cr[ée]neau|d[ée]p[oô]t|panier/i.test(m.body));
+  // Estimation « à partir de » si modèle + réparation connus.
+  let estMin: number | null = null;
+  if (rep && modelKey && prices) {
+    const nums = rep.ids
+      .map(([id]) => prices[id]?.[modelKey!])
+      .filter((e) => e && typeof e.final === 'number' && !e.outOfStock)
+      .map((e) => e!.final as number);
+    if (nums.length) estMin = Math.min(...nums);
+  }
+  const est = estMin != null ? `à partir de ${estMin} €` : null;
 
   const out: string[] = [];
-  if (rep && modelKey && prices) {
-    const tiers: string[] = [];
-    for (const [id, tier] of rep.ids) {
-      const e = prices[id]?.[modelKey];
-      if (e && typeof e.final === 'number' && !e.outOfStock) tiers.push(tier ? `${tier} ${e.final} €` : `${e.final} €`);
+  // Réponse directe à une question FAQ posée en dernier (l'admin valide/envoie).
+  if (/garantie/.test(t)) out.push("Nos réparations sont faites avec des pièces neuves. Côté CGV, pas de garantie commerciale sur la réparation, mais vos droits légaux de consommateur s'appliquent — et toute commande non honorée est intégralement remboursée.");
+  else if (/livraison|delai|combien de temps|longtemps|sous combien/.test(t)) out.push("Comptez la pièce en Standard (sous 48 h) ou Express (dès le lendemain) — c'est ce qui fixe la date de votre rendez-vous, à choisir dans le panier.");
+  else if (/adresse|ou etes|ou vous|vous situez/.test(t)) out.push("Nous sommes au 48 Bd Alexandre III, 59140 Dunkerque — dépôt sur rendez-vous, réservable en ligne au moment de la commande.");
+  else if (/paiement|payer|carte|paypal/.test(t)) out.push("Le règlement se fait en ligne au moment de la commande — carte, Apple Pay, Google Pay ou PayPal, 100 % sécurisé.");
+
+  if (rep && modelKey) {
+    if (est && !priceQuoted) {
+      out.push(`Oui, nous réparons ${rep.label} de l'${modelKey} ✅ — ${est}, tout compris (pièce neuve + pose). Souhaitez-vous que je vous réserve un créneau de dépôt ?`);
+      out.push(`Pour ${rep.label} de l'${modelKey}, comptez ${est}. La commande et le rendez-vous se font en ligne depuis la fiche « ${modelKey} » — je vous accompagne si besoin 👍`);
+      out.push(`${cap(rep.label)} de l'${modelKey} : ${est}. Je peux lancer la prise en charge dès aujourd'hui — quel jour vous conviendrait pour le dépôt ?`);
+    } else {
+      out.push(`Parfait, je note la prise en charge de ${rep.label} pour l'${modelKey}. Souhaitez-vous choisir un créneau de dépôt (dès demain — matin, après-midi ou soir) ?`);
+      out.push(`Très bien ! Vous pouvez finaliser la commande depuis la fiche « ${modelKey} » du site, le rendez-vous se choisit à cette étape. Je reste disponible.`);
+      out.push(`C'est noté pour l'${modelKey}. Souhaitez-vous ajouter autre chose (une autre réparation, un verre trempé) ou avez-vous une question sur le déroulé ?`);
     }
-    if (tiers.length)
-      out.push(`${greet}Oui, ${rep.label} de l'${modelKey} : ${tiers.join(' · ')} tout compris (pièce neuve + pose). Commande directe depuis la fiche « ${modelKey} » du site 👍`);
-    else
-      out.push(`${greet}${cap(rep.label)} de l'${modelKey} est actuellement en rupture chez notre fournisseur. Je vous préviens dès son retour en stock si vous le souhaitez.`);
+  } else if (modelKey && !rep) {
+    out.push(`Pour votre ${modelKey}, pouvez-vous me préciser la panne (écran, batterie, charge, son…) ? Je vous donne le tarif exact tout de suite.`);
+    out.push(`Je vois qu'il s'agit d'un ${modelKey} 👍 Décrivez-moi le souci rencontré et je confirme la réparation et le prix.`);
+    out.push(`Sur l'${modelKey}, quel est le problème exactement ? Je m'occupe du reste dès que je le sais.`);
   } else if (rep && !modelKey) {
-    out.push(`${greet}Pour ${rep.label}, indiquez-moi le modèle exact de l'iPhone et je vous confirme le prix tout de suite.`);
+    out.push(`Pour ${rep.label}, quel est le modèle exact de votre iPhone ? Je vous chiffre ça immédiatement.`);
+    out.push(`Pas de souci pour ${rep.label} 👍 Indiquez-moi le modèle (ex. iPhone 13 Pro) et je confirme le tarif.`);
+    out.push(`${cap(rep.label)} : je vous donne le prix dès que j'ai le modèle de votre iPhone.`);
+  } else {
+    const greet = isOpening ? (visitorName ? `Bonjour ${visitorName} ! ` : 'Bonjour ! ') : '';
+    out.push(`${greet}Pour vous renseigner précisément, pouvez-vous m'indiquer le modèle de votre iPhone et la panne rencontrée ?`);
+    out.push(`${greet}Dites-moi le modèle exact et le souci, je vous confirme prix et disponibilité tout de suite 👍`);
+    out.push(`Décrivez-moi votre besoin (modèle + réparation) et je m'occupe de tout.`);
   }
-
-  if (/rendez|rdv|deposer|apporter|quand|creneau/.test(t))
-    out.push(`${greet}Le rendez-vous se choisit directement dans le panier : lieu de dépôt, date (dès demain) et créneau (matin, après-midi ou soir). Vous recevez une confirmation par e-mail.`);
-  if (/livraison|delai|rapide|combien de temps|longtemps/.test(t))
-    out.push(`La pièce arrive en Standard (sous 48 h) ou Express (dès le lendemain 15h) — c'est ce qui fixe la date de la réparation. Le détail exact s'affiche dans le panier.`);
-  if (/prix|tarif|combien|cout|coute/.test(t) && !out.length)
-    out.push(modelKey
-      ? `${greet}Dites-moi quelle réparation pour l'${modelKey} (écran, batterie, charge…) et je vous donne le prix exact immédiatement.`
-      : `${greet}Indiquez-moi le modèle exact et la panne, je vous confirme le prix en temps réel dans la foulée.`);
-
-  // Relances de secours — sensibles au contexte (jamais de « Bonjour » en cours).
-  out.push(isOpening
-    ? `${greet}Merci pour votre message ! Dites-moi le modèle de votre iPhone et ce qui ne va pas, je vous renseigne tout de suite.`
-    : modelKey
-      ? `Très bien pour l'${modelKey}. Souhaitez-vous que je vous accompagne pour passer la commande, ou avez-vous une autre question ?`
-      : `Je m'en occupe. Pouvez-vous me préciser le modèle exact de votre iPhone et la panne, pour que je confirme prix et disponibilité ?`);
-  out.push(rep && !modelKey
-    ? `Quel est le modèle exact de votre iPhone ? Je vous confirme prix et disponibilité aussitôt.`
-    : !rep
-      ? `Pouvez-vous me décrire précisément le souci rencontré ? Je vous oriente vers la bonne réparation.`
-      : `Souhaitez-vous réserver un créneau de dépôt, ou avez-vous besoin d'autres informations ?`);
+  // Si un RDV a déjà été évoqué et qu'on tient prix + modèle, proposer d'agir.
+  if (rep && modelKey && rdvMentioned && !out.some((s) => /créneau|rendez|dépôt/i.test(s))) {
+    out.push(`Pour l'${modelKey}, je peux bloquer un créneau de dépôt (dès demain). Quel moment vous arrange — matin, après-midi ou soir ?`);
+  }
 
   const seen = new Set<string>();
   return out.filter((s) => { const k = s.trim(); if (!k || seen.has(k)) return false; seen.add(k); return true; }).slice(0, 3);
