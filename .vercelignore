@@ -66,3 +66,17 @@ SAFIX_icone_grande_mode_clair_4K.png
 # Outils & scripts internes — JAMAIS servis par le site (sécurité : évite l'exposition publique)
 scripts/
 tools/
+
+# Modèles 3D ORPHELINS (zéro référence dans le code — vérifié fichier par
+# fichier) : gardés en local comme archives de travail, inutiles en prod.
+# Le hero 3D utilise les scènes Lotus (.lsd), PAS ces .glb. ~59 Mo de deploy
+# en moins. Les .glb des pages de test (viewer/index.html, compare.html,
+# m3d-test.html) restent déployés.
+viewer/iphone17pro-apple-deep-blue-eu-upright.glb
+viewer/iphone17pro-apple-deep-blue-final.glb
+viewer/iphone17pro-apple-deep-blue-no5g.glb
+viewer/iphone17pro-apple-deep-blue-upright.glb
+viewer/iphone17pro-apple-upright.glb
+viewer/iphone17pro-apple.glb
+viewer/iphone17pro-test-hide.glb
+images/iphone3d/model/

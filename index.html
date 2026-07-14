@@ -261,6 +261,14 @@
      (initSketchfabViewer → #heroSketchfab) sort immédiatement car l'élément
      n'existe pas. Économie ~1 Mo de JS par visite (perf accueil). La page
      de test viewer/index.html garde son propre model-viewer. -->
+<!-- ── Préchauffage du hero 3D ─────────────────────────────────────────
+     L'iframe Lotus (même origine) charge : son HTML → lotus.min.js (1,5 Mo)
+     → la scène .lsd → les assets. On met le MOTEUR en cache HTTP dès le
+     parse de CE head : quand l'iframe boote, sa plus grosse requête sort du
+     cache, et son propre <head> précharge la scène .lsd en parallèle.
+     Volontairement SANS JavaScript ici (pas de sonde WebGL sur la page
+     principale : les contextes sont précieux sur iOS). -->
+<link rel="preload" as="script" href="viewer/lotus/libs/lotus.min.js">
 <!-- ImportMap pour Three.js + addons (OrbitControls, etc.) -->
 <script type="importmap">
 {
@@ -5954,9 +5962,10 @@ header { padding-left: max(20px, env(safe-area-inset-left));
         <div class="hero-3d-ground" aria-hidden="true"></div>
         <iframe
           id="heroAppleViewer"
-          src="viewer/apple-viewer.html?v=19"
+          src="viewer/apple-viewer.html?v=20"
           title="iPhone 17 Pro 3D"
           loading="eager"
+          fetchpriority="high"
           allow="xr-spatial-tracking; accelerometer; gyroscope"
           allowtransparency="true"
           style="width:100%;height:100%;border:0;background:transparent;display:block;"

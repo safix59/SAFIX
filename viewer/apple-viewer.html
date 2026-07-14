@@ -4,6 +4,37 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>SAFIX — iPhone 17 Pro</title>
+  <!-- ── Démarrage réseau au plus tôt ─────────────────────────────────
+       Le choix du tier de scène (S/M/L × ktx/avif) est calculé ICI, dès le
+       parse du <head>, et la scène .lsd part en téléchargement EN PARALLÈLE
+       du moteur lotus.min.js (préchargé juste en dessous). Avant : HTML →
+       lotus.min.js (téléchargement + parse) → .lsd → assets, tout en série.
+       Le boot du bas réutilise window.__SAFIX_SCENE : une seule source de
+       vérité, aucune divergence possible. Le tiering (mobile = S/M) est
+       INCHANGÉ — forcer LARGE sur iOS fait crasher Safari au zoom. -->
+  <script>
+    (function () {
+      function touchAvailable() { return 'ontouchstart' in window || navigator.maxTouchPoints > 0; }
+      var SCENES = { large: 'iPhone17Pro_ROW_L', medium: 'iPhone17Pro_ROW_M', small: 'iPhone17Pro_ROW_S' };
+      var w = window.outerWidth || window.innerWidth;
+      var base = SCENES.large;
+      if (touchAvailable()) base = w <= 884 ? SCENES.small : SCENES.medium;
+      var hasASTC = false;
+      try {
+        var gl = document.createElement('canvas').getContext('webgl2');
+        if (gl) hasASTC = !!gl.getExtension('WEBGL_compressed_texture_astc');
+      } catch (e) {}
+      var override = null;
+      try { override = new URLSearchParams(location.search).get('scene'); } catch (e) {}
+      var name = override || (base + (hasASTC ? '_ktx' : '_avif'));
+      window.__SAFIX_SCENE = name;
+      var l = document.createElement('link');
+      l.rel = 'preload'; l.as = 'fetch'; l.crossOrigin = 'anonymous';
+      l.href = 'lotus/static/scenes/' + name + '.lsd';
+      document.head.appendChild(l);
+    })();
+  </script>
+  <link rel="preload" as="script" href="lotus/libs/lotus.min.js">
   <style>
     :root { color-scheme: light; }
     html, body {
@@ -206,8 +237,16 @@
     const STATES = {};
     const DEFAULT_PATH = DATA.rtScenesPath; // "lotus/static"
 
-    // Pick scene based on screen and KTX support
+    // Pick scene based on screen and KTX support.
+    // Le tier est déjà calculé dans le <head> (window.__SAFIX_SCENE) pour que
+    // la scène .lsd parte en préchargement pendant le download du moteur —
+    // on le réutilise tel quel (source unique). Le fallback local reproduit
+    // exactement la même logique si le head n'a pas tourné (sécurité).
     function pickSceneName() {
+      if (window.__SAFIX_SCENE) {
+        log('Scene picked (head preload):', window.__SAFIX_SCENE);
+        return window.__SAFIX_SCENE;
+      }
       // CONTRAINTE DURE iOS : forcer LARGE sur mobile fait CRASHER Safari au
       // zoom (dépassement mémoire WebContent → "problème récurrent"). On
       // RESTAURE le tiering connu stable. La haute fidélité mobile ne se
