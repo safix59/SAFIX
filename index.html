@@ -15,7 +15,7 @@
 <link rel="apple-touch-icon" sizes="512x512" href="images/safix/safix-icon-dark-512.png">
 <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)">
 <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
-<meta name="description" content="SAFIX — Réparation iPhone : tarifs synchronisés, livraison sous 48h, pièces sélectionnées.">
+<meta name="description" content="SAFIX — Réparation iPhone : tarifs transparents, livraison sous 48h, pièces sélectionnées.">
 <!-- ═══ Référencement strict : indexable mais non-archivable + anti-vol contenu ═══ -->
 <meta name="robots"            content="index, follow, noarchive, nosnippet, noimageindex, max-snippet:120, max-image-preview:none, notranslate">
 <meta name="googlebot"         content="index, follow, noarchive, nosnippet, noimageindex, max-snippet:120, max-image-preview:none, notranslate">
@@ -34,7 +34,7 @@
 <link rel="manifest" href="manifest.json">
 <!-- Open Graph -->
 <meta property="og:title"       content="SAFIX — Réparation iPhone">
-<meta property="og:description" content="Tarifs synchronisés, livraison sous 48h, pièces sélectionnées.">
+<meta property="og:description" content="Tarifs transparents, livraison sous 48h, pièces sélectionnées.">
 <link rel="canonical" href="https://safix59.fr/">
 <meta property="og:url" content="https://safix59.fr/">
 <meta property="og:type"        content="website">
@@ -44,7 +44,7 @@
 <meta property="og:image:alt"   content="SAFIX — Réparation iPhone">
 <meta name="twitter:card"        content="summary_large_image">
 <meta name="twitter:title"       content="SAFIX — Réparation iPhone">
-<meta name="twitter:description" content="Tarifs synchronisés, livraison sous 48h, pièces sélectionnées.">
+<meta name="twitter:description" content="Tarifs transparents, livraison sous 48h, pièces sélectionnées.">
 <meta name="twitter:image"       content="https://safix59.fr/images/safix/safix-icon-dark-512.png">
 <script type="application/ld+json">
 {
@@ -53,7 +53,7 @@
   "name": "SAFIX",
   "url": "https://safix59.fr/",
   "image": "https://safix59.fr/images/safix/safix-icon-dark-512.png",
-  "description": "Réparation iPhone : tarifs synchronisés, livraison sous 48h, pièces sélectionnées.",
+  "description": "Réparation iPhone : tarifs transparents, livraison sous 48h, pièces sélectionnées.",
   "priceRange": "€€",
   "address": {
     "@type": "PostalAddress",
@@ -1997,6 +1997,7 @@ header {
 .gm-modal-body {
   padding:14px 14px 8px;
   overflow-y:auto; max-height:62vh;
+  -webkit-overflow-scrolling:touch; overscroll-behavior:contain;
   font-size:13.5px; line-height:1.65; color:var(--text2);
   scrollbar-width:thin;
   scrollbar-color:var(--border2) transparent;
@@ -6070,7 +6071,7 @@ header { padding-left: max(20px, env(safe-area-inset-left));
       <div class="detail-meta">
         <p class="detail-eyebrow" data-i18n="detail.eyebrow">Réparation iPhone</p>
         <h2 class="detail-name" id="detailName"></h2>
-        <p class="detail-desc" data-i18n="detail.desc">Sélectionnez votre réparation. Disponibilité vérifiée en temps réel chez notre fournisseur.</p>
+        <p class="detail-desc" data-i18n="detail.desc">Sélectionnez votre réparation. Disponibilité vérifiée auprès de notre fournisseur.</p>
       </div>
     </div>
     <div class="repairs-col">
@@ -6622,7 +6623,7 @@ header { padding-left: max(20px, env(safe-area-inset-left));
   <div class="gm-modal">
     <button class="gm-close" data-close="aboutOverlay" aria-label="Fermer">✕</button>
     <div class="gm-title" data-i18n="legal.about.title">À propos de SAFIX</div>
-    <div class="gm-modal-body">
+    <div class="gm-modal-body" data-lenis-prevent>
       <p data-i18n="legal.about.intro">SAFIX est un atelier indépendant spécialisé dans la <strong>réparation iPhone</strong> à des tarifs transparents et des délais courts.</p>
       <h3 data-i18n="legal.about.h_services">Nos services</h3>
       <ul>
@@ -6634,7 +6635,7 @@ header { padding-left: max(20px, env(safe-area-inset-left));
       </ul>
       <h3 data-i18n="legal.about.h_commit">Nos engagements</h3>
       <ul>
-        <li data-i18n="legal.about.cmt1"><strong>Prix transparents</strong> : tarifs réels du marché, mis à jour quotidiennement.</li>
+        <li data-i18n="legal.about.cmt1"><strong>Prix transparents</strong> : tarifs réels du marché, régulièrement mis à jour.</li>
         <li data-i18n="legal.about.cmt2"><strong>Pièces sélectionnées</strong> chez nos fournisseurs partenaires.</li>
         <li data-i18n="legal.about.cmt3"><strong>Réparation soignée</strong> par un technicien dédié.</li>
         <li data-i18n="legal.about.cmt4">Livraison <strong>en 48 h</strong> ou <strong>J+1 en Express</strong>.</li>
@@ -6651,7 +6652,7 @@ header { padding-left: max(20px, env(safe-area-inset-left));
   <div class="gm-modal">
     <button class="gm-close" data-close="legalOverlay" aria-label="Fermer">✕</button>
     <div class="gm-title" data-i18n="legal.mentions.title">Mentions légales</div>
-    <div class="gm-modal-body">
+    <div class="gm-modal-body" data-lenis-prevent>
       <h3 data-i18n="legal.mentions.h_editor">Éditeur du site</h3>
       <p data-i18n="legal.mentions.editor"><strong>SAFIX</strong> — Entreprise individuelle<br>
       Adresse : 48 Bd Alexandre III, 59140 Dunkerque, France<br>
@@ -6668,7 +6669,7 @@ header { padding-left: max(20px, env(safe-area-inset-left));
       <h3 data-i18n="legal.mentions.h_icons">Crédits icônes</h3>
       <p data-i18n="legal.mentions.icons">Certaines icônes accessoires sont créées par <strong>mikicon</strong> et <strong>At Her Cozy Corner</strong>, et publiées via <a href="https://thenounproject.com" target="_blank" rel="noopener noreferrer">The Noun Project</a> sous licence <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener noreferrer">Creative Commons BY 3.0</a>.</p>
       <h3 data-i18n="legal.mentions.h_links">Liens externes</h3>
-      <p data-i18n="legal.mentions.links">Le site interroge en temps réel un fournisseur partenaire spécialisé pour afficher la disponibilité et le prix des pièces. SAFIX n'est pas responsable du contenu, de la disponibilité ni des pratiques commerciales de ce fournisseur.</p>
+      <p data-i18n="legal.mentions.links">Les prix et disponibilités affichés proviennent d'un fournisseur partenaire spécialisé. SAFIX n'est pas responsable du contenu, de la disponibilité ni des pratiques commerciales de ce fournisseur.</p>
       <h3 data-i18n="legal.mentions.h_mediator">Médiateur de la consommation</h3>
       <p data-i18n="legal.mentions.mediator">Conformément à l'article L.612-1 du Code de la consommation, en cas de litige, le client peut recourir gratuitement au médiateur de la consommation dont relève SAFIX. Les coordonnées du médiateur agréé sont communiquées sur simple demande.</p>
     </div>
@@ -6680,7 +6681,7 @@ header { padding-left: max(20px, env(safe-area-inset-left));
   <div class="gm-modal">
     <button class="gm-close" data-close="privacyOverlay" aria-label="Fermer">✕</button>
     <div class="gm-title" data-i18n="legal.privacy.title">Politique de confidentialité</div>
-    <div class="gm-modal-body">
+    <div class="gm-modal-body" data-lenis-prevent>
       <p data-i18n="legal.privacy.updated"><em>Dernière mise à jour : avril 2026</em></p>
       <h3 data-i18n="legal.privacy.h1">1. Responsable du traitement</h3>
       <p data-i18n="legal.privacy.p1"><strong>SAFIX</strong> — Entreprise individuelle, 48 Bd Alexandre III, 59140 Dunkerque, France — SIREN 942 003 062.<br>
@@ -6723,7 +6724,7 @@ header { padding-left: max(20px, env(safe-area-inset-left));
   <div class="gm-modal">
     <button class="gm-close" data-close="termsOverlay" aria-label="Fermer">✕</button>
     <div class="gm-title" data-i18n="legal.cgv.title">Conditions Générales de Vente</div>
-    <div class="gm-modal-body">
+    <div class="gm-modal-body" data-lenis-prevent>
       <p data-i18n="legal.cgv.updated"><em>Dernière mise à jour : avril 2026</em></p>
       <h3 data-i18n="legal.cgv.h1">1. Préambule</h3>
       <p data-i18n="legal.cgv.p1">Les présentes CGV régissent les relations entre <strong>SAFIX</strong> et tout client réalisant une commande de réparation iPhone via le site.</p>
@@ -6742,7 +6743,7 @@ header { padding-left: max(20px, env(safe-area-inset-left));
       </ul>
       <p data-i18n="legal.cgv.art2_p4">Cette rémunération constitue la marge de SAFIX. Elle est divulguée de manière transparente.</p>
       <h3 data-i18n="legal.cgv.h3">3. Prix</h3>
-      <p data-i18n="legal.cgv.p3">Les prix affichés sont en euros TTC. Ils sont actualisés en continu depuis notre fournisseur partenaire. En cas d'écart à la confirmation, le client est prévenu avant prise en charge.</p>
+      <p data-i18n="legal.cgv.p3">Les prix affichés sont en euros TTC. Ils sont mis à jour régulièrement d'après notre fournisseur partenaire. En cas d'écart à la confirmation, le client est prévenu avant prise en charge.</p>
       <h3 data-i18n="legal.cgv.h4">4. Validation de la commande</h3>
       <p data-i18n="legal.cgv.art4_p1">Avant tout paiement, le client doit explicitement cocher la case d'autorisation suivante :</p>
       <p data-i18n="legal.cgv.art4_p2"><em>"J'autorise le réparateur à commander automatiquement la pièce nécessaire auprès d'un fournisseur spécialisé. Je comprends que le montant payé inclut le prix de la pièce, les frais de livraison et la rémunération du réparateur pour le service de commande et de réparation."</em></p>
@@ -6776,7 +6777,7 @@ header { padding-left: max(20px, env(safe-area-inset-left));
   <div class="gm-modal">
     <button class="gm-close" data-close="cookiesOverlay" aria-label="Fermer">✕</button>
     <div class="gm-title" data-i18n="legal.cookies.title">Politique cookies</div>
-    <div class="gm-modal-body">
+    <div class="gm-modal-body" data-lenis-prevent>
       <h3 data-i18n="legal.cookies.h1">Quels cookies ?</h3>
       <p data-i18n="legal.cookies.p1">SAFIX limite au strict minimum l'usage des cookies. Aucun cookie publicitaire ni de pistage n'est déposé sans votre consentement.</p>
       <h3 data-i18n="legal.cookies.h2">Cookies strictement nécessaires (sans consentement requis)</h3>
@@ -6799,7 +6800,7 @@ header { padding-left: max(20px, env(safe-area-inset-left));
   <div class="gm-modal">
     <button class="gm-close" data-close="mandateInfoOverlay" aria-label="Fermer">✕</button>
     <div class="gm-title" data-i18n="mandate_info.title">Mandat &mdash; en détail</div>
-    <div class="gm-modal-body">
+    <div class="gm-modal-body" data-lenis-prevent>
       <h3 data-i18n="mandate_info.h_how">Comment ça fonctionne</h3>
       <ol>
         <li data-i18n="mandate_info.s1">Vous validez votre commande et payez en ligne.</li>
@@ -6809,7 +6810,7 @@ header { padding-left: max(20px, env(safe-area-inset-left));
       <h3 data-i18n="mandate_info.h_cost">Composition du prix</h3>
       <p data-i18n="mandate_info.cost">Le montant total se décompose en quatre éléments distincts et déclarés&nbsp;: le prix exact de la pièce facturé par le fournisseur (TVA 20&nbsp;% incluse), les frais de livraison, la commission de mandat et le service de réparation (main-d'œuvre). Aucune marge cachée n'est appliquée sur le prix de la pièce.</p>
       <h3 data-i18n="mandate_info.h_refund">Remboursement en cas d'échec</h3>
-      <p data-i18n="mandate_info.refund">Les disponibilités et prix affichés sur le site sont synchronisés en temps réel avec le fournisseur : ce que vous voyez correspond à ce qui est réellement disponible. Dans le cas exceptionnel où la commande ne pourrait être honorée (incident technique, refus du fournisseur), vous êtes <strong>intégralement remboursé</strong> de manière automatique — aucune démarche de votre part.</p>
+      <p data-i18n="mandate_info.refund">Dans le cas exceptionnel où une commande ne pourrait être honorée (rupture, incident technique, refus du fournisseur), vous êtes <strong>intégralement remboursé</strong> de manière automatique — aucune démarche de votre part.</p>
       <h3 data-i18n="mandate_info.h_change">Modification ou annulation</h3>
       <p data-i18n="mandate_info.change">Votre paiement déclenche immédiatement la commande automatique de la pièce auprès du fournisseur. <strong>Une fois cette commande lancée, l'annulation n'est plus possible côté client</strong>, sauf problème technique exceptionnel de notre côté (auquel cas vous êtes intégralement remboursé). Merci de bien vérifier votre commande avant validation.</p>
     </div>
@@ -10545,7 +10546,7 @@ const I18N = {
     'topbar.lang':'English', 'topbar.share':'Partager SAFIX', 'topbar.snap':'Support Snapchat',
     'topbar.compare':'Comparer', 'topbar.theme':'Thème', 'topbar.cart':'Panier',
     'detail.eyebrow':'Réparation iPhone',
-    'detail.desc':'Sélectionnez votre réparation. Disponibilité vérifiée en temps réel chez notre fournisseur.',
+    'detail.desc':'Sélectionnez votre réparation. Disponibilité vérifiée auprès de notre fournisseur.',
     'detail.heading':'Nos services',
     'story.s1_eyebrow':'Notre promesse',
     'story.s1_title':'Un iPhone,<br>c\'est <em>précieux</em>.',
@@ -10580,7 +10581,7 @@ const I18N = {
     'mandate_info.h_cost':'Composition du prix',
     'mandate_info.cost':"Le montant total se décompose en quatre éléments distincts et déclarés : le prix exact de la pièce facturé par le fournisseur (TVA 20 % incluse), les frais de livraison, la commission de mandat et le service de réparation (main-d'œuvre). Aucune marge cachée n'est appliquée sur le prix de la pièce.",
     'mandate_info.h_refund':"Remboursement en cas d'échec",
-    'mandate_info.refund':"Les disponibilités et prix affichés sur le site sont synchronisés en temps réel avec le fournisseur : ce que vous voyez correspond à ce qui est réellement disponible. Dans le cas exceptionnel où la commande ne pourrait être honorée (incident technique, refus du fournisseur), vous êtes <strong>intégralement remboursé</strong> de manière automatique — aucune démarche de votre part.",
+    'mandate_info.refund':"Dans le cas exceptionnel où une commande ne pourrait être honorée (rupture, incident technique, refus du fournisseur), vous êtes <strong>intégralement remboursé</strong> de manière automatique — aucune démarche de votre part.",
     'mandate_info.h_change':'Modification ou annulation',
     'mandate_info.change':"Votre paiement déclenche immédiatement la commande automatique de la pièce auprès du fournisseur. <strong>Une fois cette commande lancée, l'annulation n'est plus possible côté client</strong>, sauf problème technique exceptionnel de notre côté (auquel cas vous êtes intégralement remboursé). Merci de bien vérifier votre commande avant validation.",
     'mandate.title_legacy':'Comment ça fonctionne',
@@ -10673,7 +10674,7 @@ const I18N = {
     'legal.about.svc4':'Verres trempés, vitres arrière, protections',
     'legal.about.svc5':'Diagnostic, restauration logicielle, récupération de données',
     'legal.about.h_commit':'Nos engagements',
-    'legal.about.cmt1':'<strong>Prix transparents</strong> : tarifs réels du marché, mis à jour quotidiennement.',
+    'legal.about.cmt1':'<strong>Prix transparents</strong> : tarifs réels du marché, régulièrement mis à jour.',
     'legal.about.cmt2':'<strong>Pièces sélectionnées</strong> chez nos fournisseurs partenaires.',
     'legal.about.cmt3':'<strong>Réparation soignée</strong> par un technicien dédié.',
     'legal.about.cmt4':'Livraison <strong>en 48 h</strong> ou <strong>J+1 en Express</strong>.',
@@ -10692,7 +10693,7 @@ const I18N = {
     'legal.mentions.h_icons':'Crédits icônes',
     'legal.mentions.icons':'Certaines icônes accessoires sont créées par <strong>mikicon</strong> et <strong>At Her Cozy Corner</strong>, et publiées via <a href="https://thenounproject.com" target="_blank" rel="noopener noreferrer">The Noun Project</a> sous licence <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener noreferrer">Creative Commons BY 3.0</a>.',
     'legal.mentions.h_links':'Liens externes',
-    'legal.mentions.links':"Le site interroge en temps réel un fournisseur partenaire spécialisé pour afficher la disponibilité et le prix des pièces. SAFIX n'est pas responsable du contenu, de la disponibilité ni des pratiques commerciales de ce fournisseur.",
+    'legal.mentions.links':"Les prix et disponibilités affichés proviennent d'un fournisseur partenaire spécialisé. SAFIX n'est pas responsable du contenu, de la disponibilité ni des pratiques commerciales de ce fournisseur.",
     'legal.mentions.h_mediator':'Médiateur de la consommation',
     'legal.mentions.mediator':"Conformément à l'article L.612-1 du Code de la consommation, en cas de litige, le client peut recourir gratuitement au médiateur de la consommation dont relève SAFIX. Les coordonnées du médiateur agréé sont communiquées sur simple demande.",
     // Politique de confidentialité
@@ -10739,7 +10740,7 @@ const I18N = {
     'legal.cgv.art2_l5':'la rémunération de SAFIX pour le service de commande et la prestation de réparation.',
     'legal.cgv.art2_p4':'Cette rémunération constitue la marge de SAFIX. Elle est divulguée de manière transparente.',
     'legal.cgv.h3':'3. Prix',
-    'legal.cgv.p3':"Les prix affichés sont en euros TTC. Ils sont actualisés en continu depuis notre fournisseur partenaire. En cas d'écart à la confirmation, le client est prévenu avant prise en charge.",
+    'legal.cgv.p3':"Les prix affichés sont en euros TTC. Ils sont mis à jour régulièrement d'après notre fournisseur partenaire. En cas d'écart à la confirmation, le client est prévenu avant prise en charge.",
     'legal.cgv.h4':'4. Validation de la commande',
     'legal.cgv.art4_p1':"Avant tout paiement, le client doit explicitement cocher la case d'autorisation suivante :",
     'legal.cgv.art4_p2':"<em>\"J'autorise le réparateur à commander automatiquement la pièce nécessaire auprès d'un fournisseur spécialisé. Je comprends que le montant payé inclut le prix de la pièce, les frais de livraison et la rémunération du réparateur pour le service de commande et de réparation.\"</em>",
@@ -10778,7 +10779,7 @@ const I18N = {
     'topbar.lang':'Français', 'topbar.share':'Share site', 'topbar.snap':'Snapchat support',
     'topbar.compare':'Compare', 'topbar.theme':'Theme', 'topbar.cart':'Cart',
     'detail.eyebrow':'iPhone Repair',
-    'detail.desc':'Pick a repair. Part availability is checked live with our supplier.',
+    'detail.desc':'Pick a repair. Part availability is checked with our supplier.',
     'detail.heading':'Our services',
     'story.s1_eyebrow':'Our promise',
     'story.s1_title':'An iPhone<br>is <em>precious</em>.',
@@ -10813,7 +10814,7 @@ const I18N = {
     'mandate_info.h_cost':'Price breakdown',
     'mandate_info.cost':'The total amount is broken down into four distinct and declared components: the exact part price billed by the supplier (20% VAT included), shipping fees, mandate commission, and repair service (labor). No hidden margin is applied on the part price.',
     'mandate_info.h_refund':'Refund in case of failure',
-    'mandate_info.refund':'Availability and prices shown on the site are synchronized in real time with the supplier — what you see is what is actually in stock. In the exceptional case where the order cannot be fulfilled (technical incident, supplier refusal), you are <strong>fully refunded automatically</strong> — no action required on your part.',
+    'mandate_info.refund':'In the exceptional case where an order cannot be fulfilled (out of stock, technical incident, supplier refusal), you are <strong>fully refunded automatically</strong> — no action required on your part.',
     'mandate_info.h_change':'Modification or cancellation',
     'mandate_info.change':'Your payment immediately triggers the automatic order of the part with the supplier. <strong>Once this order is placed, cancellation is no longer possible on the customer side</strong>, except for exceptional technical issues on our side (in which case you are fully refunded). Please review your order carefully before validating.',
     'mandate.title_legacy':'How it works',
@@ -10906,7 +10907,7 @@ const I18N = {
     'legal.about.svc4':'Tempered glass, back glass, protective films',
     'legal.about.svc5':'Diagnostics, software restore, data recovery',
     'legal.about.h_commit':'Our commitments',
-    'legal.about.cmt1':'<strong>Transparent pricing</strong>: real market rates, updated daily.',
+    'legal.about.cmt1':'<strong>Transparent pricing</strong>: real market rates, updated regularly.',
     'legal.about.cmt2':'<strong>Selected parts</strong> from our partner suppliers.',
     'legal.about.cmt3':'<strong>Careful repair</strong> by a dedicated technician.',
     'legal.about.cmt4':'Delivery <strong>within 48 h</strong> or <strong>next day with Express</strong>.',
@@ -10925,7 +10926,7 @@ const I18N = {
     'legal.mentions.h_icons':'Icon credits',
     'legal.mentions.icons':'Some accessory icons are created by <strong>mikicon</strong> and <strong>At Her Cozy Corner</strong>, and published via <a href="https://thenounproject.com" target="_blank" rel="noopener noreferrer">The Noun Project</a> under the <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener noreferrer">Creative Commons BY 3.0</a> licence.',
     'legal.mentions.h_links':'External links',
-    'legal.mentions.links':'The site queries a specialised partner supplier in real time to display part availability and pricing. SAFIX is not responsible for the content, availability or commercial practices of this supplier.',
+    'legal.mentions.links':'Prices and availability shown come from a specialised partner supplier. SAFIX is not responsible for the content, availability or commercial practices of this supplier.',
     'legal.mentions.h_mediator':'Consumer mediator',
     'legal.mentions.mediator':'In accordance with article L.612-1 of the French Consumer Code, in the event of a dispute, the customer may use, free of charge, the consumer mediator (médiateur de la consommation) covering SAFIX. The contact details of the approved mediator are provided on request.',
     // Privacy policy
@@ -10972,7 +10973,7 @@ const I18N = {
     'legal.cgv.art2_l5':'SAFIX\'s remuneration for the ordering service and the repair service.',
     'legal.cgv.art2_p4':'This remuneration constitutes SAFIX\'s margin. It is disclosed transparently.',
     'legal.cgv.h3':'3. Prices',
-    'legal.cgv.p3':'The prices displayed are in euros, all taxes included. They are continuously updated from our partner supplier. In the event of a discrepancy at confirmation, the customer is notified before the work is undertaken.',
+    'legal.cgv.p3':'The prices displayed are in euros, all taxes included. They are updated regularly from our partner supplier. In the event of a discrepancy at confirmation, the customer is notified before the work is undertaken.',
     'legal.cgv.h4':'4. Order validation',
     'legal.cgv.art4_p1':'Before any payment, the customer must explicitly tick the following authorisation box:',
     'legal.cgv.art4_p2':"<em>\"I authorise the repairer to automatically order the necessary part from a specialised supplier. I understand that the amount paid includes the price of the part, the shipping fees and the repairer's remuneration for the ordering and repair service.\"</em>",
@@ -11351,8 +11352,8 @@ function applyI18n() {
     else launchAfterStable();
   }
   if (heroSub)     heroSub.innerHTML       = currentLang === 'en'
-    ? 'Pick your model to view our real-time<br>repair pricing.'
-    : 'Choisissez votre modèle pour découvrir nos tarifs de réparation en temps réel.';
+    ? 'Pick your model to view our<br>repair pricing.'
+    : 'Choisissez votre modèle pour découvrir nos tarifs de réparation.';
   // Bouton CTA hero : pas de data-i18n + ignoré par le localizer → restait
   // "Choisir mon modèle" même en EN (bug confirmé G1, capture à l'appui).
   const heroCta = document.getElementById('heroCtaBtn');
@@ -14134,7 +14135,7 @@ setInterval(refreshDeliveryAvailability, 60000); // ré-évalue chaque minute (c
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
     </button>
   </div>
-  <div class="chat-body" id="chatBody">
+  <div class="chat-body" id="chatBody" data-lenis-prevent>
     <div class="chat-welcome" id="chatWelcome">
       <p id="chatWelcomeText">Bonjour 👋 Une question sur votre réparation ? Notre assistant vous répond immédiatement, et un conseiller reste disponible.</p>
       <div class="chat-name-field" id="chatNameField">
