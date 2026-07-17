@@ -17,9 +17,9 @@
 <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
 <meta name="description" content="SAFIX — Réparation iPhone : tarifs transparents, livraison sous 48h, pièces sélectionnées.">
 <!-- ═══ Référencement strict : indexable mais non-archivable + anti-vol contenu ═══ -->
-<meta name="robots"            content="index, follow, noarchive, nosnippet, noimageindex, max-snippet:120, max-image-preview:none, notranslate">
-<meta name="googlebot"         content="index, follow, noarchive, nosnippet, noimageindex, max-snippet:120, max-image-preview:none, notranslate">
-<meta name="bingbot"           content="index, follow, noarchive, nosnippet, noimageindex">
+<meta name="robots"            content="index, follow, noarchive, max-snippet:160, max-image-preview:large, notranslate">
+<meta name="googlebot"         content="index, follow, noarchive, max-snippet:160, max-image-preview:large, notranslate">
+<meta name="bingbot"           content="index, follow, noarchive">
 <meta name="referrer"          content="strict-origin-when-cross-origin">
 <meta name="format-detection"  content="telephone=no, email=no, address=no">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -6051,7 +6051,7 @@ header { padding-left: max(20px, env(safe-area-inset-left));
     <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
     <input class="search-input" id="searchInput" type="search" aria-label="Rechercher un modèle d'iPhone" placeholder="iPhone 17 Pro" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
     <span class="search-caret" aria-hidden="true"></span>
-    <div class="search-dropdown" id="searchDropdown"></div>
+    <div class="search-dropdown" id="searchDropdown" data-lenis-prevent></div>
   </div>
 
   <!-- Section "Récemment consultés" supprimée (demande user) -->
@@ -6435,7 +6435,7 @@ header { padding-left: max(20px, env(safe-area-inset-left));
           <span class="compare-slot-name">—</span>
           <span class="compare-slot-chev">▾</span>
         </button>
-        <div class="compare-dropdown" data-for="A" id="compareDropdownA"></div>
+        <div class="compare-dropdown" data-for="A" id="compareDropdownA" data-lenis-prevent></div>
       </div>
       <div class="compare-vs">⇄</div>
       <div class="compare-slot-wrap">
@@ -6443,10 +6443,10 @@ header { padding-left: max(20px, env(safe-area-inset-left));
           <span class="compare-slot-name">—</span>
           <span class="compare-slot-chev">▾</span>
         </button>
-        <div class="compare-dropdown" data-for="B" id="compareDropdownB"></div>
+        <div class="compare-dropdown" data-for="B" id="compareDropdownB" data-lenis-prevent></div>
       </div>
     </div>
-    <div class="compare-table-wrap" id="compareTableWrap"></div>
+    <div class="compare-table-wrap" id="compareTableWrap" data-lenis-prevent></div>
   </div>
 </div>
 
@@ -6738,7 +6738,7 @@ header { padding-left: max(20px, env(safe-area-inset-left));
         <li data-i18n="legal.cgv.art2_l1">commander en son nom et pour son compte la pièce nécessaire auprès d'un fournisseur spécialisé,</li>
         <li data-i18n="legal.cgv.art2_l2">réaliser la prestation de réparation correspondante.</li>
       </ul>
-      <p data-i18n="legal.cgv.art2_p3">Le montant payé par le client inclut donc <strong>trois composantes distinctes</strong> :</p>
+      <p data-i18n="legal.cgv.art2_p3">Le montant payé par le client se décompose de manière transparente :</p>
       <ul>
         <li data-i18n="legal.cgv.art2_l3">le prix de la pièce facturé par le fournisseur,</li>
         <li data-i18n="legal.cgv.art2_l4">les frais de livraison de la pièce,</li>
@@ -6746,10 +6746,10 @@ header { padding-left: max(20px, env(safe-area-inset-left));
       </ul>
       <p data-i18n="legal.cgv.art2_p4">Cette rémunération constitue la marge de SAFIX. Elle est divulguée de manière transparente.</p>
       <h3 data-i18n="legal.cgv.h3">3. Prix</h3>
-      <p data-i18n="legal.cgv.p3">Les prix affichés sont en euros TTC. Ils sont mis à jour régulièrement d'après notre fournisseur partenaire. En cas d'écart à la confirmation, le client est prévenu avant prise en charge.</p>
+      <p data-i18n="legal.cgv.p3">Les prix affichés sont en euros TTC. Ils sont mis à jour régulièrement d'après notre fournisseur partenaire. En cas d'écart à la confirmation, le client est prévenu avant prise en charge. Pour un paiement par carte, des frais de traitement du paiement (1,5 % + 0,25 €) s'ajoutent ; ils sont affichés dans le détail des coûts avant validation et couvrent uniquement les frais du prestataire de paiement.</p>
       <h3 data-i18n="legal.cgv.h4">4. Validation de la commande</h3>
       <p data-i18n="legal.cgv.art4_p1">Avant tout paiement, le client doit explicitement cocher la case d'autorisation suivante :</p>
-      <p data-i18n="legal.cgv.art4_p2"><em>"J'autorise le réparateur à commander automatiquement la pièce nécessaire auprès d'un fournisseur spécialisé. Je comprends que le montant payé inclut le prix de la pièce, les frais de livraison et la rémunération du réparateur pour le service de commande et de réparation."</em></p>
+      <p data-i18n="legal.cgv.art4_p2"><em>« Je mandate le réparateur pour acheter la pièce pour mon compte auprès du fournisseur. »</em></p>
       <p data-i18n="legal.cgv.art4_p3">Cette autorisation vaut mandat express donné à SAFIX. Aucun paiement n'est possible sans cette validation.</p>
       <h3 data-i18n="legal.cgv.h5">5. Livraison</h3>
       <ul>
@@ -6787,7 +6787,9 @@ header { padding-left: max(20px, env(safe-area-inset-left));
       <ul>
         <li data-i18n="legal.cookies.c1"><code>sfx_theme</code> — mémorise votre choix de thème (clair/sombre)</li>
         <li data-i18n="legal.cookies.c2"><code>sfx_lang</code> — mémorise votre langue d'affichage</li>
-        <li data-i18n="legal.cookies.c3"><code>sfx_recents</code> — historique des modèles consultés (côté navigateur uniquement)</li>
+        <li data-i18n="legal.cookies.c3"><code>sfx_history</code> — historique des modèles consultés (côté navigateur uniquement)</li>
+        <li data-i18n="legal.cookies.c4"><code>safix_cart</code>, <code>safix_pending_order</code> — contenu du panier et coordonnées de commande en attente (e-mail, téléphone), le temps de finaliser le paiement</li>
+        <li data-i18n="legal.cookies.c5"><code>sfx_chat_name</code>, <code>sfx_chat_sid</code>, <code>sfx_chat_seen</code> — messagerie : votre prénom et l'identifiant de conversation</li>
       </ul>
       <p data-i18n="legal.cookies.p2">Ces données sont stockées dans le <strong>localStorage</strong> de votre navigateur, et ne sont jamais transmises à un tiers.</p>
       <h3 data-i18n="legal.cookies.h3">Statistiques anonymes</h3>
@@ -10745,16 +10747,16 @@ const I18N = {
     'legal.cgv.art2_p2':'En validant et payant sa commande sur le site, le client donne expressément <strong>mandat à SAFIX</strong> pour :',
     'legal.cgv.art2_l1':"commander en son nom et pour son compte la pièce nécessaire auprès d'un fournisseur spécialisé,",
     'legal.cgv.art2_l2':'réaliser la prestation de réparation correspondante.',
-    'legal.cgv.art2_p3':'Le montant payé par le client inclut donc <strong>trois composantes distinctes</strong> :',
+    'legal.cgv.art2_p3':'Le montant payé par le client se décompose de manière transparente :',
     'legal.cgv.art2_l3':'le prix de la pièce facturé par le fournisseur,',
     'legal.cgv.art2_l4':'les frais de livraison de la pièce,',
     'legal.cgv.art2_l5':'la rémunération de SAFIX pour le service de commande et la prestation de réparation.',
     'legal.cgv.art2_p4':'Cette rémunération constitue la marge de SAFIX. Elle est divulguée de manière transparente.',
     'legal.cgv.h3':'3. Prix',
-    'legal.cgv.p3':"Les prix affichés sont en euros TTC. Ils sont mis à jour régulièrement d'après notre fournisseur partenaire. En cas d'écart à la confirmation, le client est prévenu avant prise en charge.",
+    'legal.cgv.p3':"Les prix affichés sont en euros TTC. Ils sont mis à jour régulièrement d'après notre fournisseur partenaire. En cas d'écart à la confirmation, le client est prévenu avant prise en charge. Pour un paiement par carte, des frais de traitement du paiement (1,5 % + 0,25 €) s'ajoutent ; ils sont affichés dans le détail des coûts avant validation et couvrent uniquement les frais du prestataire de paiement.",
     'legal.cgv.h4':'4. Validation de la commande',
     'legal.cgv.art4_p1':"Avant tout paiement, le client doit explicitement cocher la case d'autorisation suivante :",
-    'legal.cgv.art4_p2':"<em>\"J'autorise le réparateur à commander automatiquement la pièce nécessaire auprès d'un fournisseur spécialisé. Je comprends que le montant payé inclut le prix de la pièce, les frais de livraison et la rémunération du réparateur pour le service de commande et de réparation.\"</em>",
+    'legal.cgv.art4_p2':"<em>« Je mandate le réparateur pour acheter la pièce pour mon compte auprès du fournisseur. »</em>",
     'legal.cgv.art4_p3':"Cette autorisation vaut mandat express donné à SAFIX. Aucun paiement n'est possible sans cette validation.",
     'legal.cgv.h5':'5. Livraison',
     'legal.cgv.art5_l1':'<strong>Standard</strong> — 6 € : sous 48h, prise en compte avant 16h30 le Lun/Mar/Mer',
@@ -10779,7 +10781,9 @@ const I18N = {
     'legal.cookies.h2':'Cookies strictement nécessaires (sans consentement requis)',
     'legal.cookies.c1':'<code>sfx_theme</code> — mémorise votre choix de thème (clair/sombre)',
     'legal.cookies.c2':"<code>sfx_lang</code> — mémorise votre langue d'affichage",
-    'legal.cookies.c3':'<code>sfx_recents</code> — historique des modèles consultés (côté navigateur uniquement)',
+    'legal.cookies.c3':'<code>sfx_history</code> — historique des modèles consultés (côté navigateur uniquement)',
+    'legal.cookies.c4':"<code>safix_cart</code>, <code>safix_pending_order</code> — contenu du panier et coordonnées de commande en attente (e-mail, téléphone), le temps de finaliser le paiement",
+    'legal.cookies.c5':"<code>sfx_chat_name</code>, <code>sfx_chat_sid</code>, <code>sfx_chat_seen</code> — messagerie : votre prénom et l'identifiant de conversation",
     'legal.cookies.p2':'Ces données sont stockées dans le <strong>localStorage</strong> de votre navigateur, et ne sont jamais transmises à un tiers.',
     'legal.cookies.h3':'Statistiques anonymes',
     'legal.cookies.p3':'Le site utilise <strong>Plausible Analytics</strong>, une solution respectueuse de la vie privée, sans cookie ni traceur, conforme RGPD. Aucune donnée personnelle n\'est collectée.',
@@ -10978,16 +10982,16 @@ const I18N = {
     'legal.cgv.art2_p2':'By validating and paying for their order on the site, the customer expressly grants <strong>a mandate to SAFIX</strong> to:',
     'legal.cgv.art2_l1':'order the necessary part in their name and on their behalf from a specialised supplier,',
     'legal.cgv.art2_l2':'carry out the corresponding repair service.',
-    'legal.cgv.art2_p3':'The amount paid by the customer therefore includes <strong>three distinct components</strong>:',
+    'legal.cgv.art2_p3':'The amount paid by the customer breaks down transparently as follows:',
     'legal.cgv.art2_l3':'the price of the part billed by the supplier,',
     'legal.cgv.art2_l4':'the shipping fees for the part,',
     'legal.cgv.art2_l5':'SAFIX\'s remuneration for the ordering service and the repair service.',
     'legal.cgv.art2_p4':'This remuneration constitutes SAFIX\'s margin. It is disclosed transparently.',
     'legal.cgv.h3':'3. Prices',
-    'legal.cgv.p3':'The prices displayed are in euros, all taxes included. They are updated regularly from our partner supplier. In the event of a discrepancy at confirmation, the customer is notified before the work is undertaken.',
+    'legal.cgv.p3':'The prices displayed are in euros, all taxes included. They are updated regularly from our partner supplier. In the event of a discrepancy at confirmation, the customer is notified before the work is undertaken. For card payments, a payment-processing fee (1.5% + €0.25) is added; it is shown in the cost breakdown before checkout and only covers the payment provider's fees.',
     'legal.cgv.h4':'4. Order validation',
     'legal.cgv.art4_p1':'Before any payment, the customer must explicitly tick the following authorisation box:',
-    'legal.cgv.art4_p2':"<em>\"I authorise the repairer to automatically order the necessary part from a specialised supplier. I understand that the amount paid includes the price of the part, the shipping fees and the repairer's remuneration for the ordering and repair service.\"</em>",
+    'legal.cgv.art4_p2':"<em>“I mandate the repairer to purchase the part on my behalf from the supplier.”</em>",
     'legal.cgv.art4_p3':'This authorisation constitutes an express mandate granted to SAFIX. No payment is possible without this validation.',
     'legal.cgv.h5':'5. Delivery',
     'legal.cgv.art5_l1':'<strong>Standard</strong> — €6: within 48h, processed if placed before 16:30 on Mon/Tue/Wed',
@@ -11012,7 +11016,9 @@ const I18N = {
     'legal.cookies.h2':'Strictly necessary cookies (no consent required)',
     'legal.cookies.c1':'<code>sfx_theme</code> — remembers your theme choice (light/dark)',
     'legal.cookies.c2':'<code>sfx_lang</code> — remembers your display language',
-    'legal.cookies.c3':'<code>sfx_recents</code> — history of viewed models (browser-side only)',
+    'legal.cookies.c3':'<code>sfx_history</code> — history of viewed models (browser-side only)',
+    'legal.cookies.c4':"<code>safix_cart</code>, <code>safix_pending_order</code> — cart contents and pending order details (email, phone) while you complete payment",
+    'legal.cookies.c5':"<code>sfx_chat_name</code>, <code>sfx_chat_sid</code>, <code>sfx_chat_seen</code> — chat: your first name and conversation identifier",
     'legal.cookies.p2':'This data is stored in your browser\'s <strong>localStorage</strong> and is never transmitted to any third party.',
     'legal.cookies.h3':'Anonymous statistics',
     'legal.cookies.p3':'The site uses <strong>Plausible Analytics</strong>, a privacy-friendly solution with no cookie or tracker, GDPR-compliant. No personal data is collected.',

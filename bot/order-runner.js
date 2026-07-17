@@ -58,6 +58,15 @@ const SUPABASE_URL  = process.env.SUPABASE_URL;
 const SUPABASE_KEY  = process.env.SUPABASE_SERVICE_ROLE;
 const POLL_INTERVAL = Number(process.env.POLL_INTERVAL_MS || 30000);
 
+// ⛔ INTERRUPTEUR GÉNÉRAL — FAIL-CLOSED (demande Utopya du 2026-07-13 : toute
+// automatisation de leur site entraîne la désactivation DÉFINITIVE du compte).
+// Le bot ne fait STRICTEMENT RIEN (aucun poll traité, aucun trigger accepté,
+// aucune connexion Utopya) tant que UTOPYA_BOT_ENABLED n'est pas explicitement
+// mis à '1' dans l'environnement du service. L'ABSENCE de la variable = bot
+// inerte. Ne réactiver qu'avec l'accord ÉCRIT d'Utopya.
+const BOT_ENABLED = process.env.UTOPYA_BOT_ENABLED === '1'
+  && process.env.UTOPYA_BOT_PAUSED !== '1';
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: '2024-06-20',
 });
@@ -611,6 +620,12 @@ const PORT       = Number(process.env.PORT || 3000);
 const SECRET     = process.env.BOT_TRIGGER_SECRET || '';
 
 async function processSingleOrder(orderId) {
+  // Ceinture ET bretelles : même appelé directement, le traitement est inerte
+  // tant que l'interrupteur n'est pas explicitement ouvert.
+  if (!BOT_ENABLED) {
+    log.warn(`Order ${orderId} IGNORÉ — bot désactivé (UTOPYA_BOT_ENABLED ≠ '1') : commande fournisseur à passer À LA MAIN.`);
+    return;
+  }
   // Recharge l'order depuis Supabase (paranoïaque : on ne fait confiance qu'à la base)
   const r = await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${orderId}&select=*`, {
     headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
@@ -649,11 +664,15 @@ const server = http.createServer((req, res) => {
   // Health check (GET /)
   if (req.method === 'GET' && req.url === '/') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    return res.end(JSON.stringify({ ok: true, service: 'safix-bot' }));
+    return res.end(JSON.stringify({ ok: true, service: 'safix-bot', enabled: BOT_ENABLED }));
   }
 
   // Trigger (POST /run)
   if (req.method === 'POST' && req.url === '/run') {
+    if (!BOT_ENABLED) {
+      res.writeHead(503, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ paused: true, reason: 'UTOPYA_BOT_ENABLED absent — automatisation Utopya désactivée (fail-closed)' }));
+    }
     if (SECRET && req.headers['x-safix-secret'] !== SECRET) {
       res.writeHead(401); return res.end('unauthorized');
     }
@@ -682,8 +701,12 @@ server.listen(PORT, () => {
 });
 
 // ─── Filet de sécurité : poll en parallèle (rattrape les commandes ratées) ─
-console.log(`[bot] Démarrage — poll toutes les ${POLL_INTERVAL}ms (filet de sécurité)`);
 (async () => {
+  if (!BOT_ENABLED) {
+    console.log('[bot] ⛔ Bot INERTE — UTOPYA_BOT_ENABLED ≠ \'1\' (fail-closed, conformité Utopya). Aucun poll, aucune connexion fournisseur ; les commandes payées sont à passer À LA MAIN.');
+    return;
+  }
+  console.log(`[bot] Démarrage — poll toutes les ${POLL_INTERVAL}ms (filet de sécurité)`);
   while (true) {
     try { await tick(); } catch (e) { console.error('tick error', e); }
     await new Promise(r => setTimeout(r, POLL_INTERVAL));

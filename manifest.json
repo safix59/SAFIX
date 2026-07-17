@@ -1,7 +1,7 @@
 {
   "name": "SAFIX — Réparation iPhone",
   "short_name": "SAFIX",
-  "description": "Réparation iPhone : tarifs synchronisés, livraison 48h, pièces sélectionnées.",
+  "description": "Réparation iPhone : tarifs transparents, livraison 48h, pièces sélectionnées.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

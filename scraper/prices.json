@@ -5913,19 +5913,6 @@
         "selectedPriority": 1,
         "selectedNote": "Caméra Arrière"
       },
-      "iPhone 12 Pro Max": {
-        "url": "https://www.utopya.fr/lentille-camera-arriere-iphone-12-pro-max.html",
-        "category": "repair",
-        "basePrice": 1.1,
-        "outOfStock": false,
-        "final": 27,
-        "step1": 2,
-        "margin": 25,
-        "priceSource": "fallback:top-of-page:y=167",
-        "checkedAt": "2026-07-06T08:23:19.412Z",
-        "selectedPriority": 1,
-        "selectedNote": "Caméra Arrière"
-      },
       "iPhone 14 Pro Max": {
         "url": "https://www.utopya.fr/camera-arriere-iphone-14-pro-max.html",
         "category": "repair",

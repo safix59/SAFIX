@@ -113,13 +113,23 @@ export default async function handler(req, res) {
     const paymentChoice = (orderMeta && orderMeta.paymentMethod) || 'card';
     const stripeMethods = paymentChoice === 'paypal' ? ['paypal', 'card'] : ['card'];
 
+    // URLs de retour : UNIQUEMENT nos origines (une URL client arbitraire =
+    // open redirect après paiement → vecteur de phishing). Corrige aussi le
+    // ReferenceError latent (`allowOrigin` n'existait que dans withCors) qui
+    // rendait un appel sans success_url impossible (500).
+    const SITE = 'https://safix59.fr';
+    const safeReturnUrl = (u, fallback) => {
+      const s = String(u || '');
+      return (s.startsWith('https://safix59.fr/') || s.startsWith('https://www.safix59.fr/')) ? s : fallback;
+    };
+
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       payment_method_types: stripeMethods,
       customer_email: email,
       line_items: stripeItems,
-      success_url: success_url || `${allowOrigin}/?paid=1&session={CHECKOUT_SESSION_ID}`,
-      cancel_url:  cancel_url  || `${allowOrigin}/?cancel=1`,
+      success_url: safeReturnUrl(success_url, `${SITE}/?paid=1&session={CHECKOUT_SESSION_ID}`),
+      cancel_url:  safeReturnUrl(cancel_url,  `${SITE}/?cancel=1`),
       // Reçu automatique au client (Stripe envoie un email avec le détail de la commande)
       payment_intent_data: {
         receipt_email: email,

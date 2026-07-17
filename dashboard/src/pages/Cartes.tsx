@@ -210,15 +210,23 @@ export function Cartes() {
     return firstModel ? cat[firstModel] : null;
   };
 
+  // La sauvegarde n'est autorisée qu'après un chargement RÉUSSI de la config :
+  // sinon un enregistrement partirait d'un état vide et écraserait toutes les
+  // cartes (promos, masquages, prix) côté serveur.
+  const [cfgReady, setCfgReady] = useState(false);
   const load = async () => {
     const r = await api.cardsGet();
-    if (r.status === 200 && r.data?.ok) setCfg(r.data.cards || {});
+    if (r.status === 200 && r.data?.ok) { setCfg(r.data.cards || {}); setCfgReady(true); }
     setLoading(false);
   };
   useEffect(() => { void load(); }, []);
 
   // Sauvegarde (le serveur pousse automatiquement un instantané d'historique).
   const save = async (next: CardsMap, note: string) => {
+    if (!cfgReady) {
+      toast({ title: 'Configuration non chargée', msg: 'Rechargez la page avant de modifier les cartes (protection anti-écrasement).', tone: 'danger' });
+      return false;
+    }
     setSaving(true);
     const r = await api.cardsSet(next, note);
     setSaving(false);

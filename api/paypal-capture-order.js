@@ -120,8 +120,25 @@ export default async function handler(req, res) {
           });
         }
         const pu = captureData?.purchase_units?.[0] || {};
+        // Meta complet depuis Supabase (settings/ppmeta_<orderID>, écrit par
+        // paypal-create-order.js — custom_id est limité à 127 c. et tronquait
+        // le JSON). Repli sur l'ancien custom_id pour les commandes créées
+        // avant ce correctif.
         let meta = {};
-        try { meta = JSON.parse(pu.custom_id || '{}'); } catch (e) {}
+        try {
+          const mr = await fetch(
+            `${SUPA_URL}/rest/v1/settings?select=value&key=eq.${encodeURIComponent('ppmeta_' + orderID)}`,
+            { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` } },
+          );
+          const mrows = await mr.json().catch(() => null);
+          if (Array.isArray(mrows) && mrows[0] && mrows[0].value && typeof mrows[0].value === 'object') {
+            meta = mrows[0].value;
+          }
+        } catch (e) { /* non fatal — repli custom_id */ }
+        if (!Object.keys(meta).length) {
+          try { meta = JSON.parse(pu.custom_id || '{}'); } catch (e) {}
+          if (typeof meta !== 'object' || meta === null || Array.isArray(meta)) meta = {};
+        }
         const lineItems = (Array.isArray(pu.items) ? pu.items : []).map(it => ({
           name: it.name,
           qty: Number(it.quantity) || 1,
@@ -150,6 +167,14 @@ export default async function handler(req, res) {
         const insRow = await ins.json().catch(() => null);
         const orderId = Array.isArray(insRow) ? insRow[0]?.id : insRow?.id;
         console.log(`[PayPal] order persistée ${dedupeRef} → ${orderId} (HTTP ${ins.status})`);
+
+        // Nettoyage du meta temporaire (best-effort — la commande est enregistrée)
+        try {
+          await fetch(`${SUPA_URL}/rest/v1/settings?key=eq.${encodeURIComponent('ppmeta_' + orderID)}`, {
+            method: 'DELETE',
+            headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` },
+          });
+        } catch (e) { /* non fatal */ }
 
         // Tâches ATTENDUES avant la réponse (Promise.allSettled ci-dessous) :
         // en serverless, un travail lancé après la réponse peut être gelé et

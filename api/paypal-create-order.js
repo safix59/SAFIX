@@ -114,7 +114,12 @@ export default async function handler(req, res) {
         },
         items,
         description: 'Réparation SAFIX (mandat de commande de pièce + service)',
-        custom_id: JSON.stringify(orderMeta || {}).slice(0, 127),
+        // custom_id est limité à 127 caractères par PayPal : un JSON complet y
+        // était tronqué → JSON.parse échouait à la capture et TOUTES les infos
+        // (RDV, adresse, téléphone…) étaient perdues. Le meta complet est
+        // désormais stocké dans Supabase (settings/ppmeta_<orderID>) juste
+        // après la création ; custom_id ne sert plus que de marqueur.
+        custom_id: 'safix',
       }],
       application_context: {
         brand_name: 'SAFIX',
@@ -141,6 +146,21 @@ export default async function handler(req, res) {
     }
 
     const order = await r.json();
+
+    // Meta complet → Supabase settings (clé ppmeta_<orderID>), relu par
+    // paypal-capture-order.js. Best-effort : un échec ici ne bloque pas le
+    // paiement (on retombe au pire sur l'état d'avant, meta absent).
+    try {
+      const SUPA = process.env.SUPABASE_URL, KEY = process.env.SUPABASE_SERVICE_ROLE;
+      if (SUPA && KEY && order.id && orderMeta && Object.keys(orderMeta).length) {
+        await fetch(`${SUPA}/rest/v1/settings?on_conflict=key`, {
+          method: 'POST',
+          headers: { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates,return=minimal' },
+          body: JSON.stringify({ key: `ppmeta_${order.id}`, value: orderMeta, updated_at: new Date().toISOString() }),
+        });
+      }
+    } catch (e) { console.warn('[PayPal] stockage meta échoué (non fatal):', e.message); }
+
     return res.status(200).json({ id: order.id });
   } catch (err) {
     console.error('[PayPal] Erreur create order:', err);

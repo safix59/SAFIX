@@ -20,9 +20,15 @@ const FLAGSHIP = [
 async function uploadChatImage(S, K, session, dataUrl) {
   const m = /^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/.exec(String(dataUrl || ''));
   if (!m || m[2].length > 2_000_000) return null; // ~1,5 Mo binaire max
+  // `session` vient du VISITEUR (action publique msg-send) et sert de segment
+  // de chemin Storage : on n'accepte qu'un identifiant plat ([A-Za-z0-9_-]),
+  // sinon un `../` normalisé par fetch permettrait d'écrire hors du bucket
+  // chat avec la clé service_role.
+  const safeSession = String(session || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 60);
+  if (!safeSession) return null;
   const ext = m[1] === 'jpeg' ? 'jpg' : m[1];
   const bin = Buffer.from(m[2], 'base64');
-  const path = `${session}/${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}.${ext}`;
+  const path = `${safeSession}/${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}.${ext}`;
   const H = { apikey: K, Authorization: `Bearer ${K}` };
   // Bucket idempotent (409 = existe déjà, OK)
   await fetch(`${S}/storage/v1/bucket`, {
@@ -138,8 +144,8 @@ async function askGemini(system, messages, maxTokens, schema) {
     generationConfig: { maxOutputTokens: maxTokens, temperature: 0.4, ...(schema ? { responseMimeType: 'application/json' } : {}) },
   };
   const r = await llmFetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
-    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) },
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+    { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body: JSON.stringify(body) },
     9000,
   );
   if (!r.ok) return null;
@@ -345,8 +351,12 @@ export default async function handler(req, res) {
         const v = Array.isArray(rows) && rows[0] ? rows[0] : null;
         return res.status(200).json({ ok: true, cards: (v && v.value && v.value.cards) || {}, updated_at: v && v.updated_at });
       }
-    } catch { /* fail-open : site sans surcharges */ }
-    return res.status(200).json({ ok: true, cards: {} });
+    } catch { /* erreur Supabase → dégradé signalé ci-dessous */ }
+    // ok:false (et non ok:true+{}) : le site garde alors sa config précédente
+    // (loadCardsConfig ne remplace que si ok), et le Dashboard SAIT que le
+    // chargement a échoué — sinon un enregistrement repartait d'une config
+    // vide et ÉCRASAIT toutes les cartes (promos, masquages, prix).
+    return res.status(200).json({ ok: false, cards: {} });
   }
 
   // ── MESSAGERIE — envoi d'un message par le visiteur (PUBLIC) ──

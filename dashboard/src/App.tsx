@@ -63,7 +63,12 @@ function Shell() {
   const prevUnread = useRef<number | null>(null);
   const [emailUnread, setEmailUnread] = useState(0);
   const prevEmailUnread = useRef<number | null>(null);
-  const [section, setSection] = useState<Section>(() => (location.hash.slice(1) as Section) || 'home');
+  // Hash validé : un hash inconnu (#foo, ancien lien) aboutissait à
+  // NAV.find(...)! → undefined → TypeError → écran blanc. Fallback « home ».
+  const [section, setSection] = useState<Section>(() => {
+    const h = location.hash.slice(1);
+    return NAV.some((n) => n.key === h) ? (h as Section) : 'home';
+  });
   const [drawer, setDrawer] = useState(false);
   const [palette, setPalette] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -88,9 +93,17 @@ function Shell() {
         setData(res.data);
         setAuthed(true);
         setLastUpdated(Date.now());
-      } else setAuthed(false);
+      } else if (res.status === 401) {
+        // Session réellement expirée → retour au login.
+        setAuthed(false);
+      } else {
+        // Statut 5xx/transitoire : si l'admin était DÉJÀ connecté, on garde
+        // la session affichée (cookie toujours valide) au lieu de l'éjecter
+        // à chaque hoquet du polling ; au premier chargement → login.
+        setAuthed((prev) => (prev === true ? prev : false));
+      }
     } catch {
-      setAuthed(false);
+      setAuthed((prev) => (prev === true ? prev : false));
     } finally {
       setRefreshing(false);
     }
@@ -515,7 +528,14 @@ function Login({ onSuccess, theme }: { onSuccess: () => void; theme: Theme }) {
     const res = await api.login(pw);
     setBusy(false);
     if (res.status === 200) { setPw(''); onSuccess(); }
-    else { setErr('Mot de passe incorrect'); }
+    else if (res.status === 429) {
+      // Verrouillage anti force-brute : dire « mot de passe incorrect » à
+      // l'admin qui tape le BON mot de passe l'induirait en erreur.
+      const mins = (res.data as { retry_minutes?: number } | null)?.retry_minutes;
+      setErr(`Trop de tentatives — réessayez dans ${mins || 15} min.`);
+    } else if (res.status >= 500) {
+      setErr('Serveur indisponible — réessayez dans un instant.');
+    } else { setErr('Mot de passe incorrect'); }
   }
   return (
     <div className="min-h-screen grid place-items-center p-6 relative overflow-hidden bg-bg">
