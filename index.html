@@ -1251,6 +1251,9 @@ header {
   backdrop-filter:none;
   -webkit-backdrop-filter:none;
 }
+/* Carte sans aucun prix (lien fournisseur/prix manquant) : jamais visible
+   côté client — masquée au rendu ET si le prix disparaît en cours de session. */
+.repair-card.price-missing { display:none; }
 .repair-card.unavailable {
   opacity:.35; cursor:not-allowed;
 }
@@ -7404,6 +7407,9 @@ function updateCardInPlace(card, repair, model) {
   card.classList.toggle('out-of-stock', oos);
   card.classList.toggle('no-link',      noLink);
   card.classList.toggle('unavailable',  unavail);
+  // Une carte qui PERD son prix pendant la session (mise à jour live) est
+  // masquée, comme au rendu initial : jamais de carte « ? »/« ! » visible.
+  card.classList.toggle('price-missing', noLink || unavail);
 
   // Si la carte devient bloquée, on retire 'selected' (cohérence avec le panier)
   if (blocked) card.classList.remove('selected');
@@ -8430,6 +8436,11 @@ function renderDetail(model) {
     });
     const list = baseList
       .filter((e) => { const o = cardOv(e.r.id, model); return !(o && o.hidden); })
+      // Carte sans AUCUN prix (« ? »/« ! » : lien fournisseur ou prix manquant)
+      // → jamais montrée au client. Les ruptures de stock, elles, restent
+      // affichées (état connu et assumé). La liste des cartes à compléter est
+      // visible dans le Dashboard (Cartes → « Sans prix »).
+      .filter((e) => getPrice(e.r, model) !== '?')
       .sort((a, b) => {
         const va = cardOv(a.r.id, model), vb = cardOv(b.r.id, model);
         const oa = va && va.order != null ? Number(va.order) : a.i;

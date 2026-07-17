@@ -251,6 +251,35 @@ export function Cartes() {
     });
   }, [cfg, q, cat, status]);
 
+  // ── Cartes sans lien fournisseur ou sans prix, modèle par modèle ──
+  // Sur le site, ces cartes sont automatiquement masquées côté client :
+  // cette vue sert à les repérer d'un coup d'œil pour les compléter.
+  // Les Services sont exclus (prix forfaitaire, aucun lien fournisseur requis).
+  // Les ruptures de stock (prix connu, pièce indisponible) sont listées à
+  // part, pour information — elles restent visibles sur le site.
+  const gaps = useMemo(() => {
+    const map = new Map<string, { sansLien: string[]; sansPrix: string[]; rupture: string[] }>();
+    if (!models.length || !Object.keys(priceDoc).length) return map;
+    BASE.filter((b) => b.cat !== 'Services').forEach((b) => {
+      const entries = priceDoc[b.id] || {};
+      const g = { sansLien: [] as string[], sansPrix: [] as string[], rupture: [] as string[] };
+      models.forEach((m) => {
+        const e = entries[m];
+        if (!e) g.sansLien.push(m);
+        else if (e.outOfStock) g.rupture.push(m);
+        else if (typeof e.final !== 'number') g.sansPrix.push(m);
+      });
+      if (g.sansLien.length || g.sansPrix.length || g.rupture.length) map.set(b.id, g);
+    });
+    return map;
+  }, [priceDoc, models]);
+  const gapTotal = useMemo(() => {
+    let n = 0;
+    gaps.forEach((g) => { n += g.sansLien.length + g.sansPrix.length; });
+    return n;
+  }, [gaps]);
+  const [gapsOpen, setGapsOpen] = useState(false);
+
   const patch = (id: string, p: Partial<CardOverride>, note: string) => {
     const next = { ...cfg, [id]: { ...(cfg[id] || {}), ...p } };
     void save(next, note);
@@ -418,6 +447,22 @@ export function Cartes() {
         )}
       </Card>
 
+      {/* Cartes incomplètes : sans lien fournisseur ou sans prix (masquées côté client) */}
+      {gapTotal > 0 && (
+        <Card className="p-3 border-warn/40">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="grid place-items-center h-8 w-8 rounded-[10px] bg-warn/12 text-warn shrink-0">
+              <Icon name="alert" size={16} />
+            </span>
+            <div className="flex-1 min-w-0">
+              <div className="text-[13.5px] font-semibold">{gapTotal} carte{gapTotal > 1 ? 's' : ''}-modèle{gapTotal > 1 ? 's' : ''} sans prix ou sans lien fournisseur</div>
+              <div className="text-[11.5px] text-fg3">Ces cartes sont automatiquement masquées sur le site tant qu'elles n'ont pas de prix.</div>
+            </div>
+            <Button size="sm" onClick={() => setGapsOpen(true)}>Voir le détail</Button>
+          </div>
+        </Card>
+      )}
+
       {/* Liste */}
       <Card className="p-0 overflow-hidden">
         {loading ? (
@@ -447,6 +492,11 @@ export function Cartes() {
                       {r.ov?.models && Object.keys(r.ov.models).length > 0 && (
                         <Badge tone="accent">{Object.keys(r.ov.models).length} modèle{Object.keys(r.ov.models).length > 1 ? 's' : ''} ⚙</Badge>
                       )}
+                      {(() => {
+                        const g = gaps.get(r.id);
+                        const n = g ? g.sansLien.length + g.sansPrix.length : 0;
+                        return n > 0 ? <Badge tone="warn">{n} sans prix</Badge> : null;
+                      })()}
                     </div>
                     <div className="text-[11.5px] text-fg3 truncate">{r.cat} · {r.ov?.subtitle ?? r.desc}</div>
                   </div>
@@ -466,6 +516,62 @@ export function Cartes() {
           </ul>
         )}
       </Card>
+
+      {/* ═══ Vue « Sans prix » : cartes-modèles sans lien fournisseur ou sans
+           prix (masquées automatiquement côté client), + ruptures pour info ═══ */}
+      <Modal open={gapsOpen} onClose={() => setGapsOpen(false)} className="max-w-[640px]">
+        <div className="p-5">
+          <h2 className="text-[16px] font-bold tracking-tight">Cartes sans prix ou sans lien fournisseur</h2>
+          <p className="mt-1 text-[12px] text-fg3 leading-relaxed">
+            Ces cartes-modèles n'affichent aucun tarif : elles sont <b className="text-fg2">masquées automatiquement sur le site</b> tant
+            qu'elles ne sont pas complétées. Pour les rétablir : ajouter le lien fournisseur (puis relever le prix), ou créer une
+            carte personnalisée avec un prix fixe. Les ruptures de stock, elles, restent visibles sur le site.
+          </p>
+          <div className="mt-4 space-y-4 max-h-[52vh] overflow-y-auto pr-1">
+            {[...gaps.entries()].map(([id, g]) => {
+              const b = BASE.find((x) => x.id === id);
+              if (!b) return null;
+              const chip = (m: string, cls: string, title: string) => (
+                <span key={`${id}-${m}`} title={title}
+                  className={`inline-flex items-center px-2 py-0.5 rounded-full border text-[10.5px] font-semibold ${cls}`}>{m}</span>
+              );
+              return (
+                <div key={id} className="rounded-xl border border-line bg-panel p-3.5">
+                  <div className="flex items-center gap-2.5">
+                    <img src={iconUrl(id)} alt="" className="w-7 h-7 rounded-lg object-contain bg-panel2 p-1 shrink-0"
+                      onError={(e) => { (e.target as HTMLImageElement).style.visibility = 'hidden'; }} />
+                    <span className="text-[13px] font-semibold">{b.name}</span>
+                    <span className="text-[11px] text-fg3">{b.cat}</span>
+                    <span className="ml-auto text-[11px] font-bold text-warn">{g.sansLien.length + g.sansPrix.length} à compléter</span>
+                  </div>
+                  {g.sansLien.length > 0 && (
+                    <div className="mt-2.5">
+                      <div className="text-[10.5px] font-bold uppercase tracking-wider text-fg3 mb-1.5">Sans lien fournisseur ({g.sansLien.length})</div>
+                      <div className="flex flex-wrap gap-1.5">{g.sansLien.map((m) => chip(m, 'border-danger/40 bg-danger/10 text-danger', 'Aucun lien fournisseur : jamais de prix relevé'))}</div>
+                    </div>
+                  )}
+                  {g.sansPrix.length > 0 && (
+                    <div className="mt-2.5">
+                      <div className="text-[10.5px] font-bold uppercase tracking-wider text-fg3 mb-1.5">Lien présent mais prix introuvable ({g.sansPrix.length})</div>
+                      <div className="flex flex-wrap gap-1.5">{g.sansPrix.map((m) => chip(m, 'border-warn/40 bg-warn/10 text-warn', 'Le dernier relevé n\'a pas trouvé de prix sur la fiche fournisseur'))}</div>
+                    </div>
+                  )}
+                  {g.rupture.length > 0 && (
+                    <div className="mt-2.5">
+                      <div className="text-[10.5px] font-bold uppercase tracking-wider text-fg3 mb-1.5">Rupture de stock — visibles sur le site ({g.rupture.length})</div>
+                      <div className="flex flex-wrap gap-1.5">{g.rupture.map((m) => chip(m, 'border-line bg-panel2 text-fg3', 'Prix connu mais pièce indisponible chez le fournisseur'))}</div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {gaps.size === 0 && <Empty title="Tout est complet">Toutes les cartes ont un lien fournisseur et un prix.</Empty>}
+          </div>
+          <div className="mt-4 flex justify-end">
+            <Button size="sm" onClick={() => setGapsOpen(false)}>Fermer</Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* ═══ Éditeur de carte — panneau premium (en-tête fixe, corps scrollable,
            aperçu en vedette, sections repliables, pied d'actions fixe) ═══ */}
