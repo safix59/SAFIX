@@ -85,6 +85,17 @@ function Shell() {
     if (section) location.hash = section;
   }, [section]);
 
+  // Bouton Retour/Avant du navigateur : suivre le hash (avant, l'URL changeait
+  // sans que la page affichée ne bouge).
+  useEffect(() => {
+    const onHash = () => {
+      const h = location.hash.slice(1);
+      if (NAV.some((n) => n.key === h)) setSection(h as Section);
+    };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+
   async function loadData() {
     setRefreshing(true);
     try {

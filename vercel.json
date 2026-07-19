@@ -18,7 +18,9 @@
     { "source": "/admin-next/(.*)", "destination": "/admin", "permanent": false },
     { "source": "/api/(.*)\\.(js|mjs|json|md)", "destination": "/", "permanent": false },
     { "source": "/vercel.json", "destination": "/", "permanent": false },
-    { "source": "/.vercelignore", "destination": "/", "permanent": false }
+    { "source": "/.vercelignore", "destination": "/", "permanent": false },
+    { "source": "/dashboard/(.*)", "destination": "/admin", "permanent": false },
+    { "source": "/middleware.js", "destination": "/", "permanent": false }
   ],
   "headers": [
     {

@@ -4,14 +4,28 @@ import { Card, CardHead, Kpi, CountUp, Empty, Badge, AlertBanner, Meter } from '
 import { Donut, BarList } from '../charts';
 import { Icon } from '../icons';
 
+// Clés = les VRAIS repairId de prices.json (underscore) — les anciennes clés
+// à tirets ne correspondaient à rien et laissaient les identifiants bruts.
 const REPAIR_LABEL: Record<string, string> = {
-  ecran: 'Écran',
+  ecran_original: 'Écran Original',
+  ecran_premium: 'Écran Premium',
+  ecran_standard: 'Écran Standard',
+  ecran_eco: 'Écran Éco',
   batterie: 'Batterie',
-  'vitre-arriere': 'Vitre arrière',
-  'connecteur-charge': 'Connecteur de charge',
-  camera: 'Caméra',
-  'face-id': 'Face ID',
-  'haut-parleur': 'Haut-parleur',
+  batterie_original: 'Batterie Origine',
+  vitre_arriere: 'Vitre arrière',
+  connecteur_de_charge: 'Connecteur de charge',
+  camera_arriere: 'Caméra arrière',
+  camera_avant: 'Caméra avant',
+  lentille_camera_arriere: 'Lentille caméra',
+  ecouteur_interne: 'Écouteur interne',
+  haut_parleur: 'Haut-parleur',
+  micro: 'Micro',
+  vibreur: 'Vibreur',
+  bouton_power: 'Bouton power',
+  bouton_volume: 'Bouton volume',
+  verre_trempe_classique: 'Verre trempé',
+  verre_trempe_anti_espion: 'Verre trempé anti-espion',
 };
 const rlabel = (r: string) => REPAIR_LABEL[r] || r;
 

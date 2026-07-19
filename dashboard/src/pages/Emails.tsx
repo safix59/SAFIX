@@ -93,11 +93,18 @@ export function Emails({ onChanged }: { onChanged?: () => void }) {
     const ids = (emails || []).filter((e) => e.status === 'non_lu').map((e) => e.id);
     if (!ids.length) return;
     setBusy(true);
-    setEmails((prev) => (prev || []).map((x) => (x.status === 'non_lu' ? { ...x, status: 'lu' } : x)));
-    await api.emailStatus(ids, 'lu');
+    const prev = emails;
+    setEmails((p) => (p || []).map((x) => (x.status === 'non_lu' ? { ...x, status: 'lu' } : x)));
+    const r = await api.emailStatus(ids, 'lu');
     setBusy(false);
-    onChanged?.();
-    toast({ title: 'Tout marqué comme lu', msg: `${ids.length} e-mail${ids.length > 1 ? 's' : ''}.`, tone: 'neutral' });
+    if (r.status === 200 && r.data?.ok) {
+      onChanged?.();
+      toast({ title: 'Tout marqué comme lu', msg: `${ids.length} e-mail${ids.length > 1 ? 's' : ''}.`, tone: 'neutral' });
+    } else {
+      // Échec serveur : on restaure l'état réel au lieu d'afficher un faux succès.
+      setEmails(prev);
+      toast({ title: 'Échec du marquage', msg: 'Réessayez dans un instant.', tone: 'danger' });
+    }
   }
 
   async function del(e: SupportEmail) {

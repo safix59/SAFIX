@@ -4,9 +4,17 @@ import { num, fDT, ago } from '../lib/format';
 import { Card, Kpi, CountUp, Empty, Segmented, Badge } from '../components';
 import { Icon, type IconName } from '../icons';
 
+// Clés = les VRAIS repairId de prices.json (underscore).
 const REPAIR_LABEL: Record<string, string> = {
-  ecran: 'Écran', batterie: 'Batterie', 'vitre-arriere': 'Vitre arrière',
-  'connecteur-charge': 'Connecteur de charge', camera: 'Caméra',
+  ecran_original: 'Écran Original', ecran_premium: 'Écran Premium',
+  ecran_standard: 'Écran Standard', ecran_eco: 'Écran Éco',
+  batterie: 'Batterie', batterie_original: 'Batterie Origine',
+  vitre_arriere: 'Vitre arrière', connecteur_de_charge: 'Connecteur de charge',
+  camera_arriere: 'Caméra arrière', camera_avant: 'Caméra avant',
+  lentille_camera_arriere: 'Lentille caméra', ecouteur_interne: 'Écouteur interne',
+  haut_parleur: 'Haut-parleur', micro: 'Micro', vibreur: 'Vibreur',
+  bouton_power: 'Bouton power', bouton_volume: 'Bouton volume',
+  verre_trempe_classique: 'Verre trempé', verre_trempe_anti_espion: 'Verre trempé anti-espion',
 };
 const rlabel = (r: string) => REPAIR_LABEL[r] || r;
 

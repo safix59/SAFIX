@@ -6406,10 +6406,8 @@ header { padding-left: max(20px, env(safe-area-inset-left));
         <span class="costs-row-label" data-i18n="costs.repair">Service de réparation (main-d'œuvre)</span>
         <span class="costs-row-value" id="costsRepair">0 €</span>
       </div>
-      <div class="costs-row costs-row--fees">
-        <span class="costs-row-label" data-i18n="costs.fees">Frais de paiement (1,5 % + 0,25 €)</span>
-        <span class="costs-row-value" id="costsFees">0 €</span>
-      </div>
+      <!-- Frais de paiement : ABSORBÉS par SAFIX (19/07/2026, L.112-12 CMF) —
+           ligne retirée, le client paie le prix affiché, tous moyens de paiement. -->
       <p class="costs-note" data-i18n="costs.note">
         Vous me mandatez pour acheter la pièce pour votre compte. Le prix pièce inclut la TVA 20 % facturée par le fournisseur. Aucune marge cachée. Les frais de paiement (1,5 % + 0,25 €) couvrent strictement le coût du processeur de paiement (Stripe) — ils ne reviennent pas au réparateur.
       </p>
@@ -6746,7 +6744,7 @@ header { padding-left: max(20px, env(safe-area-inset-left));
       </ul>
       <p data-i18n="legal.cgv.art2_p4">Cette rémunération constitue la marge de SAFIX. Elle est divulguée de manière transparente.</p>
       <h3 data-i18n="legal.cgv.h3">3. Prix</h3>
-      <p data-i18n="legal.cgv.p3">Les prix affichés sont en euros TTC. Ils sont mis à jour régulièrement d'après notre fournisseur partenaire. En cas d'écart à la confirmation, le client est prévenu avant prise en charge. Pour un paiement par carte, des frais de traitement du paiement (1,5 % + 0,25 €) s'ajoutent ; ils sont affichés dans le détail des coûts avant validation et couvrent uniquement les frais du prestataire de paiement.</p>
+      <p data-i18n="legal.cgv.p3">Les prix affichés sont en euros TTC. Ils sont mis à jour régulièrement d'après notre fournisseur partenaire. En cas d'écart à la confirmation, le client est prévenu avant prise en charge. Le prix affiché est le prix payé : aucun frais de paiement n'est ajouté, quel que soit le moyen de paiement.</p>
       <h3 data-i18n="legal.cgv.h4">4. Validation de la commande</h3>
       <p data-i18n="legal.cgv.art4_p1">Avant tout paiement, le client doit explicitement cocher la case d'autorisation suivante :</p>
       <p data-i18n="legal.cgv.art4_p2"><em>« Je mandate le réparateur pour acheter la pièce pour mon compte auprès du fournisseur. »</em></p>
@@ -8860,15 +8858,12 @@ function syncCart() {
   const items = cart.reduce((s, i) => s + i.price * (i.qty || 1), 0);
   const deliv = getDeliveryCost();
   const baseAmount = items + deliv;
-  // Frais de paiement Stripe (1,5 % + 0,25 €) calculés en GROSS-UP :
-  // Pour que SAFIX reçoive `baseAmount` net, le client doit payer
-  //   T = (baseAmount + 0,25) / 0,985
-  // → frais affichés = T - baseAmount  (couvre 100 % du coût Stripe, zéro pour SAFIX)
-  // Ces frais transitent dans le total facturé Stripe — ils ne touchent
-  // pas la marge du réparateur. Note : si baseAmount=0 (panier vide), pas de frais.
-  const stripeFees = baseAmount > 0
-    ? +(((baseAmount + 0.25) / 0.985) - baseAmount).toFixed(2)
-    : 0;
+  // Frais de paiement : ABSORBÉS par SAFIX pour TOUS les moyens de paiement
+  // (décision du 19/07/2026 — la surfacturation carte aux particuliers est
+  // encadrée par l'art. L.112-12 du Code monétaire et financier ; Apple Pay/
+  // Google Pay/PayPal les absorbaient déjà). Le client paie le prix affiché,
+  // rien de plus.
+  const stripeFees = 0;
   // Total panier affiché = base SANS frais Stripe.
   // Les frais sont ajoutés UNIQUEMENT à la page de paiement (Stripe Checkout
   // ou Apple Pay sheet) → le client voit le total complet à ce moment-là.
@@ -9423,7 +9418,7 @@ window.SAFIX_CONFIG = window.SAFIX_CONFIG || {
   },
   stripe: {
     enabled:    true,
-    publicKey:  'pk_test_51TT8xtF7kToZ9qFc1QPGe75RMx97JoKcyxTgyXzttRiZPRRTQ1sRre0wFRqm73WAz34m60WcSFqGtjl8WOgrSV5b00FgN1EIC7',
+    publicKey:  'pk_live_51TT8xtF7kToZ9qFcMtWVMH3gZSmUWzpkk1T2TxrxLRWGDx2vjAc7gtr9QKLnoVbah7n0yWiP9xXHRFe6bE7XtrpR00q8TX4ytp',
     createSessionUrl: '/api/create-checkout-session',  // backend serverless (voir api/create-checkout-session.js)
     successUrl: window.location.origin + window.location.pathname + '?paid=1&session={CHECKOUT_SESSION_ID}',
     cancelUrl:  window.location.origin + window.location.pathname + '?cancel=1',
@@ -10154,11 +10149,10 @@ document.getElementById('checkoutBtn')?.addEventListener('click', async () => {
   const items = cart.reduce((s,i)=>s+i.price*(i.qty||1),0);
   const deliv = getDeliveryCost();
   const baseAmount = items + deliv;
-  // Calcul des frais Stripe (gross-up : SAFIX reçoit `baseAmount` net)
-  const paymentFees = baseAmount > 0
-    ? +(((baseAmount + 0.25) / 0.985) - baseAmount).toFixed(2)
-    : 0;
-  const totalNow = +(baseAmount + paymentFees).toFixed(2);
+  // Frais de paiement ABSORBÉS par SAFIX (tous moyens de paiement — décision
+  // du 19/07/2026, conformité L.112-12 CMF) : le client paie le prix affiché.
+  const paymentFees = 0;
+  const totalNow = +(baseAmount).toFixed(2);
   if (window.SAFIX_CONFIG.stripe.enabled) {
     const lineItems = cart.map(i => ({
       name: i.name, price: i.price, qty: i.qty || 1,
@@ -10753,7 +10747,7 @@ const I18N = {
     'legal.cgv.art2_l5':'la rémunération de SAFIX pour le service de commande et la prestation de réparation.',
     'legal.cgv.art2_p4':'Cette rémunération constitue la marge de SAFIX. Elle est divulguée de manière transparente.',
     'legal.cgv.h3':'3. Prix',
-    'legal.cgv.p3':"Les prix affichés sont en euros TTC. Ils sont mis à jour régulièrement d'après notre fournisseur partenaire. En cas d'écart à la confirmation, le client est prévenu avant prise en charge. Pour un paiement par carte, des frais de traitement du paiement (1,5 % + 0,25 €) s'ajoutent ; ils sont affichés dans le détail des coûts avant validation et couvrent uniquement les frais du prestataire de paiement.",
+    'legal.cgv.p3':"Les prix affichés sont en euros TTC. Ils sont mis à jour régulièrement d'après notre fournisseur partenaire. En cas d'écart à la confirmation, le client est prévenu avant prise en charge. Le prix affiché est le prix payé : aucun frais de paiement n'est ajouté, quel que soit le moyen de paiement.",
     'legal.cgv.h4':'4. Validation de la commande',
     'legal.cgv.art4_p1':"Avant tout paiement, le client doit explicitement cocher la case d'autorisation suivante :",
     'legal.cgv.art4_p2':"<em>« Je mandate le réparateur pour acheter la pièce pour mon compte auprès du fournisseur. »</em>",
@@ -10988,7 +10982,7 @@ const I18N = {
     'legal.cgv.art2_l5':'SAFIX\'s remuneration for the ordering service and the repair service.',
     'legal.cgv.art2_p4':'This remuneration constitutes SAFIX\'s margin. It is disclosed transparently.',
     'legal.cgv.h3':'3. Prices',
-    'legal.cgv.p3':'The prices displayed are in euros, all taxes included. They are updated regularly from our partner supplier. In the event of a discrepancy at confirmation, the customer is notified before the work is undertaken. For card payments, a payment-processing fee (1.5% + €0.25) is added; it is shown in the cost breakdown before checkout and only covers the payment provider fees.',
+    'legal.cgv.p3':'The prices displayed are in euros, all taxes included. They are updated regularly from our partner supplier. In the event of a discrepancy at confirmation, the customer is notified before the work is undertaken. The displayed price is the price you pay: no payment fee is added, whatever the payment method.',
     'legal.cgv.h4':'4. Order validation',
     'legal.cgv.art4_p1':'Before any payment, the customer must explicitly tick the following authorisation box:',
     'legal.cgv.art4_p2':"<em>“I mandate the repairer to purchase the part on my behalf from the supplier.”</em>",

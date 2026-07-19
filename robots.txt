@@ -11,6 +11,7 @@ Allow: /
 Disallow: /api/
 Disallow: /scraper/
 Disallow: /bot/
+Disallow: /dashboard/
 
 User-agent: Googlebot-Image
 Disallow: /
@@ -20,12 +21,14 @@ Allow: /
 Disallow: /api/
 Disallow: /scraper/
 Disallow: /bot/
+Disallow: /dashboard/
 
 User-agent: DuckDuckBot
 Allow: /
 Disallow: /api/
 Disallow: /scraper/
 Disallow: /bot/
+Disallow: /dashboard/
 
 # ─── Bots IA / scrapers de données → bloqués (anti-vol contenu) ───
 User-agent: GPTBot
@@ -130,6 +133,7 @@ Allow: /
 Disallow: /api/
 Disallow: /scraper/
 Disallow: /bot/
+Disallow: /dashboard/
 Disallow: /node_modules/
 Disallow: /scripts/
 Disallow: /.git/

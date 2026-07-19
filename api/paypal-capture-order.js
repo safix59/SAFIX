@@ -195,8 +195,12 @@ export default async function handler(req, res) {
             .catch(e => console.warn('[PayPal] bot trigger fail:', e.message)));
         }
 
-        const RK = process.env.RESEND_API_KEY, RF = process.env.RESEND_FROM, RT = process.env.RESEND_TO;
-        if (RK && RF && RT) {
+        // Repli d'adresse boutique aligné sur le chemin Stripe : si RESEND_TO
+        // manque, la notification part quand même sur support@ (avant : une
+        // commande PayPal payée ne générait AUCUN mail boutique dans ce cas).
+        const RK = process.env.RESEND_API_KEY, RF = process.env.RESEND_FROM;
+        const RT = process.env.RESEND_TO || 'support@safix59.fr';
+        if (RK && RF) {
           const e = (v) => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
           const rows = lineItems.map(li => `<tr><td>${e(li.name)}</td><td>×${li.qty}</td></tr>`).join('');
           pending.push(fetch('https://api.resend.com/emails', {
