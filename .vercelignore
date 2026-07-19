@@ -20,6 +20,9 @@ scraper/package-lock.json
 scraper/.DS_Store
 scraper/.gitignore
 
+# Archive Utopya figée (référence repo-only — inutile en prod, pas servie)
+scraper/archive/
+
 # Bot (tourne sur Render)
 bot/
 
