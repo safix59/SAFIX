@@ -464,7 +464,7 @@ export function Cartes() {
             </span>
             <div className="flex-1 min-w-0">
               <div className="text-[13.5px] font-semibold">{gapTotal} carte{gapTotal > 1 ? 's' : ''}-modèle{gapTotal > 1 ? 's' : ''} sans prix ou sans lien fournisseur</div>
-              <div className="text-[11.5px] text-fg3">Ces cartes sont automatiquement masquées sur le site tant qu'elles n'ont pas de prix.</div>
+              <div className="text-[11.5px] text-fg3">Ces cartes s'affichent avec un « ! » à la place du prix sur le site (non commandables).</div>
             </div>
             <Button size="sm" onClick={() => setGapsOpen(true)}>Voir le détail</Button>
           </div>
@@ -531,9 +531,9 @@ export function Cartes() {
         <div className="p-5">
           <h2 className="text-[16px] font-bold tracking-tight">Cartes sans prix ou sans lien fournisseur</h2>
           <p className="mt-1 text-[12px] text-fg3 leading-relaxed">
-            Ces cartes-modèles n'affichent aucun tarif : elles sont <b className="text-fg2">masquées automatiquement sur le site</b> tant
-            qu'elles ne sont pas complétées. Pour les rétablir : ajouter le lien fournisseur (puis relever le prix), ou créer une
-            carte personnalisée avec un prix fixe. Les ruptures de stock, elles, restent visibles sur le site.
+            Ces cartes-modèles n'ont aucun tarif : sur le site, elles affichent un <b className="text-fg2">« ! » à la place du prix</b> et
+            ne sont pas commandables. Pour les compléter : ajouter le lien fournisseur (puis relever le prix), ou créer une
+            carte personnalisée avec un prix fixe. Les ruptures de stock affichent « Rupture de stock ».
           </p>
           <div className="mt-4 space-y-4 max-h-[52vh] overflow-y-auto pr-1">
             {[...gaps.entries()].map(([id, g]) => {
